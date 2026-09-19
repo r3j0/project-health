@@ -15,7 +15,11 @@ export async function request<T>(
 ): Promise<{ data: T; headers: Headers }> {
   let response: Response;
   try {
-    response = await fetch(`/api/v1${path}`, {
+    // Direct browser requests keep each client's IP visible to the backend.
+    const base = (
+      process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001/api/v1"
+    ).replace(/\/$/, "");
+    response = await fetch(`${base}${path}`, {
       ...options,
       credentials: "include",
       cache: "no-store",

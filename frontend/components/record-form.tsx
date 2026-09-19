@@ -1,10 +1,14 @@
 "use client";
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CircleMinus, Plus } from "lucide-react";
 import { ApiError, errorMessage } from "@/lib/http";
-import { api } from "@/lib/session";
+import { api, getSession } from "@/lib/session";
+import {
+  measurementDrafts,
+  type MeasurementDraft,
+} from "@/lib/measurement-drafts";
 import { getCatalog, getRecord, koreaDate } from "@/lib/measurements";
 import {
   buildInput,
@@ -15,7 +19,15 @@ import {
   type FormMetadata,
 } from "@/lib/measurement-form";
 import type { Catalog, Measurement, RecordResponse } from "@/lib/types";
-import { Dialog, FieldError, Header, Notice, Shell, SubmitLabel } from "./ui";
+import {
+  Dialog,
+  FieldError,
+  Header,
+  Loading,
+  Notice,
+  Shell,
+  SubmitLabel,
+} from "./ui";
 import { CatalogPicker } from "./catalog-picker";
 import { RecordValues } from "./record-values";
 import { useUnsaved } from "./use-unsaved";
@@ -27,34 +39,86 @@ export function RecordForm({
   initialCatalog?: Catalog;
 }) {
   const router = useRouter();
-  const [base, setBase] = useState(initial),
+  const [owner] = useState(() => getSession().user!.id);
+  const [sessionGeneration] = useState(() => getSession().generation);
+  const draftId = initial?.data.id ?? "new";
+  const persist = useCallback(
+    (draft: MeasurementDraft) => {
+      if (getSession().generation === sessionGeneration)
+        measurementDrafts.save(owner, draftId, draft);
+    },
+    [owner, draftId, sessionGeneration],
+  );
+  const [restored, setRestored] = useState(() =>
+    measurementDrafts.read(owner, draftId),
+  );
+  const [base, setBase] = useState(
+      initial && restored?.etag ? { ...initial, etag: restored.etag } : initial,
+    ),
     [meta, setMeta] = useState<FormMetadata>(
-      initial ? metadataFrom(initial.data) : { ...emptyMetadata },
+      restored?.meta ??
+        (initial ? metadataFrom(initial.data) : { ...emptyMetadata }),
     );
   const [items, setItems] = useState<FormItem[]>(
-    initial
-      ? initial.data.items.map((i) => ({
-          code: i.measurementCode,
-          value: i.value,
-          grade: i.reportedGrade ?? "",
-        }))
-      : [],
+    restored?.items ??
+      (initial
+        ? initial.data.items.map((i) => ({
+            code: i.measurementCode,
+            value: i.value,
+            grade: i.reportedGrade ?? "",
+          }))
+        : []),
   );
   const [catalog, setCatalog] = useState(initialCatalog),
-    [step, setStep] = useState(initial ? 2 : 1),
+    [step, setStep] = useState(restored?.step ?? (initial ? 2 : 1)),
+    [catalogRetry, setCatalogRetry] = useState(0),
     [picker, setPicker] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({}),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
-    [dirty, setDirty] = useState(false);
-  const [uncertain, setUncertain] = useState(false),
-    [gone, setGone] = useState(false),
+    [dirty, setDirty] = useState(restored?.dirty ?? false);
+  const [uncertain, setUncertain] = useState(restored?.uncertain ?? false),
+    [gone, setGone] = useState(restored?.gone ?? false),
     [latest, setLatest] = useState<RecordResponse | null>(null),
     [conflict, setConflict] = useState(false);
-  const pending = useRef<{ body: string; key: string } | null>(null),
+  const pending = useRef<{ body: string; key: string } | null>(
+      restored?.pending ?? null,
+    ),
+    saveInFlight = useRef(false),
     guard = useRef(false),
     notice = useRef<HTMLDivElement>(null);
   const savedRef = useUnsaved(dirty || uncertain);
+  const snapshot = useCallback(
+    (saving = false): MeasurementDraft => ({
+      meta,
+      items,
+      step,
+      catalogVersion: catalog?.version ?? restored?.catalogVersion,
+      etag: base?.etag,
+      pending: pending.current,
+      uncertain: uncertain || saving || saveInFlight.current,
+      gone,
+      dirty: dirty || saving,
+    }),
+    [meta, items, step, catalog, restored, base, uncertain, gone, dirty],
+  );
+  useEffect(() => {
+    if (!savedRef.current && (dirty || uncertain || saveInFlight.current))
+      persist(snapshot());
+  }, [snapshot, busy, dirty, uncertain, persist, savedRef]);
+  useEffect(() => {
+    if (!restored?.catalogVersion || restored.step !== 2 || initialCatalog)
+      return;
+    const abort = new AbortController();
+    getCatalog(restored.catalogVersion, abort.signal)
+      .then((value) => {
+        if (!abort.signal.aborted) setCatalog(value);
+      })
+      .catch((error) => {
+        if (!abort.signal.aborted) setMessage(errorMessage(error));
+      });
+    return () => abort.abort();
+  }, [restored, initialCatalog, catalogRetry]);
   const locked = busy || uncertain || gone;
   const validItems = items.filter((i) => i.value !== "");
   function update<K extends keyof FormMetadata>(
@@ -90,7 +154,12 @@ export function RecordForm({
     guard.current = true;
     setBusy(true);
     try {
-      if (!catalog) setCatalog(await getCatalog(base?.data.catalogVersion));
+      if (!catalog)
+        setCatalog(
+          await getCatalog(
+            base?.data.catalogVersion ?? restored?.catalogVersion,
+          ),
+        );
       setStep(2);
       window.scrollTo({ top: 0 });
     } catch (e) {
@@ -133,6 +202,9 @@ export function RecordForm({
     )
       pending.current = { body, key: crypto.randomUUID() };
     guard.current = true;
+    saveInFlight.current = true;
+    // Persist before awaiting: a 401 can unmount this form during reauthentication.
+    persist(snapshot(true));
     setBusy(true);
     try {
       const result = await api<Measurement>(
@@ -151,16 +223,29 @@ export function RecordForm({
           "저장 결과를 확인하지 못했어요. 다시 확인해 주세요.",
         );
       savedRef.current = true;
+      measurementDrafts.remove(owner, draftId);
       setDirty(false);
       setUncertain(false);
       router.replace(`/measurements/${result.data.id}?saved=1`);
     } catch (e) {
       setMessage(errorMessage(e));
+      const resolved =
+        e instanceof ApiError &&
+        (base ? [404, 412].includes(e.status) : e.status === 410);
+      const stillUncertain =
+        !resolved &&
+        (uncertain ||
+          !(e instanceof ApiError) ||
+          e.status === 0 ||
+          e.status >= 500);
+      setUncertain(stillUncertain);
+      persist({
+        ...snapshot(),
+        uncertain: stillUncertain,
+      });
       if (e instanceof ApiError) {
-        if (e.status === 0 || e.status >= 500) setUncertain(true);
-        else {
-          setUncertain(false);
-          if (e.status === 410 || e.status === 404) setGone(true);
+        if (!stillUncertain) {
+          if (e.status === 410 || (base && e.status === 404)) setGone(true);
           if (e.status === 412 && base) {
             setConflict(true);
             getRecord(base.data.id)
@@ -198,6 +283,7 @@ export function RecordForm({
       }
       scrollError();
     } finally {
+      saveInFlight.current = false;
       setBusy(false);
       guard.current = false;
     }
@@ -225,6 +311,38 @@ export function RecordForm({
     setErrors({});
     setDirty(false);
     setUncertain(false);
+    measurementDrafts.remove(owner, draftId);
+    setRestored(undefined);
+  }
+  function discardDraft() {
+    if (
+      busy ||
+      uncertain ||
+      !window.confirm(
+        "작성 중인 임시 입력을 지울까요? 서버에 저장된 기록은 바뀌지 않아요.",
+      )
+    )
+      return;
+    measurementDrafts.remove(owner, draftId);
+    pending.current = null;
+    setRestored(undefined);
+    setBase(initial);
+    setMeta(initial ? metadataFrom(initial.data) : { ...emptyMetadata });
+    setItems(
+      initial
+        ? initial.data.items.map((item) => ({
+            code: item.measurementCode,
+            value: item.value,
+            grade: item.reportedGrade ?? "",
+          }))
+        : [],
+    );
+    setCatalog(initialCatalog);
+    setStep(initial ? 2 : 1);
+    setDirty(false);
+    setGone(false);
+    setMessage("");
+    setErrors({});
   }
   const textField = (
     id: string,
@@ -245,6 +363,30 @@ export function RecordForm({
       <FieldError message={errors[field]} />
     </div>
   );
+  if (step === 2 && !catalog)
+    return (
+      <Shell>
+        <Header title="입력 복원" back="/measurements" />
+        <div className="content stack">
+          {message ? (
+            <>
+              <Notice>{message}</Notice>
+              <button
+                className="button secondary"
+                onClick={() => {
+                  setMessage("");
+                  setCatalogRetry((value) => value + 1);
+                }}
+              >
+                다시 불러오기
+              </button>
+            </>
+          ) : (
+            <Loading label="작성 중이던 입력을 불러오고 있어요" />
+          )}
+        </div>
+      </Shell>
+    );
   return (
     <Shell>
       <Header
@@ -269,6 +411,18 @@ export function RecordForm({
           className={message ? "stack-sm" : ""}
           style={message ? { marginBottom: 20 } : undefined}
         >
+          {restored && (
+            <Notice tone="info">이전에 작성하던 입력을 복원했어요.</Notice>
+          )}
+          {(restored || gone) && !uncertain && !busy && (
+            <button
+              type="button"
+              className="text-button"
+              onClick={discardDraft}
+            >
+              임시 입력 지우기
+            </button>
+          )}
           {message && <Notice>{message}</Notice>}
           {uncertain && (
             <Notice tone="info">

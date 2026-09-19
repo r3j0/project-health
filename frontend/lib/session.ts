@@ -1,5 +1,6 @@
 import { ApiError, errorMessage, request } from "./http";
 import type { AuthResponse, User } from "./types";
+import { measurementDrafts } from "./measurement-drafts";
 type Session = {
   status: "loading" | "authenticated" | "anonymous" | "error";
   user: User | null;
@@ -26,6 +27,7 @@ function publish(next: Session) {
   for (const listener of listeners) listener();
 }
 function accept(auth: AuthResponse, broadcast = true, newLogin = false) {
+  measurementDrafts.setOwner(auth.user.id);
   accessToken = auth.access_token;
   publish({
     status: "authenticated",
@@ -37,14 +39,16 @@ function accept(auth: AuthResponse, broadcast = true, newLogin = false) {
   if (broadcast)
     channel?.postMessage({ type: "authenticated", auth, newLogin });
 }
-function clear(broadcast = true) {
+function clear(reason: "expired" | "logout" = "expired", broadcast = true) {
+  if (reason === "logout") measurementDrafts.clear();
+  else measurementDrafts.suspend();
   accessToken = null;
   publish({
     status: "anonymous",
     user: null,
     generation: session.generation + 1,
   });
-  if (broadcast) channel?.postMessage({ type: "logout" });
+  if (broadcast) channel?.postMessage({ type: "logout", reason });
 }
 async function locked<T>(action: () => Promise<T>): Promise<T> {
   if (navigator.locks)
@@ -56,7 +60,8 @@ export function startSession() {
   if (typeof BroadcastChannel !== "undefined") {
     channel = new BroadcastChannel("modu-auth-session");
     channel.onmessage = ({ data }) => {
-      if (data?.type === "logout") clear(false);
+      if (data?.type === "logout")
+        clear(data.reason === "expired" ? "expired" : "logout", false);
       if (
         data?.type === "authenticated" &&
         typeof data.auth?.access_token === "string" &&
@@ -82,7 +87,7 @@ export async function refresh(failedToken?: string | null) {
     if (accessToken && accessToken !== failedToken) return;
     // Without cross-tab locking, do not rotate cookies unsafely; explicit login still works.
     if (!navigator.locks) {
-      clear(false);
+      clear("expired", false);
       throw new ApiError(
         401,
         "자동 로그인 유지가 지원되지 않는 환경이에요. 다시 로그인해 주세요.",
@@ -133,7 +138,7 @@ export async function logout() {
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
     });
-    clear();
+    clear("logout");
   });
 }
 export async function api<T>(path: string, options: RequestInit = {}) {
