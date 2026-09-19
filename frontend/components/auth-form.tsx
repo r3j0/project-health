@@ -17,9 +17,10 @@ import { useSession } from "./session-provider";
 function destination() {
   const next = new URLSearchParams(window.location.search).get("next") ?? "";
   return /^\/measurements(?:\/new|\/[a-f0-9-]+(?:\/edit)?)?$/.test(next) ||
-    next === "/account"
+    next === "/account" ||
+    next === "/"
     ? next
-    : "/measurements";
+    : "/";
 }
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const register = mode === "register",

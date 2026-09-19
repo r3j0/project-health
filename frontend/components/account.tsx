@@ -6,7 +6,7 @@ import { ChevronRight, LogOut } from "lucide-react";
 import { api, logout } from "@/lib/session";
 import { errorMessage } from "@/lib/http";
 import type { User } from "@/lib/types";
-import { ArtworkSlot, Dialog, Header, Loading, Notice, Shell } from "./ui";
+import { ArtworkSlot, Dialog, Loading, Notice, Shell } from "./ui";
 export function Account() {
   const [user, setUser] = useState<User | null>(null),
     [error, setError] = useState(""),
@@ -38,7 +38,7 @@ export function Account() {
   }
   return (
     <Shell>
-      <Header title="내 계정" back="/measurements" />
+      <h1 className="sr-only">내 프로필</h1>
       <div className="content stack">
         {error && <Notice>{error}</Notice>}
         {user ? (

@@ -26,7 +26,14 @@ async function signout(page: Page) {
     .click();
   await expect(page).toHaveURL(/\/login/);
 }
-async function signup(page: Page) {
+async function openRecords(page: Page) {
+  await page
+    .getByRole("navigation", { name: "하단 메뉴" })
+    .getByRole("link", { name: "내 프로필", exact: true })
+    .click();
+  await page.getByRole("link", { name: "내 측정 기록", exact: true }).click();
+}
+async function signup(page: Page, destination: "records" | "main" = "records") {
   const email = `frontend-e2e-${crypto.randomUUID()}@example.test`;
   await page.goto("/register");
   await page.getByLabel("이메일", { exact: true }).fill(email);
@@ -43,8 +50,11 @@ async function signup(page: Page) {
     ).toBeEnabled({ timeout: 65000 });
     await page.getByRole("button", { name: "가입하고 시작하기" }).click();
   }
-  await expect(page).toHaveURL(/\/measurements$/);
-  await expect(page.getByText("첫 기록을 기다리고 있어요")).toBeVisible();
+  await expect(page).toHaveURL(new URL("/", page.url()).href);
+  if (destination === "records") {
+    await openRecords(page);
+    await expect(page.getByText("첫 기록을 기다리고 있어요")).toBeVisible();
+  }
   return email;
 }
 async function startRecord(page: Page, age = "25") {
@@ -133,7 +143,7 @@ test("가입 → 정확한 부분 저장 → 새로고침 → 수정 → 삭제 
     .getByRole("button", { name: "기록 삭제", exact: true })
     .click();
   await expect(page.getByText("첫 기록을 기다리고 있어요")).toBeVisible();
-  await page.getByRole("link", { name: "계정", exact: true }).click();
+  await page.getByRole("link", { name: "내 프로필", exact: true }).click();
   await expect(page.getByText(email, { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "로그아웃", exact: true }).click();
   await page
@@ -144,6 +154,8 @@ test("가입 → 정확한 부분 저장 → 새로고침 → 수정 → 삭제 
   await page.getByLabel("이메일", { exact: true }).fill(email);
   await page.getByLabel("비밀번호", { exact: true }).fill(password);
   await page.getByRole("button", { name: "로그인", exact: true }).click();
+  await expect(page).toHaveURL(new URL("/", page.url()).href);
+  await openRecords(page);
   await expect(page.getByText("첫 기록을 기다리고 있어요")).toBeVisible();
 });
 test("실제 저장 응답 유실 후 같은 키로 재시도해 중복 생성하지 않는다", async ({
@@ -218,7 +230,7 @@ test("동시 새로고침 후 인증 유지, 한 탭의 로그아웃이 다른 �
   await Promise.all([page.reload(), second.reload()]);
   for (const tab of [page, second])
     await expect(tab.getByText("첫 기록을 기다리고 있어요")).toBeVisible();
-  await page.getByRole("link", { name: "계정", exact: true }).click();
+  await page.getByRole("link", { name: "내 프로필", exact: true }).click();
   await page.getByRole("button", { name: "로그아웃", exact: true }).click();
   await page
     .getByRole("dialog")
@@ -318,7 +330,7 @@ test("API 인증 만료 응답을 받으면 갱신 후 본인 계정을 다시 �
       await failApi(route, 401);
     } else await route.continue();
   });
-  await page.getByRole("link", { name: "계정", exact: true }).click();
+  await page.getByRole("link", { name: "내 프로필", exact: true }).click();
   await expect(page.getByText(email, { exact: true })).toBeVisible();
   expect(refreshes).toBe(1);
 });
@@ -572,6 +584,8 @@ test("만료 후 다른 계정으로 바꾸면 이전 계정의 임시 입력을
   await page.goto("/account");
   await signout(page);
   await login(page, alice);
+  await expect(page).toHaveURL(new URL("/", page.url()).href);
+  await openRecords(page);
   await expect(
     page.getByRole("link", { name: "새 기록 등록", exact: true }),
   ).toBeVisible();
@@ -649,6 +663,56 @@ test("로그아웃 401에서도 모든 탭의 인증과 임시 입력을 정리�
   await login(page, email);
   await expect(page.getByLabel("측정일", { exact: true })).toHaveValue("");
   expect(await draftKeys(page)).toEqual([]);
+});
+
+test("빈 메인과 내 프로필 탭을 오가며 기록을 관리하고 입력 이탈을 확인한다", async ({
+  page,
+}) => {
+  const email = await signup(page, "main");
+  const nav = page.getByRole("navigation", { name: "하단 메뉴" });
+  const mainTab = nav.getByRole("link", { name: "메인", exact: true });
+  const profileTab = nav.getByRole("link", { name: "내 프로필", exact: true });
+  await expect(nav.getByRole("link")).toHaveText(["메인", "내 프로필"]);
+  await expect(mainTab).toHaveAttribute("aria-current", "page");
+  // The only main-page element is an accessible, visually hidden heading.
+  await expect(page.getByRole("main").locator(":scope > *")).toHaveCount(1);
+  await expect(page.getByRole("main").locator("h1")).toHaveClass("sr-only");
+  await page.reload();
+  await expect(mainTab).toHaveAttribute("aria-current", "page");
+
+  await profileTab.click();
+  await expect(
+    page.getByRole("heading", { name: "내 프로필", exact: true }),
+  ).toHaveClass("sr-only");
+  await expect(page.getByText(email, { exact: true })).toBeVisible();
+  await expect(profileTab).toHaveAttribute("aria-current", "page");
+  await page.goBack();
+  await expect(mainTab).toHaveAttribute("aria-current", "page");
+  await page.goForward();
+  await expect(profileTab).toHaveAttribute("aria-current", "page");
+  await page.getByRole("link", { name: "내 측정 기록", exact: true }).click();
+  await startRecord(page);
+  await add(page, "신장", "170");
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await mainTab.click();
+  await expect(page).toHaveURL(/\/measurements\/new$/);
+  await expect(page.getByLabel("신장", { exact: true })).toHaveValue("170");
+  page.once("dialog", (dialog) => dialog.accept());
+  await mainTab.click();
+  await expect(mainTab).toHaveAttribute("aria-current", "page");
+  await openRecords(page);
+  await page.getByRole("link", { name: "새 기록 등록", exact: true }).click();
+  await expect(page.getByLabel("신장", { exact: true })).toHaveValue("170");
+  await save(page);
+
+  const editButton = page.getByRole("link", { name: "기록 수정", exact: true });
+  await editButton.scrollIntoViewIfNeeded();
+  const buttonBox = await editButton.boundingBox();
+  const navBox = await nav.boundingBox();
+  expect(buttonBox!.y + buttonBox!.height).toBeLessThanOrEqual(navBox!.y);
+  await profileTab.click();
+  await signout(page);
+  await expect(nav).toHaveCount(0);
 });
 
 test("로그아웃의 권한·요청 제한·서버·통신 오류는 입력을 유지하고 재시도한다", async ({

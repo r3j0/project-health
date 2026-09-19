@@ -12,6 +12,7 @@
   --muted: #64748b;
   --error: #b42332;
   --success: #157347;
+  --bottom-navigation-height: 72px;
 }
 * {
   box-sizing: border-box;
@@ -112,6 +113,45 @@ h3 {
   min-height: 100dvh;
   background: var(--surface);
   padding-bottom: env(safe-area-inset-bottom);
+}
+.authenticated-app .app-shell {
+  padding-bottom: calc(
+    var(--bottom-navigation-height) + env(safe-area-inset-bottom)
+  );
+}
+.bottom-navigation {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  width: 100%;
+  max-width: 560px;
+  height: calc(var(--bottom-navigation-height) + env(safe-area-inset-bottom));
+  margin-inline: auto;
+  padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.bottom-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 44px;
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 550;
+}
+.bottom-tab[aria-current] {
+  color: var(--navy);
+  font-weight: 750;
+}
+.bottom-tab:hover {
+  background: var(--tint);
 }
 .page-header {
   min-height: 80px;
@@ -648,6 +688,9 @@ fieldset:disabled select {
 }
 .sticky-actions p {
   margin-bottom: 10px;
+}
+.authenticated-app .sticky-actions {
+  bottom: calc(var(--bottom-navigation-height) + env(safe-area-inset-bottom));
 }
 .metadata-form {
   min-height: calc(100dvh - 160px);

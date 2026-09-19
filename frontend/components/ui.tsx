@@ -57,11 +57,7 @@ export function Header({
           <ArrowLeft size={22} />
         </Link>
       ) : (
-        <Link
-          className="mini-brand"
-          href="/measurements"
-          aria-label="모두채력 내 기록"
-        >
+        <Link className="mini-brand" href="/" aria-label="모두채력 메인">
           모두<span>채력</span>
         </Link>
       )}

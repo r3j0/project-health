@@ -6,12 +6,11 @@ import {
   ChevronRight,
   Plus,
   SlidersHorizontal,
-  UserRound,
 } from "lucide-react";
 import { api } from "@/lib/session";
 import { errorMessage } from "@/lib/http";
 import type { MeasurementPage } from "@/lib/types";
-import { ArtworkSlot, Header, Loading, Notice, Shell } from "./ui";
+import { ArtworkSlot, Loading, Notice, Shell } from "./ui";
 export function RecordList() {
   const [filters, setFilters] = useState({ from: "", to: "" }),
     [open, setOpen] = useState(false),
@@ -19,15 +18,7 @@ export function RecordList() {
     [to, setTo] = useState("");
   return (
     <Shell>
-      <Header
-        title="내 측정 기록"
-        right={
-          <Link className="header-link" href="/account">
-            <UserRound size={17} />
-            계정
-          </Link>
-        }
-      />
+      <h1 className="sr-only">내 측정 기록</h1>
       <div className="list-intro">
         <p className="eyebrow">MY FITNESS RECORD</p>
         <h2>차곡차곡, 나의 체력 기록</h2>
