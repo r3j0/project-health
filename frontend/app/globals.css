@@ -659,6 +659,9 @@ fieldset:disabled select {
   padding-top: 22px;
 }
 .dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
   padding: 20px;
   border: 1px solid var(--border);
   border-radius: 20px;
