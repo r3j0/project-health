@@ -1,0 +1,669 @@
+import 'reflect-metadata';
+import type { INestApplication } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import { randomUUID } from 'node:crypto';
+import request from 'supertest';
+import type { App } from 'supertest/types.js';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { AppModule } from '../src/app.module.js';
+import { DatabaseService } from '../src/database/database.service.js';
+import { configureApp } from '../src/setup-app.js';
+
+type Account = { user: { id: string }; access_token: string };
+type Item = {
+  measurementCode: string;
+  value: string;
+  unit: string;
+  reportedGrade?: string | null;
+};
+type RecordBody = {
+  id: string;
+  measuredOn: string;
+  revision: number;
+  ageAtMeasurement: number;
+  sexAtMeasurement: string | null;
+  reportKind: string;
+  centerName: string | null;
+  reportedOverallGrade: string | null;
+  createdAt: string;
+  updatedAt: string;
+  sourceProgram: string;
+  entryMethod: string;
+  items: Item[];
+  catalogVersion: string;
+  missingMeasurementCodes: string[];
+  evaluation: { status: string; reason: string };
+};
+type Catalog = {
+  version: string;
+  checkedOn: string;
+  definitions: Array<{
+    code: string;
+    factor: string;
+    unit: string;
+    sourceUrls: string[];
+  }>;
+};
+
+describe('Authenticated measurement CRUD against PostgreSQL', () => {
+  let app: INestApplication<App>;
+  let database: DatabaseService;
+  let owner: Account;
+  let other: Account;
+  let version: string;
+  const userIds: string[] = [];
+
+  beforeAll(async () => {
+    const module = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+    app = module.createNestApplication();
+    configureApp(app);
+    await app.init();
+    database = app.get(DatabaseService);
+    owner = await register();
+    other = await register();
+    const catalog = await request(app.getHttpServer())
+      .get('/api/v1/measurement-catalog')
+      .expect(200);
+    version = (catalog.body as Catalog).version;
+  });
+
+  beforeEach(async () => {
+    await database.measurementCreateRequest.deleteMany({
+      where: { userId: { in: userIds } },
+    });
+    await database.measurement.deleteMany({
+      where: { userId: { in: userIds } },
+    });
+  });
+
+  afterAll(async () => {
+    await database?.user.deleteMany({ where: { id: { in: userIds } } });
+    await app?.close();
+  });
+
+  async function register() {
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .set('X-CSRF-Protection', '1')
+      .send({
+        email: `crud-${randomUUID()}@example.test`,
+        password: 'measurement integration password',
+      })
+      .expect(201);
+    const account = response.body as Account;
+    userIds.push(account.user.id);
+    return account;
+  }
+
+  function payload(extra: Record<string, unknown> = {}) {
+    return {
+      catalogVersion: version,
+      measuredOn: '2026-09-17',
+      ageAtMeasurement: 25,
+      items: [{ measurementCode: 'sit_and_reach', value: '-3.25', unit: 'cm' }],
+      ...extra,
+    };
+  }
+  function create(body = payload(), key = randomUUID(), account = owner) {
+    return request(app.getHttpServer())
+      .post('/api/v1/measurements')
+      .set('Authorization', `Bearer ${account.access_token}`)
+      .set('Idempotency-Key', key)
+      .send(body);
+  }
+  function get(id: string, account = owner) {
+    return request(app.getHttpServer())
+      .get(`/api/v1/measurements/${id}`)
+      .set('Authorization', `Bearer ${account.access_token}`);
+  }
+  function patch(
+    id: string,
+    body: Record<string, unknown>,
+    revision = 1,
+    account = owner,
+  ) {
+    return request(app.getHttpServer())
+      .patch(`/api/v1/measurements/${id}`)
+      .set('Authorization', `Bearer ${account.access_token}`)
+      .set('If-Match', `"${revision}"`)
+      .send(body);
+  }
+  function remove(id: string, revision = 1, account = owner) {
+    return request(app.getHttpServer())
+      .delete(`/api/v1/measurements/${id}`)
+      .set('Authorization', `Bearer ${account.access_token}`)
+      .set('If-Match', `"${revision}"`);
+  }
+  function list(query: Record<string, string | number> = {}, account = owner) {
+    return request(app.getHttpServer())
+      .get('/api/v1/measurements')
+      .query(query)
+      .set('Authorization', `Bearer ${account.access_token}`);
+  }
+
+  it('serves the actual versioned catalog and all supported age boundaries', async () => {
+    for (const [age, factorCount] of [
+      [13, 8],
+      [18, 8],
+      [19, 7],
+      [64, 7],
+    ]) {
+      const response = await request(app.getHttpServer())
+        .get('/api/v1/measurement-catalog')
+        .query({ age, version })
+        .expect(200);
+      const catalog = response.body as Catalog;
+      expect(catalog.version).toBe(version);
+      expect(catalog.definitions).toHaveLength(15);
+      expect(new Set(catalog.definitions.map((def) => def.factor)).size).toBe(
+        factorCount,
+      );
+      expect(
+        catalog.definitions.every((def) => def.sourceUrls.length > 0),
+      ).toBe(true);
+      expect(
+        catalog.definitions.some((def) => def.code === 'repeated_jump'),
+      ).toBe(age <= 18);
+    }
+    const all = await request(app.getHttpServer())
+      .get('/api/v1/measurement-catalog')
+      .expect(200);
+    expect((all.body as Catalog).definitions).toHaveLength(19);
+    await request(app.getHttpServer())
+      .get('/api/v1/measurement-catalog?age=65')
+      .expect(400);
+    await request(app.getHttpServer())
+      .get('/api/v1/measurement-catalog?version=unknown')
+      .expect(404);
+  });
+
+  it('persists a partial record and returns only actual values and applicable missing items', async () => {
+    const created = await create().expect(201);
+    const record = created.body as RecordBody;
+    expect(created.headers.etag).toBe('"1"');
+    expect(created.headers.location).toBe(`/api/v1/measurements/${record.id}`);
+    expect(created.headers['cache-control']).toBe('no-store');
+    expect(record.items).toEqual([
+      {
+        measurementCode: 'sit_and_reach',
+        value: '-3.25',
+        unit: 'cm',
+        reportedGrade: null,
+      },
+    ]);
+    expect(record.missingMeasurementCodes).toHaveLength(14);
+    expect(record.missingMeasurementCodes).toContain('height');
+    expect(record.missingMeasurementCodes).not.toContain('t_wall_coordination');
+    expect(record.sexAtMeasurement).toBeNull();
+    expect(record.reportedOverallGrade).toBeNull();
+    expect(record.sourceProgram).toBe('nfa100');
+    expect(record.entryMethod).toBe('manual');
+    expect(record.evaluation.status).toBe('not_evaluated');
+    expect(record).not.toHaveProperty('score');
+    const stored = await database.measurement.findUniqueOrThrow({
+      where: { id: record.id },
+      include: { items: true },
+    });
+    expect(stored.userId).toBe(owner.user.id);
+    expect(stored.items[0].value.toFixed()).toBe('-3.25');
+    await get(record.id).expect(200, record);
+  });
+
+  it('preserves zero, long decimal strings, independent alternatives, and original grades', async () => {
+    const response = await create(
+      payload({
+        reportedOverallGrade: '결과표 원문',
+        items: [
+          { measurementCode: 'cross_sit_up', value: '0', unit: '회' },
+          {
+            measurementCode: 'reaction_time',
+            value: '0.301234567890123456789',
+            unit: '초',
+          },
+          {
+            measurementCode: 'relative_grip_strength',
+            value: '105.25',
+            unit: '%',
+            reportedGrade: '원문 등급',
+          },
+          { measurementCode: 'shuttle_run_20m', value: '42', unit: '회' },
+          {
+            measurementCode: 'treadmill_vo2max',
+            value: '37.1',
+            unit: 'ml/kg/min',
+          },
+          {
+            measurementCode: 'step_test_vo2max',
+            value: '36.4',
+            unit: 'ml/kg/min',
+          },
+        ],
+      }),
+    ).expect(201);
+    const record = response.body as RecordBody;
+    const values = Object.fromEntries(
+      record.items.map((item) => [item.measurementCode, item.value]),
+    );
+    expect(values).toMatchObject({
+      cross_sit_up: '0',
+      reaction_time: '0.301234567890123456789',
+      relative_grip_strength: '105.25',
+    });
+    expect(record.items).toHaveLength(6);
+    expect(record.reportedOverallGrade).toBe('결과표 원문');
+    expect(
+      record.items.find(
+        (item) => item.measurementCode === 'relative_grip_strength',
+      )?.reportedGrade,
+    ).toBe('원문 등급');
+  });
+
+  it.each([
+    { measuredOn: '2025-02-29' },
+    { measuredOn: '2999-01-01' },
+    { ageAtMeasurement: 12 },
+    { ageAtMeasurement: 65 },
+    { ageAtMeasurement: '25' },
+    { sexAtMeasurement: 'guessed' },
+    { items: [] },
+    { catalogVersion: 'unknown' },
+    { userId: 'untrusted-owner' },
+    { sourceProgram: 'self_test' },
+    { revision: 100 },
+    { entryMethod: 'ocr' },
+    { centerName: '' },
+  ])(
+    'rejects invalid input without storing partial data: %j',
+    async (extra) => {
+      await create(payload(extra)).expect(400);
+      expect(
+        await database.measurement.count({ where: { userId: owner.user.id } }),
+      ).toBe(0);
+      expect(
+        await database.measurementCreateRequest.count({
+          where: { userId: owner.user.id },
+        }),
+      ).toBe(0);
+    },
+  );
+
+  it.each(['', ' ', 'NaN', 'Infinity', '1e-3', null, false, 0, 0.1])(
+    'never coerces an invalid decimal into a saved value: %j',
+    async (value) => {
+      await create(
+        payload({ items: [{ measurementCode: 'height', value, unit: 'cm' }] }),
+      ).expect(400);
+    },
+  );
+
+  it.each([
+    ['relative_grip_strength', '32', 'kg', 'unit'],
+    ['repeated_jump', '20', '회', 'measurementCode'],
+    ['cross_sit_up', '1.5', '회', 'value'],
+    ['cross_sit_up', '-1', '회', 'value'],
+    ['body_fat_percentage', '101', '%', 'value'],
+    ['reaction_time', '0', '초', 'value'],
+    ['unknown_measurement', '1', '회', 'measurementCode'],
+  ])(
+    'returns field-level errors for %s',
+    async (measurementCode, value, unit, field) => {
+      const response = await create(
+        payload({ items: [{ measurementCode, value, unit }] }),
+      ).expect(400);
+      expect(
+        (response.body as { errors: Array<{ field: string }> }).errors.some(
+          (error) => error.field === `items.0.${field}`,
+        ),
+      ).toBe(true);
+    },
+  );
+
+  it('rejects duplicate codes and collects invalid item fields without partial saving', async () => {
+    const item = { measurementCode: 'height', value: '165', unit: 'cm' };
+    await create(payload({ items: [item, item] })).expect(400);
+    const invalid = await create(
+      payload({
+        items: [item, { measurementCode: 'height', value: '-1', unit: 'kg' }],
+      }),
+    ).expect(400);
+    expect(
+      (invalid.body as { errors: unknown[] }).errors.length,
+    ).toBeGreaterThan(0);
+    expect(
+      await database.measurement.count({ where: { userId: owner.user.id } }),
+    ).toBe(0);
+  });
+
+  it('requires authentication for every private route and rejects spoofed owners', async () => {
+    const id = randomUUID();
+    await request(app.getHttpServer()).get('/api/v1/measurements').expect(401);
+    await request(app.getHttpServer())
+      .get(`/api/v1/measurements/${id}`)
+      .expect(401);
+    await request(app.getHttpServer())
+      .post('/api/v1/measurements')
+      .send(payload())
+      .expect(401);
+    await request(app.getHttpServer())
+      .patch(`/api/v1/measurements/${id}`)
+      .send({ centerName: 'test' })
+      .expect(401);
+    await request(app.getHttpServer())
+      .delete(`/api/v1/measurements/${id}`)
+      .expect(401);
+    await create(payload({ userId: other.user.id })).expect(400);
+    await list({ userId: other.user.id }).expect(400);
+  });
+
+  it('hides other users records on read, update, and delete', async () => {
+    const record = (await create().expect(201)).body as RecordBody;
+    const missing = await get(randomUUID(), other).expect(404);
+    const denied = await get(record.id, other).expect(404);
+    expect(denied.body).toEqual(missing.body);
+    await patch(record.id, { centerName: 'changed' }, 1, other).expect(404);
+    await remove(record.id, 1, other).expect(404);
+    await get(record.id).expect(200, record);
+    await list({}, other).expect(200, { items: [], nextCursor: null });
+  });
+
+  it('deduplicates retries and normalized item order but not distinct requests on the same date', async () => {
+    const key = randomUUID();
+    const body = payload({
+      items: [
+        { measurementCode: 'height', value: '165.00', unit: 'cm' },
+        { measurementCode: 'weight', value: '60', unit: 'kg' },
+      ],
+    });
+    const first = await create(body, key).expect(201);
+    const replay = await create(
+      payload({
+        items: [
+          { measurementCode: 'weight', value: '60.0', unit: 'kg' },
+          { measurementCode: 'height', value: '165', unit: 'cm' },
+        ],
+      }),
+      key,
+    ).expect(200);
+    expect(replay.body).toEqual(first.body);
+    expect(replay.headers['idempotency-replayed']).toBe('true');
+    await create(body).expect(201);
+    expect(
+      await database.measurement.count({ where: { userId: owner.user.id } }),
+    ).toBe(2);
+  });
+
+  it('requires a request key and rejects reuse for different inputs', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/measurements')
+      .set('Authorization', `Bearer ${owner.access_token}`)
+      .send(payload())
+      .expect(400);
+    const key = randomUUID();
+    const first = await create(payload(), key).expect(201);
+    await create(payload({ centerName: 'different' }), key).expect(409);
+    await get((first.body as RecordBody).id).expect(200, first.body);
+  });
+
+  it('isolates request keys by user and handles simultaneous retries', async () => {
+    const key = randomUUID();
+    const responses = await Promise.all([
+      create(payload(), key),
+      create(payload(), key),
+    ]);
+    expect(
+      responses.map((result) => result.status).sort((a, b) => a - b),
+    ).toEqual([200, 201]);
+    expect((responses[0].body as RecordBody).id).toBe(
+      (responses[1].body as RecordBody).id,
+    );
+    const another = await create(payload(), key, other).expect(201);
+    expect((another.body as RecordBody).id).not.toBe(
+      (responses[0].body as RecordBody).id,
+    );
+    expect(
+      await database.measurement.count({ where: { userId: owner.user.id } }),
+    ).toBe(1);
+  });
+
+  it('rolls back a reserved key on validation failure, allowing a corrected retry', async () => {
+    const key = randomUUID();
+    await create(payload({ catalogVersion: 'unknown' }), key).expect(400);
+    expect(
+      await database.measurementCreateRequest.count({
+        where: { userId: owner.user.id },
+      }),
+    ).toBe(0);
+    await create(payload(), key).expect(201);
+  });
+
+  it('updates supplied fields, replaces items atomically, and increments revision', async () => {
+    const key = randomUUID();
+    const original = (
+      await create(
+        payload({ centerName: 'original', sexAtMeasurement: 'female' }),
+        key,
+      )
+    ).body as RecordBody;
+    const changed = await patch(original.id, {
+      centerName: null,
+      items: [{ measurementCode: 'weight', value: '61.25', unit: 'kg' }],
+    }).expect(200);
+    const record = changed.body as RecordBody;
+    expect(record.revision).toBe(2);
+    expect(changed.headers.etag).toBe('"2"');
+    expect(record.centerName).toBeNull();
+    expect(record.sexAtMeasurement).toBe('female');
+    expect(record.createdAt).toBe(original.createdAt);
+    expect(record.items).toEqual([
+      {
+        measurementCode: 'weight',
+        value: '61.25',
+        unit: 'kg',
+        reportedGrade: null,
+      },
+    ]);
+    expect(record.missingMeasurementCodes).toContain('sit_and_reach');
+    expect(new Date(record.updatedAt).getTime()).toBeGreaterThanOrEqual(
+      new Date(original.updatedAt).getTime(),
+    );
+    const retry = await create(
+      payload({ centerName: 'original', sexAtMeasurement: 'female' }),
+      key,
+    ).expect(200);
+    expect(retry.body).toEqual(record);
+    await patch(record.id, { items: [] }, 2).expect(400);
+    await get(record.id).expect(200, record);
+  });
+
+  it('revalidates existing items after age changes and accepts a valid replacement', async () => {
+    const original = (
+      await create(
+        payload({
+          ageAtMeasurement: 18,
+          items: [
+            { measurementCode: 'repeated_jump', value: '20', unit: '회' },
+          ],
+        }),
+      ).expect(201)
+    ).body as RecordBody;
+    await patch(original.id, { ageAtMeasurement: 19 }).expect(400);
+    await get(original.id).expect(200, original);
+    const changed = await patch(original.id, {
+      ageAtMeasurement: 19,
+      items: [{ measurementCode: 'cross_sit_up', value: '21', unit: '회' }],
+    }).expect(200);
+    expect((changed.body as RecordBody).revision).toBe(2);
+  });
+
+  it('requires write preconditions and rejects stale or empty changes', async () => {
+    const original = (await create().expect(201)).body as RecordBody;
+    const path = `/api/v1/measurements/${original.id}`;
+    await request(app.getHttpServer())
+      .patch(path)
+      .set('Authorization', `Bearer ${owner.access_token}`)
+      .send({ centerName: 'test' })
+      .expect(428);
+    await request(app.getHttpServer())
+      .delete(path)
+      .set('Authorization', `Bearer ${owner.access_token}`)
+      .expect(428);
+    await patch(original.id, {}).expect(400);
+    await patch(original.id, { catalogVersion: version }).expect(400);
+    await patch(original.id, { userId: other.user.id }).expect(400);
+    await patch(original.id, { centerName: 'updated' }).expect(200);
+    await patch(original.id, { centerName: 'stale' }).expect(412);
+    await remove(original.id).expect(412);
+    expect(((await get(original.id)).body as RecordBody).centerName).toBe(
+      'updated',
+    );
+  });
+
+  it('allows only one concurrent update of the same revision', async () => {
+    const original = (await create().expect(201)).body as RecordBody;
+    const responses = await Promise.all([
+      patch(original.id, {
+        items: [{ measurementCode: 'height', value: '165', unit: 'cm' }],
+      }),
+      patch(original.id, {
+        items: [{ measurementCode: 'weight', value: '62', unit: 'kg' }],
+      }),
+    ]);
+    expect(
+      responses.map((result) => result.status).sort((a, b) => a - b),
+    ).toEqual([200, 412]);
+    const success = responses.find((result) => result.status === 200)!;
+    await get(original.id).expect(200, success.body);
+    expect((success.body as RecordBody).revision).toBe(2);
+  });
+
+  it('deletes the record and items while preventing a retried create from resurrecting it', async () => {
+    const key = randomUUID();
+    const original = (await create(payload(), key).expect(201))
+      .body as RecordBody;
+    await remove(original.id).expect(204);
+    await get(original.id).expect(404);
+    await remove(original.id).expect(404);
+    expect(
+      await database.measurementItem.count({
+        where: { measurementId: original.id },
+      }),
+    ).toBe(0);
+    await create(payload(), key).expect(410);
+    expect(
+      await database.measurement.count({ where: { userId: owner.user.id } }),
+    ).toBe(0);
+    const tombstone = await database.measurementCreateRequest.findUniqueOrThrow(
+      { where: { userId_key: { userId: owner.user.id, key } } },
+    );
+    expect(tombstone.measurementId).toBeNull();
+  });
+
+  it('serializes concurrent deletion and update without reviving a deleted record', async () => {
+    const original = (await create().expect(201)).body as RecordBody;
+    const [updated, deleted] = await Promise.all([
+      patch(original.id, { centerName: 'changed' }),
+      remove(original.id),
+    ]);
+    if (deleted.status === 204) {
+      expect(updated.status).toBe(404);
+      await get(original.id).expect(404);
+    } else {
+      expect(deleted.status).toBe(412);
+      expect(updated.status).toBe(200);
+      await get(original.id).expect(200, updated.body);
+    }
+  });
+
+  it('paginates by measurement date and ID without exposing another user records', async () => {
+    const records: RecordBody[] = [];
+    for (const measuredOn of [
+      '2026-09-15',
+      '2026-09-17',
+      '2026-09-17',
+      '2026-09-16',
+      '2026-09-17',
+    ]) {
+      records.push(
+        (await create(payload({ measuredOn })).expect(201)).body as RecordBody,
+      );
+    }
+    await create(
+      payload({ measuredOn: '2026-09-18' }),
+      randomUUID(),
+      other,
+    ).expect(201);
+    const seen: string[] = [];
+    let cursor: string | null = null;
+    do {
+      const response = await list({
+        limit: 2,
+        ...(cursor ? { cursor } : {}),
+      }).expect(200);
+      const page = response.body as {
+        items: Array<{ id: string; itemCount: number }>;
+        nextCursor: string | null;
+      };
+      expect(page.items.every((item) => item.itemCount === 1)).toBe(true);
+      seen.push(...page.items.map((item) => item.id));
+      cursor = page.nextCursor;
+      expect(seen.length).toBeLessThanOrEqual(records.length);
+    } while (cursor);
+    expect(seen).toEqual(
+      records
+        .sort(
+          (a, b) =>
+            b.measuredOn.localeCompare(a.measuredOn) ||
+            a.id.localeCompare(b.id),
+        )
+        .map((record) => record.id),
+    );
+    const filtered = await list({
+      from: '2026-09-16',
+      to: '2026-09-16',
+    }).expect(200);
+    expect((filtered.body as { items: unknown[] }).items).toHaveLength(1);
+    await list({ limit: 0 }).expect(400);
+    await list({ limit: 51 }).expect(400);
+    await list({ cursor: 'invalid' }).expect(400);
+    await list({ from: '2026-09-17', to: '2026-09-16' }).expect(400);
+    await get('not-a-uuid').expect(400);
+  });
+
+  it('exposes revision and retry headers to the web frontend', async () => {
+    const response = await create()
+      .set('Origin', 'http://localhost:3000')
+      .expect(201);
+    expect(response.headers['access-control-expose-headers']).toContain('ETag');
+    expect(response.headers['access-control-expose-headers']).toContain(
+      'Idempotency-Replayed',
+    );
+    const preflight = await request(app.getHttpServer())
+      .options('/api/v1/measurements')
+      .set('Origin', 'http://localhost:3000')
+      .set('Access-Control-Request-Method', 'POST')
+      .set(
+        'Access-Control-Request-Headers',
+        'Authorization,Content-Type,Idempotency-Key',
+      )
+      .expect(204);
+    expect(preflight.headers['access-control-allow-headers']).toContain(
+      'Idempotency-Key',
+    );
+    expect(preflight.headers['access-control-allow-headers']).toContain(
+      'If-Match',
+    );
+  });
+
+  it('uses live authentication state instead of accepting a revoked Bearer token', async () => {
+    const account = await register();
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/logout')
+      .set('X-CSRF-Protection', '1')
+      .set('Authorization', `Bearer ${account.access_token}`)
+      .expect(204);
+    await list({}, account).expect(401);
+    await create(payload(), randomUUID(), account).expect(401);
+  });
+});

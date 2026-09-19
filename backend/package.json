@@ -14,23 +14,46 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main.js",
-    "lint": "oxlint --type-aware --deny-warnings src/ test/",
+    "lint": "oxlint --type-aware --deny-warnings --ignore-pattern src/generated/ src/ test/",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
-    "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
-    "check": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run test:e2e && npm run build"
+    "test:e2e": "node scripts/test-database.mjs",
+    "check": "npm run db:validate && npm run db:generate && npm run format:check && npm run lint && npm run typecheck && npm test && npm run test:e2e && npm run build",
+    "prebuild": "prisma generate",
+    "prestart:dev": "prisma generate",
+    "pretypecheck": "prisma generate",
+    "db:generate": "prisma generate",
+    "db:validate": "prisma validate",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:status": "prisma migrate status",
+    "db:local:start": "node scripts/local-postgres.mjs start",
+    "db:local:stop": "node scripts/local-postgres.mjs stop",
+    "auth:secret": "node scripts/auth-secret.mjs",
+    "auth:cleanup": "node scripts/auth-cleanup.mjs",
+    "demo:measurement": "npm run build && node scripts/demo-measurement.mjs",
+    "prestart": "prisma generate",
+    "prestart:debug": "prisma generate"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.3",
     "@nestjs/config": "^12.0.0",
     "@nestjs/core": "^12.0.3",
     "@nestjs/platform-express": "^12.0.3",
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "argon2": "^0.45.1",
+    "cookie": "^2.0.1",
+    "dotenv": "^18.0.0",
+    "jose": "^6.2.12",
+    "pg": "^8.23.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@nestjs/cli": "^12.0.0",
@@ -38,14 +61,24 @@
     "@nestjs/testing": "^12.0.3",
     "@types/express": "^5.0.0",
     "@types/node": "^24.0.0",
+    "@types/pg": "^8.23.1",
     "@types/supertest": "^7.0.0",
     "@vitest/coverage-v8": "^4.1.2",
     "oxlint": "^1.58.0",
     "oxlint-tsgolint": "^7.0.2001",
     "prettier": "^3.4.2",
+    "prisma": "7.10.0",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
     "typescript": "^6.0.2",
     "vitest": "^4.1.2"
+  },
+  "overrides": {
+    "@prisma/config": {
+      "deepmerge-ts": "8.0.2"
+    },
+    "prisma": {
+      "mysql2": "3.24.4"
+    }
   }
 }

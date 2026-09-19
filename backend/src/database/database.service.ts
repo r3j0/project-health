@@ -1,0 +1,53 @@
+import { Inject, Injectable } from '@nestjs/common';
+import type { OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '../generated/prisma/client.js';
+import { databaseOptions } from './database-options.js';
+
+@Injectable()
+export class DatabaseService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
+  constructor(@Inject(ConfigService) config: ConfigService) {
+    const { schema, ...pool } = databaseOptions(
+      config.getOrThrow<string>('DATABASE_URL'),
+    );
+    super({ adapter: new PrismaPg(pool, { schema }) });
+  }
+
+  async onModuleInit(): Promise<void> {
+    try {
+      await this.$connect();
+    } catch {
+      await this.$disconnect();
+      throw new Error(
+        'Database connection failed. Check DATABASE_URL and PostgreSQL availability.',
+      );
+    }
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.$disconnect();
+  }
+
+  async isReady(): Promise<boolean> {
+    try {
+      // Both account columns and the catalog must exist, not just the connection.
+      const [, definitions] = await this.$transaction([
+        this.user.findFirst({
+          select: { id: true, email: true, updatedAt: true },
+        }),
+        this.measurementDefinition.count(),
+        this.authSession.findFirst({ select: { id: true } }),
+        this.authRefreshToken.findFirst({ select: { createdAt: true } }),
+        this.authRateLimit.findFirst({ select: { attempts: true } }),
+        this.measurementCreateRequest.findFirst({ select: { key: true } }),
+      ]);
+      return definitions > 0;
+    } catch {
+      return false;
+    }
+  }
+}
