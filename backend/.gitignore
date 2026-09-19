@@ -1,10 +1,12 @@
-docs/
+docs/notion-context.md
+.local/
 
 # Dependencies and build output
 node_modules/
 dist/
 coverage/
 *.tsbuildinfo
+src/generated/
 
 # Local environment variables
 .env

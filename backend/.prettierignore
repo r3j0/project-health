@@ -2,4 +2,6 @@ node_modules/
 dist/
 coverage/
 package-lock.json
-docs/
+docs/notion-context.md
+.local/
+src/generated/

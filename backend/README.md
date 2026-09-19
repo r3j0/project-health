@@ -1,134 +1,125 @@
 # Backend
 
-Project Health의 NestJS API 서버입니다. `frontend/`와 별도로 의존성을 설치하고 실행합니다.
+Project Health의 NestJS API 서버입니다. 백엔드 코드·설정·문서·테스트는 이 디렉토리에서 관리합니다.
+
+- [개발 원칙](AGENTS.md)
+- [API 버전 관리](docs/api-versioning.md): 현재 `/api/v1`, DB·측정 기준·기록 수정 버전과 구분
+- [계정 스키마](docs/account-schema.md): `id`, `email`, `password`, `created_at`, `updated_at`
+- [회원가입·로그인·로그아웃·토큰 갱신 API와 직접 테스트](docs/auth-api.md)
+- [측정 데이터 명세](docs/measurement-data-spec.md)
+- [측정 기록 CRUD API와 직접 테스트](docs/measurements-api.md)
+- [DB 설계와 마이그레이션](docs/database.md)
 
 ## 개발 환경
 
-- Node.js 24 LTS (24.15 이상, `.nvmrc` 제공)
-- npm 및 `package-lock.json`으로 의존성 관리
-- NestJS 12, Express, TypeScript strict 모드, ESM
-- Oxlint, Prettier, Vitest, Supertest
-
-NestJS 12의 [공식 초기 설정](https://docs.nestjs.com/first-steps)을 기준으로 구성했습니다.
+Node.js 24.15 이상(`.nvmrc`), npm, NestJS 12, TypeScript ESM, PostgreSQL 17, Prisma 7.10을 사용합니다. 패키지 버전은 `package-lock.json`으로 고정합니다. 아래 명령은 모두 `backend/`에서 실행합니다.
 
 ## 시작하기
 
-저장소 루트에서 실행합니다.
+로컬 PostgreSQL 실행 파일(`initdb`, `pg_ctl`)이 PATH에 있다면:
 
 ```bash
-cd backend
-nvm use # nvm을 사용하는 경우. 해당 버전이 없으면 nvm install 실행
+nvm use
 npm ci
-cp .env.example .env
+npm run db:local:start
+npm run auth:secret
+npm run db:migrate:deploy
 npm run start:dev
 ```
 
-기본 주소는 `http://localhost:3001/api`이며, 파일을 수정하면 서버가 자동으로 다시 시작됩니다.
+`db:local:start`는 `backend/.local/`에 전용 DB 클러스터를 만들고 `127.0.0.1:15432`에서 실행합니다. 개발·테스트 DB를 분리하고 임의로 생성한 비밀번호를 사용합니다. `.env`가 없으면 접속 설정을 생성하며, 기존 `.env`는 덮어쓰지 않습니다. 기본 포트를 바꾸려면 최초 초기화 시 `LOCAL_POSTGRES_PORT`를 지정합니다. 종료는 `npm run db:local:stop`입니다.
+
+이미 준비한 PostgreSQL을 사용한다면 `.env.example`을 `.env`로 복사하고 실제 접속 정보로 바꾼 뒤 `npm run auth:secret`, `npm run db:migrate:deploy`를 실행합니다. 개발 도우미가 만든 DB는 배포용 인프라가 아닙니다.
+
+기본 API 주소는 `http://localhost:3001/api/v1`입니다.
+
+인증·측정·상태 확인 API 모두 명시적인 v1 경로를 사용합니다. 이전 `/api/...` 경로와 미지원 버전은 404를 반환합니다. 프론트와 호출 도구도 기본 경로를 `/api/v1`로 설정합니다.
 
 ```bash
-curl http://localhost:3001/api/health
-# {"status":"ok"}
+curl http://localhost:3001/api/v1/health
+curl http://localhost:3001/api/v1/health/ready
 ```
 
-상태 확인 API는 서버의 응답 여부만 확인합니다. DB 등 외부 서비스의 상태 검사는 아직 포함하지 않습니다.
+`/health`는 프로세스 응답 여부, `/health/ready`는 실제 DB 연결·계정 스키마·검사 카탈로그 준비 여부를 검사합니다. 준비되지 않으면 503을 반환하고 DB 접속 정보는 노출하지 않습니다. 서버 시작 시 DB 연결에 실패하면 시작을 중단합니다.
+
+현재 이메일 인증과 국민체력100 측정 기록 CRUD API를 구현했습니다. 비밀번호는 Argon2id 해시로 저장하고, 측정 기록은 인증된 본인만 조회·수정·삭제합니다. [인증 테스트](docs/auth-api.md)와 [측정 기록 테스트](docs/measurements-api.md)에 curl 예제가 있습니다. 소셜 로그인·이메일 확인·비밀번호 재설정·측정 점수 분석은 후속 범위입니다.
 
 ## 환경변수
 
-`backend/.env`를 자동으로 읽습니다. 시스템에 설정된 환경변수가 파일보다 우선하며, `.env`가 없어도 아래 기본값으로 실행됩니다. 잘못된 값은 서버 시작 시 오류로 처리됩니다.
+시스템 환경변수가 `.env`보다 우선합니다. 실제 접속 정보와 `.local/`은 Git에서 제외됩니다.
 
-| 변수              | 기본값                  | 용도                                                   |
-| ----------------- | ----------------------- | ------------------------------------------------------ |
-| `NODE_ENV`        | `development`           | `development`, `production`, `test` 중 선택            |
-| `PORT`            | `3001`                  | API 서버 포트 (1–65535)                                |
-| `FRONTEND_ORIGIN` | `http://localhost:3000` | 브라우저 CORS 허용 origin. 경로와 마지막 `/` 없이 입력 |
+| 변수                       | 기본값                    | 용도                                                 |
+| -------------------------- | ------------------------- | ---------------------------------------------------- |
+| `NODE_ENV`                 | `development`             | `development`, `production`, `test`                  |
+| `PORT`                     | `3001`                    | API 포트                                             |
+| `FRONTEND_ORIGIN`          | `http://localhost:3000`   | CORS 허용 origin. 인증을 대신하지 않음               |
+| `DATABASE_URL`             | 없음, 필수                | PostgreSQL 접속 주소. `schema` 옵션 지원             |
+| `TEST_DATABASE_URL`        | 없음, 통합 테스트 시 필수 | 개발·운영 DB와 다른 테스트 전용 DB                   |
+| `AUTH_JWT_SECRET`          | 없음, 필수                | 임의 32바이트 키의 64자리 hex 표현                   |
+| `AUTH_ACCESS_TTL_SECONDS`  | `900`                     | access token 수명(60~3600초)                         |
+| `AUTH_REFRESH_TTL_SECONDS` | `604800`                  | 세션 고정 수명(3600~2592000초, access보다 길어야 함) |
+| `AUTH_COOKIE_SAME_SITE`    | `lax`                     | 운영 HTTPS에서 `none` 허용                           |
+| `TRUST_PROXY_CIDRS`        | 없음                      | 실제 신뢰할 프록시 IP/CIDR을 쉼표로 구분             |
 
-환경변수 처리는 NestJS의 [ConfigModule](https://docs.nestjs.com/techniques/configuration)을 사용합니다. `.env` 파일은 Git에서 제외하고, 필요한 항목은 `.env.example`에 기록합니다. CORS 설정은 인증을 대신하지 않습니다.
+## DB와 배포 명령
 
-## 명령어
+| 명령어                                     | 용도                                        |
+| ------------------------------------------ | ------------------------------------------- |
+| `npm run db:local:start` / `db:local:stop` | 전용 로컬 PostgreSQL 시작·종료              |
+| `npm run db:generate`                      | 스키마에서 Prisma Client 생성               |
+| `npm run db:validate`                      | Prisma 스키마 검증                          |
+| `npm run db:migrate:dev -- --name 이름`    | 개발 DB에서 새 마이그레이션 작성            |
+| `npm run db:migrate:deploy`                | 검토·커밋한 마이그레이션 적용               |
+| `npm run db:status`                        | 마이그레이션 상태 확인                      |
+| `npm run start:dev`                        | 클라이언트 생성 후 변경 감지 서버 실행      |
+| `npm run start:debug`                      | 디버깅 서버 실행                            |
+| `npm run build`                            | 클라이언트 생성 후 `dist/` 빌드             |
+| `npm run start:prod`                       | 빌드된 서버 실행                            |
+| `npm run auth:secret`                      | 로컬 JWT 키 생성, 기존 값 보존              |
+| `npm run auth:cleanup`                     | 만료된 세션·refresh token·요청 제한 행 정리 |
 
-아래 명령어는 모두 `backend/`에서 실행합니다.
+배포 파이프라인에서는 의존성 설치·빌드 후 해당 환경의 `DATABASE_URL`로 `db:migrate:deploy`를 한 번 실행하고 서버를 시작합니다. `NODE_ENV=production`, HTTPS `FRONTEND_ORIGIN`, 비밀 관리 기능으로 주입한 `AUTH_JWT_SECRET`을 설정하고 API도 HTTPS로 제공합니다. 서버가 시작할 때 임의로 마이그레이션·샘플 사용자 생성을 실행하지 않습니다. 만료 세션 정리는 배포 환경에서 정기 실행합니다.
 
-| 명령어                 | 설명                                                       |
-| ---------------------- | ---------------------------------------------------------- |
-| `npm run start:dev`    | 변경 감지 개발 서버                                        |
-| `npm run start:debug`  | 디버거를 연결할 수 있는 개발 서버                          |
-| `npm run build`        | `dist/`로 빌드                                             |
-| `npm run start:prod`   | 빌드한 서버 실행. 실행 환경에서 `NODE_ENV=production` 설정 |
-| `npm run lint`         | 타입 정보를 활용한 코드 검사                               |
-| `npm run typecheck`    | 소스 및 테스트 TypeScript 타입 검사                        |
-| `npm run format`       | 소스, 설정, 문서 서식 정리                                 |
-| `npm run format:check` | 서식 검사                                                  |
-| `npm test`             | 단위 테스트                                                |
-| `npm run test:watch`   | 테스트 변경 감지                                           |
-| `npm run test:cov`     | 단위 테스트 커버리지                                       |
-| `npm run test:e2e`     | API 경로와 CORS 통합 테스트                                |
-| `npm run check`        | 서식·린트·타입·단위/통합 테스트·빌드 전체 검사             |
+## 검사와 테스트
+
+```bash
+npm run check
+```
+
+스키마·서식·린트·타입 검사, 단위·통합 테스트와 빌드를 실행합니다. 단위 테스트만 실행할 때는 `npm test`를 사용합니다. `npm run format`은 서식 정리, `npm run format:check`는 서식 검사입니다.
+
+`npm run test:e2e`는 `TEST_DATABASE_URL`의 DB 안에 매번 새로운 임시 스키마를 만들고 마이그레이션을 두 번 적용합니다. 실제 PostgreSQL로 테스트한 뒤 자신이 만든 스키마만 정리합니다. 테스트 DB가 설정되지 않거나 개발 DB와 같으면 실패하며, 인메모리 DB로 대체하거나 테스트를 건너뛰지 않습니다. 실행 환경은 로컬 DB 접속과 테스트용 포트 열기를 허용해야 합니다.
+
+| 테스트                           | 검증                                                                     |
+| -------------------------------- | ------------------------------------------------------------------------ |
+| `src/config/environment.spec.ts` | 환경변수·접속 주소 검증                                                  |
+| `test/accounts.e2e-spec.ts`      | 계정 5개 컬럼, 이메일 유일성·정규화, 수정 시각                           |
+| `test/auth.e2e-spec.ts`          | 실제 API·해싱·토큰 회전·재사용·동시 요청·로그아웃·CSRF·요청 제한         |
+| `test/database.e2e-spec.ts`      | 실제 저장·조회, 부분 기록, 단위·연령·값 제약, 동시 삭제, 카탈로그 불변성 |
+| `test/measurements.e2e-spec.ts`  | 측정 CRUD·소유권·재시도 중복 방지·수정 충돌·삭제·페이지 조회             |
+| `test/app.e2e-spec.ts`           | 서버 초기화, CORS, 상태 확인·503 응답                                    |
 
 ## 디렉토리 구조
 
 ```text
 backend/
+├── AGENTS.md
+├── docs/                       # 계정·측정·DB 명세
+├── prisma/
+│   ├── schema.prisma
+│   └── migrations/             # 테이블·제약·공식 기준 데이터
+├── scripts/                    # 로컬 DB 및 격리 테스트 도우미
 ├── src/
-│   ├── main.ts                 # 서버 실행 및 종료 처리
-│   ├── app.module.ts           # 루트 모듈
-│   ├── setup-app.ts            # 공통 API prefix와 CORS 설정
-│   ├── config/                # 환경변수 검증
-│   └── health/                # GET /api/health
-├── test/                      # API 통합 테스트
-├── .env.example
-├── nest-cli.json
-├── package.json
-└── tsconfig.json
+│   ├── auth/                   # 이메일 인증 API·해싱·토큰·가드
+│   ├── config/                 # 환경변수 검증
+│   ├── database/               # Prisma 연결·종료·준비 상태
+│   ├── generated/prisma/       # 생성 코드, Git 제외
+│   ├── measurements/           # 공식 카탈로그·본인 측정 기록 CRUD
+│   └── health/
+├── test/
+└── prisma.config.ts
 ```
 
-## 서버 실행 흐름
+새 기능은 기능별 Nest 모듈·컨트롤러·서비스로 추가하며, 필요한 모듈에서 `DatabaseModule`을 import해 `DatabaseService`를 주입합니다. ESM 로컬 import는 `.js` 확장자를 사용합니다. 생성 코드는 직접 수정하지 않습니다.
 
-1. `src/main.ts`에서 `NestFactory.create(AppModule)`로 애플리케이션을 생성합니다.
-2. `AppModule`이 환경변수 설정과 `HealthModule`을 불러옵니다. `ConfigModule`은 `.env`를 읽고 `config/environment.ts`의 검증 함수를 실행합니다.
-3. `setup-app.ts`에서 모든 API에 `/api` 접두사를 적용하고 `FRONTEND_ORIGIN`에 맞춰 CORS를 설정합니다.
-4. `main.ts`에서 종료 시 정리 작업을 위한 훅을 활성화하고, `PORT`에 지정한 포트로 서버를 실행합니다.
-
-예를 들어 `GET /api/health` 요청은 `HealthController`의 `getHealth()` 메서드에서 처리하며, 반환한 객체는 JSON 응답이 됩니다.
-
-## 기능 추가 방법
-
-새 기능은 `src/` 아래에 기능별 디렉토리로 추가합니다. 각 구성 요소의 역할은 다음과 같습니다.
-
-| 구성 요소  | 역할                                              | 회원 기능 예시        |
-| ---------- | ------------------------------------------------- | --------------------- |
-| Module     | 관련 컨트롤러와 서비스를 묶고 다른 모듈에 연결    | `users.module.ts`     |
-| Controller | URL과 HTTP 메서드를 정의하고 요청을 서비스로 전달 | `users.controller.ts` |
-| Service    | 조회·저장 등 비즈니스 로직 처리                   | `users.service.ts`    |
-
-`backend/`에서 Nest CLI로 기본 파일을 만들 수 있습니다.
-
-```bash
-npx nest generate module users
-npx nest generate controller users
-npx nest generate service users
-```
-
-생성한 기능 모듈은 `AppModule`의 `imports`에, 컨트롤러와 서비스는 해당 기능 모듈의 `controllers`와 `providers`에 등록되는지 확인합니다.
-
-ESM을 사용하므로 로컬 TypeScript 파일을 import할 때도 빌드 결과 기준으로 경로 끝에 `.js`를 붙입니다.
-
-```typescript
-import { UsersService } from './users.service.js';
-```
-
-## 코드 검사와 테스트
-
-- **Oxlint**: 타입 정보를 활용해 코드의 잠재적인 오류를 검사합니다. 경고도 검사 실패로 처리합니다.
-- **Prettier**: 코드와 문서의 서식을 통일합니다.
-- **TypeScript**: `strict` 모드로 소스와 테스트의 타입을 검사합니다.
-- **Vitest**: 단위 테스트와 통합 테스트를 실행합니다.
-- **Supertest**: Nest 애플리케이션에 HTTP 요청을 보내 응답을 검증합니다.
-
-현재 테스트 범위는 다음과 같습니다.
-
-| 파일                             | 검증 내용                                                          |
-| -------------------------------- | ------------------------------------------------------------------ |
-| `src/config/environment.spec.ts` | 환경변수 기본값, 포트 숫자 변환, 잘못된 포트·origin·실행 환경 거부 |
-| `test/app.e2e-spec.ts`           | `/api/health` 응답, `/api` 접두사 적용, 프런트엔드 CORS 사전 요청  |
-
-변경 후에는 `npm run check`로 서식, 린트, 타입, 단위·통합 테스트와 빌드를 한 번에 확인합니다. 통합 테스트는 임시 로컬 포트를 사용하므로 포트 열기가 허용된 환경에서 실행해야 합니다.
+Prisma 구성은 [공식 NestJS 안내](https://docs.prisma.io/docs/guides/frameworks/nestjs)를 참고하되 이 저장소의 ESM 설정을 유지합니다.
