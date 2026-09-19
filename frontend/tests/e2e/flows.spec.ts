@@ -617,3 +617,77 @@ test("브라우저 인증 요청은 프론트 프록시를 거치지 않고 공�
     page.getByRole("button", { name: "로그인", exact: true }),
   ).toBeEnabled();
 });
+
+async function draftKeys(page: Page) {
+  return page.evaluate(() =>
+    Object.keys(sessionStorage).filter((key) =>
+      key.startsWith("modu-measurement-draft:"),
+    ),
+  );
+}
+
+test("로그아웃 401에서도 모든 탭의 인증과 임시 입력을 정리한다", async ({
+  page,
+  context,
+}) => {
+  const email = await signup(page);
+  await startRecord(page);
+  await add(page, "신장", "170");
+  await expect.poll(() => draftKeys(page)).toHaveLength(1);
+  const second = await context.newPage();
+  await second.goto("/account");
+  await expect(second.getByText(email, { exact: true })).toBeVisible();
+  await context.clearCookies();
+  await second.route("**/api/v1/auth/logout", (route) => failApi(route, 401));
+
+  await signout(second);
+  await expect(page).toHaveURL(/\/login/);
+  for (const tab of [page, second]) {
+    await expect(tab.getByText(email, { exact: true })).toHaveCount(0);
+    expect(await draftKeys(tab)).toEqual([]);
+  }
+  await login(page, email);
+  await expect(page.getByLabel("측정일", { exact: true })).toHaveValue("");
+  expect(await draftKeys(page)).toEqual([]);
+});
+
+test("로그아웃의 권한·요청 제한·서버·통신 오류는 입력을 유지하고 재시도한다", async ({
+  page,
+  context,
+}) => {
+  const email = await signup(page);
+  await startRecord(page);
+  await add(page, "신장", "170");
+  await expect.poll(() => draftKeys(page)).toHaveLength(1);
+  const second = await context.newPage();
+  await second.goto("/account");
+  await expect(second.getByText(email, { exact: true })).toBeVisible();
+  const cases = [
+    { status: 403, message: "요청을 확인할 수 없어요" },
+    { status: 429, message: "요청이 많아요" },
+    { status: 503, message: "서버가 잠시 응답하지 않아요" },
+    { status: 0, message: "서버에 연결하지 못했어요" },
+  ];
+  for (const failure of cases) {
+    await second.route("**/api/v1/auth/logout", (route) =>
+      failure.status ? failApi(route, failure.status) : route.abort(),
+    );
+    await second.getByRole("button", { name: "로그아웃", exact: true }).click();
+    await second
+      .getByRole("dialog")
+      .getByRole("button", { name: "로그아웃", exact: true })
+      .click();
+    await expect(second.locator(".notice.error")).toContainText(
+      failure.message,
+    );
+    await expect(second).toHaveURL(/\/account$/);
+    await expect(second.getByText(email, { exact: true })).toBeVisible();
+    await expect(page.getByLabel("신장", { exact: true })).toHaveValue("170");
+    expect(await draftKeys(page)).toHaveLength(1);
+    await second.unroute("**/api/v1/auth/logout");
+  }
+
+  await signout(second);
+  await expect(page).toHaveURL(/\/login/);
+  expect(await draftKeys(page)).toEqual([]);
+});

@@ -131,13 +131,18 @@ export async function authenticate(
 }
 export async function logout() {
   return locked(async () => {
-    await request("/auth/logout", {
-      method: "POST",
-      headers: {
-        "X-CSRF-Protection": "1",
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      },
-    });
+    try {
+      await request("/auth/logout", {
+        method: "POST",
+        headers: {
+          "X-CSRF-Protection": "1",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+      });
+    } catch (error) {
+      // Invalid credentials still end this local session; other failures remain retryable.
+      if (!(error instanceof ApiError) || error.status !== 401) throw error;
+    }
     clear("logout");
   });
 }
