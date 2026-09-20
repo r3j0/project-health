@@ -7,7 +7,6 @@
   --canvas: #f8fafc;
   --surface: #fff;
   --tint: #eaf6fb;
-  --border: #e2e8f0;
   --text: #0f172a;
   --muted: #64748b;
   --error: #b42332;
@@ -130,7 +129,6 @@ h3 {
   height: calc(var(--bottom-navigation-height) + env(safe-area-inset-bottom));
   margin-inline: auto;
   padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--border);
   background: var(--surface);
 }
 .bottom-tab {
@@ -160,7 +158,6 @@ h3 {
   grid-template-columns: 70px 1fr 70px;
   align-items: center;
   gap: 4px;
-  border-bottom: 1px solid #f1f5f9;
 }
 .page-header h1 {
   text-align: center;
@@ -313,7 +310,6 @@ h3 {
   gap: 6px;
   width: 104px;
   height: 104px;
-  border: 1px dashed #afc9d9;
   border-radius: 50%;
   background: var(--tint);
   color: #7996ac;
@@ -345,26 +341,25 @@ h3 {
   width: 100%;
   min-height: 52px;
   padding: 12px 14px;
-  border: 1px solid #cdd8e6;
+  border: 0;
   border-radius: 12px;
-  background: white;
+  background: var(--canvas);
   color: var(--text);
   font-size: 16px;
-  box-shadow: 0 1px 2px #0a2a7003;
 }
 .field input::placeholder,
 .input::placeholder {
   color: #8493a8;
 }
-.field input:focus,
-.field select:focus,
-.input:focus {
-  border-color: var(--sky);
-  outline: 2px solid #1b99c430;
+.field input:focus-visible,
+.field select:focus-visible,
+.input:focus-visible {
+  outline: 2px solid var(--sky);
   outline-offset: 1px;
 }
-.field input[aria-invalid="true"] {
-  border-color: var(--error);
+.field input[aria-invalid="true"],
+.input[aria-invalid="true"] {
+  background: #fff2f3;
 }
 .input-wrap {
   position: relative;
@@ -430,7 +425,7 @@ fieldset:disabled select {
   font-weight: 700;
   font-size: 16px;
   line-height: 1.5;
-  border: 1px solid transparent;
+  border: 0;
 }
 .button.primary {
   background: var(--navy);
@@ -440,8 +435,7 @@ fieldset:disabled select {
   background: var(--navy-hover);
 }
 .button.secondary {
-  background: white;
-  border-color: #cbd5e1;
+  background: var(--canvas);
   color: var(--navy);
 }
 .button.secondary:hover:not(:disabled) {
@@ -478,7 +472,6 @@ fieldset:disabled select {
 .notice.error {
   color: #8e2130;
   background: #fff2f3;
-  border: 1px solid #f8d9df;
 }
 .notice.info {
   color: var(--navy);
@@ -532,12 +525,10 @@ fieldset:disabled select {
   justify-content: space-between;
   gap: 12px;
   padding: 20px;
-  border: 1px solid var(--border);
   border-radius: 16px;
-  transition: border-color 0.15s;
+  transition: background-color 0.15s;
 }
 .record-card:hover {
-  border-color: #9bb9d6;
   background: #fcfeff;
 }
 .record-card h2 {
@@ -577,7 +568,6 @@ fieldset:disabled select {
 }
 .filter-box {
   padding: 18px;
-  border: 1px solid var(--border);
   border-radius: 16px;
   margin-bottom: 20px;
   background: var(--canvas);
@@ -618,10 +608,8 @@ fieldset:disabled select {
 .step-line {
   height: 1px;
   width: 36px;
-  background: var(--border);
 }
 .accordion {
-  border: 1px solid var(--border);
   border-radius: 16px;
   padding: 0 16px;
 }
@@ -662,7 +650,6 @@ fieldset:disabled select {
 }
 .measurement-field {
   padding-bottom: 18px;
-  border-bottom: 1px solid #edf1f6;
 }
 .measurement-field .between {
   min-height: 44px;
@@ -683,7 +670,6 @@ fieldset:disabled select {
   background: #ffffffed;
   backdrop-filter: blur(8px);
   margin-top: 28px;
-  border-top: 1px solid #f1f5f9;
   z-index: 5;
 }
 .sticky-actions p {
@@ -706,7 +692,7 @@ fieldset:disabled select {
   inset: 0;
   margin: auto;
   padding: 20px;
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 20px;
   width: calc(100% - 32px);
   max-width: 460px;
@@ -714,7 +700,6 @@ fieldset:disabled select {
   overflow: auto;
   background: white;
   color: var(--text);
-  box-shadow: 0 20px 80px #0a2a7030;
 }
 .dialog::backdrop {
   background: #0f172a66;
@@ -751,7 +736,6 @@ fieldset:disabled select {
   background: white;
   text-align: left;
   padding: 14px 4px;
-  border-bottom: 1px solid #edf1f6;
   display: flex;
   gap: 12px;
   align-items: center;
@@ -781,12 +765,10 @@ fieldset:disabled select {
 }
 .result-card {
   padding: 0 18px;
-  border: 1px solid var(--border);
   border-radius: 16px;
 }
 .result-heading {
   padding: 18px 0;
-  border-bottom: 1px solid var(--border);
 }
 .value-list {
   margin: 0;
@@ -796,10 +778,6 @@ fieldset:disabled select {
   grid-template-columns: minmax(0, 1fr) minmax(80px, 1fr);
   gap: 16px;
   padding: 20px 0;
-  border-bottom: 1px solid #edf1f6;
-}
-.value-row:last-child {
-  border: 0;
 }
 .value-row dt {
   font-size: 14px;
@@ -843,7 +821,6 @@ fieldset:disabled select {
   min-width: 0;
 }
 .menu-card {
-  border: 1px solid var(--border);
   border-radius: 16px;
   overflow: hidden;
 }
@@ -854,9 +831,6 @@ fieldset:disabled select {
   min-height: 60px;
   padding: 14px 18px;
   gap: 16px;
-}
-.menu-row + .menu-row {
-  border-top: 1px solid var(--border);
 }
 .support-copy {
   margin-top: 24px;
@@ -880,10 +854,8 @@ fieldset:disabled select {
   .app-shell {
     margin: 24px auto;
     min-height: calc(100dvh - 48px);
-    border: 1px solid #dce6ef;
     border-radius: 24px;
     overflow: clip;
-    box-shadow: 0 12px 60px #15335c06;
   }
   .content {
     padding: 28px 32px 40px;
