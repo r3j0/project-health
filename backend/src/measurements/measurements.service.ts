@@ -208,10 +208,7 @@ export class MeasurementsService {
   }
 
   async get(userId: string, id: string) {
-    const record = await this.database.measurement.findFirst({
-      where: { id, userId },
-      include: includeRecord,
-    });
+    const record = await this.readSnapshot(userId, id);
     if (!record) throw this.notFound();
     return serializeRecord(record);
   }
@@ -223,30 +220,18 @@ export class MeasurementsService {
     patch: PatchMeasurementInput,
   ) {
     const record = await this.database.$transaction(async (tx) => {
-      const current = await tx.measurement.findFirst({
+      const existing = await tx.measurement.findFirst({
         where: { id, userId },
-        include: includeRecord,
+        select: { revision: true },
       });
-      if (!current) throw this.notFound();
-      if (current.revision !== revision) throw this.staleRevision();
+      if (!existing) throw this.notFound();
+      if (existing.revision !== revision) throw this.staleRevision();
       if (revision === 2147483647)
         throw new ConflictException('기록의 수정 버전 한도에 도달했습니다.');
-      const items =
-        patch.items ??
-        current.items.map((item) => ({
-          measurementCode: item.code,
-          value: item.value.toFixed(),
-          unit: item.unit,
-          reportedGrade: item.reportedGrade,
-        }));
-      validateItems(
-        {
-          ageAtMeasurement: patch.ageAtMeasurement ?? current.ageAtMeasurement,
-          items,
-        },
-        current.catalog.definitions,
-      );
       const { items: replacement, measuredOn, ...metadata } = patch;
+      // Claim the revision and lock the parent before reading related items.
+      // Concurrent writes are rejected before validation; invalid input rolls
+      // back this metadata/revision update along with the rest of the transaction.
       const changed = await tx.measurement.updateMany({
         where: { id, userId, revision },
         data: {
@@ -258,16 +243,31 @@ export class MeasurementsService {
         },
       });
       if (!changed.count) await this.rejectConcurrentChange(tx, userId, id);
-      if (replacement !== undefined) {
-        await tx.measurementItem.deleteMany({ where: { measurementId: id } });
-        await tx.measurementItem.createMany({
-          data: storedItems(replacement).map((item) => ({
-            ...item,
-            measurementId: id,
-            catalogVersion: current.catalogVersion,
-          })),
-        });
-      }
+      const current = await tx.measurement.findFirstOrThrow({
+        where: { id, userId },
+        include: includeRecord,
+      });
+      const items =
+        replacement ??
+        current.items.map((item) => ({
+          measurementCode: item.code,
+          value: item.value.toFixed(),
+          unit: item.unit,
+          reportedGrade: item.reportedGrade,
+        }));
+      validateItems(
+        { ageAtMeasurement: current.ageAtMeasurement, items },
+        current.catalog.definitions,
+      );
+      if (replacement === undefined) return current;
+      await tx.measurementItem.deleteMany({ where: { measurementId: id } });
+      await tx.measurementItem.createMany({
+        data: storedItems(replacement).map((item) => ({
+          ...item,
+          measurementId: id,
+          catalogVersion: current.catalogVersion,
+        })),
+      });
       return tx.measurement.findFirstOrThrow({
         where: { id, userId },
         include: includeRecord,
@@ -298,13 +298,26 @@ export class MeasurementsService {
       );
     if (!request.measurementId)
       throw new GoneException('이 요청으로 생성한 기록은 이미 삭제되었습니다.');
-    const record = await this.database.measurement.findFirst({
-      where: { id: request.measurementId, userId: request.userId },
-      include: includeRecord,
-    });
+    const record = await this.readSnapshot(
+      request.userId,
+      request.measurementId,
+    );
     if (!record)
       throw new GoneException('이 요청으로 생성한 기록은 이미 삭제되었습니다.');
     return { record: serializeRecord(record), replayed: true };
+  }
+
+  private readSnapshot(userId: string, id: string) {
+    // Prisma loads included relations with separate SELECTs. Read Committed
+    // could mix a previous revision with items changed or deleted in between.
+    return this.database.$transaction(
+      (tx) =>
+        tx.measurement.findFirst({
+          where: { id, userId },
+          include: includeRecord,
+        }),
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
   }
 
   private async rejectConcurrentChange(
