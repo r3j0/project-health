@@ -1,0 +1,185 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MeasurementCategory {
+  physique
+  health_fitness
+  motor_fitness
+}
+
+enum MeasurementFactor {
+  body_composition
+  strength
+  muscular_endurance
+  cardiorespiratory_endurance
+  flexibility
+  agility
+  power
+  coordination
+}
+
+enum MeasurementValueType {
+  integer
+  decimal
+}
+
+enum MeasurementSex {
+  male
+  female
+}
+
+enum MeasurementReportKind {
+  standard
+  simple
+  unknown
+}
+
+enum MeasurementSource {
+  nfa100
+}
+
+enum MeasurementEntryMethod {
+  manual
+}
+
+// User-selected account columns. OAuth/session state is a separate feature.
+model User {
+  id                  String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email               String                     @unique
+  password            String?
+  createdAt           DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime                   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  measurements        Measurement[]
+  sessions            AuthSession[]
+  measurementRequests MeasurementCreateRequest[]
+
+  @@map("users")
+}
+
+model AuthSession {
+  id            String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String             @map("user_id") @db.Uuid
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt     DateTime           @map("expires_at") @db.Timestamptz(6)
+  revokedAt     DateTime?          @map("revoked_at") @db.Timestamptz(6)
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens AuthRefreshToken[]
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+model AuthRefreshToken {
+  tokenHash String      @id @map("token_hash") @db.Char(64)
+  sessionId String      @map("session_id") @db.Uuid
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  usedAt    DateTime?   @map("used_at") @db.Timestamptz(6)
+  session   AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("auth_refresh_tokens")
+}
+
+model AuthRateLimit {
+  key       String   @id @db.Char(64)
+  attempts  Int
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+
+  @@index([expiresAt])
+  @@map("auth_rate_limits")
+}
+
+model MeasurementCatalog {
+  version      String                  @id
+  checkedOn    DateTime                @map("checked_on") @db.Date
+  createdAt    DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  definitions  MeasurementDefinition[]
+  measurements Measurement[]
+
+  @@map("measurement_catalogs")
+}
+
+model MeasurementDefinition {
+  catalogVersion String               @map("catalog_version")
+  code           String
+  label          String
+  category       MeasurementCategory
+  factor         MeasurementFactor
+  unit           String
+  valueType      MeasurementValueType @map("value_type")
+  minAge         Int                  @map("min_age")
+  maxAge         Int                  @map("max_age")
+  minValue       Decimal?             @map("min_value") @db.Decimal
+  minInclusive   Boolean              @default(true) @map("min_inclusive")
+  maxValue       Decimal?             @map("max_value") @db.Decimal
+  sourceUrls     String[]             @map("source_urls")
+  catalog        MeasurementCatalog   @relation(fields: [catalogVersion], references: [version], onDelete: Restrict, onUpdate: Restrict)
+  items          MeasurementItem[]
+
+  @@id([catalogVersion, code])
+  @@unique([catalogVersion, code, unit])
+  @@map("measurement_definitions")
+}
+
+model Measurement {
+  id                   String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId               String                    @map("user_id") @db.Uuid
+  measuredOn           DateTime                  @map("measured_on") @db.Date
+  ageAtMeasurement     Int                       @map("age_at_measurement")
+  sexAtMeasurement     MeasurementSex?           @map("sex_at_measurement")
+  reportKind           MeasurementReportKind     @default(unknown) @map("report_kind")
+  centerName           String?                   @map("center_name")
+  reportedOverallGrade String?                   @map("reported_overall_grade")
+  sourceProgram        MeasurementSource         @default(nfa100) @map("source_program")
+  entryMethod          MeasurementEntryMethod    @default(manual) @map("entry_method")
+  catalogVersion       String                    @map("catalog_version")
+  revision             Int                       @default(1)
+  createdAt            DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                 User                      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  catalog              MeasurementCatalog        @relation(fields: [catalogVersion], references: [version], onDelete: Restrict, onUpdate: Restrict)
+  items                MeasurementItem[]
+  createRequest        MeasurementCreateRequest?
+
+  @@unique([id, catalogVersion])
+  @@index([userId, measuredOn(sort: Desc), id])
+  @@map("measurements")
+}
+
+model MeasurementItem {
+  measurementId  String                @map("measurement_id") @db.Uuid
+  catalogVersion String                @map("catalog_version")
+  code           String
+  value          Decimal               @db.Decimal
+  unit           String
+  reportedGrade  String?               @map("reported_grade")
+  measurement    Measurement           @relation(fields: [measurementId, catalogVersion], references: [id, catalogVersion], onDelete: Cascade, onUpdate: Restrict)
+  definition     MeasurementDefinition @relation(fields: [catalogVersion, code, unit], references: [catalogVersion, code, unit], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([measurementId, code])
+  @@index([catalogVersion, code, unit])
+  @@map("measurement_items")
+}
+
+// Keep a tombstone after deletion so a retried create cannot resurrect a record.
+model MeasurementCreateRequest {
+  userId        String       @map("user_id") @db.Uuid
+  key           String       @db.Uuid
+  requestHash   String       @map("request_hash") @db.Char(64)
+  measurementId String?      @unique @map("measurement_id") @db.Uuid
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  measurement   Measurement? @relation(fields: [measurementId], references: [id], onDelete: SetNull, onUpdate: Restrict)
+
+  @@id([userId, key])
+  @@map("measurement_create_requests")
+}

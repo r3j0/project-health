@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { configureApp } from './setup-app.js';
+import { API_V1_BASE_PATH } from './config/api-version.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -12,7 +13,10 @@ async function bootstrap() {
 
   const config = app.get(ConfigService);
   await app.listen(config.getOrThrow<number>('PORT'));
-  Logger.log(`API listening at ${await app.getUrl()}/api`, 'Bootstrap');
+  Logger.log(
+    `API listening at ${await app.getUrl()}${API_V1_BASE_PATH}`,
+    'Bootstrap',
+  );
 }
 
 await bootstrap();
