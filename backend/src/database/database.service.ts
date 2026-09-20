@@ -20,6 +20,8 @@ export class DatabaseService
   async onModuleInit(): Promise<void> {
     try {
       await this.$connect();
+      // The pg adapter initializes a lazy pool; only a query verifies access.
+      await this.$queryRaw`SELECT 1`;
     } catch {
       await this.$disconnect();
       throw new Error(

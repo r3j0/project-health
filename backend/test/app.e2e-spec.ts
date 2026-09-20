@@ -2,9 +2,10 @@ import 'reflect-metadata';
 import type { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
-import { afterAll, beforeAll, describe, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/setup-app.js';
 import { DatabaseService } from '../src/database/database.service.js';
@@ -88,6 +89,35 @@ describe('API bootstrap (e2e)', () => {
     await request(app.getHttpServer())
       .get('/api/v1/health/ready')
       .expect(200, { status: 'ok', database: 'ok' });
+  });
+
+  it('fails app initialization when the configured database cannot be connected to', async () => {
+    const databaseUrl = new URL(
+      app.get(ConfigService).getOrThrow<string>('DATABASE_URL'),
+    );
+    databaseUrl.pathname = `/unavailable_${randomUUID().replaceAll('-', '')}`;
+    const module = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(ConfigService)
+      .useValue(
+        new ConfigService(
+          validateEnvironment({
+            NODE_ENV: 'test',
+            AUTH_JWT_SECRET: process.env.AUTH_JWT_SECRET,
+            DATABASE_URL: databaseUrl.toString(),
+          }),
+        ),
+      )
+      .compile();
+    const unavailableApp = module.createNestApplication();
+    configureApp(unavailableApp);
+    try {
+      // Avoid dumping the application (including its config) on regression.
+      await expect(unavailableApp.init().then(() => undefined)).rejects.toThrow(
+        'Database connection failed. Check DATABASE_URL and PostgreSQL availability.',
+      );
+    } finally {
+      await unavailableApp.close();
+    }
   });
 
   it('returns 503 without connection details when readiness fails', async () => {

@@ -1,10 +1,19 @@
 import 'reflect-metadata';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { DatabaseService } from '../src/database/database.service.js';
 import { configureApp } from '../src/setup-app.js';
@@ -52,8 +61,44 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
   let other: Account;
   let version: string;
   const userIds: string[] = [];
+  let afterMeasurementRead:
+    { id: string; run: () => Promise<unknown> } | undefined;
+  // The spy below explicitly supplies the original factory as this via call().
+  // oxlint-disable-next-line typescript/unbound-method
+  const connect = PrismaPg.prototype.connect;
+  const connectionSpy = vi.spyOn(PrismaPg.prototype, 'connect');
 
   beforeAll(async () => {
+    connectionSpy.mockImplementation(async function (this: PrismaPg) {
+      const adapter = await connect.call(this);
+      const intercept = (queryable: Pick<typeof adapter, 'queryRaw'>) => {
+        const queryRaw = queryable.queryRaw.bind(queryable);
+        queryable.queryRaw = async (query) => {
+          const result = await queryRaw(query);
+          if (
+            afterMeasurementRead &&
+            query.sql.startsWith('SELECT') &&
+            /FROM "[^"]+"\."measurements"/.test(query.sql) &&
+            query.args.includes(afterMeasurementRead.id)
+          ) {
+            // The real parent SELECT has finished. Commit another HTTP write
+            // before Prisma can issue the related item/catalog SELECTs.
+            const { run } = afterMeasurementRead;
+            afterMeasurementRead = undefined;
+            await run();
+          }
+          return result;
+        };
+      };
+      intercept(adapter);
+      const startTransaction = adapter.startTransaction.bind(adapter);
+      adapter.startTransaction = async (...args) => {
+        const transaction = await startTransaction(...args);
+        intercept(transaction);
+        return transaction;
+      };
+      return adapter;
+    });
     const module = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -70,6 +115,7 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
   });
 
   beforeEach(async () => {
+    afterMeasurementRead = undefined;
     await database.measurementCreateRequest.deleteMany({
       where: { userId: { in: userIds } },
     });
@@ -79,8 +125,12 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
   });
 
   afterAll(async () => {
-    await database?.user.deleteMany({ where: { id: { in: userIds } } });
-    await app?.close();
+    try {
+      await database?.user.deleteMany({ where: { id: { in: userIds } } });
+      await app?.close();
+    } finally {
+      connectionSpy.mockRestore();
+    }
   });
 
   async function register() {
@@ -497,6 +547,60 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
     expect((changed.body as RecordBody).revision).toBe(2);
   });
 
+  it.each([
+    ['GET', 'PATCH'],
+    ['GET', 'DELETE'],
+    ['POST replay', 'PATCH'],
+    ['POST replay', 'DELETE'],
+  ] as const)(
+    'returns one snapshot when %s overlaps a committed %s',
+    async (read, write) => {
+      const key = randomUUID();
+      const body = payload({
+        ageAtMeasurement: 18,
+        items: [{ measurementCode: 'repeated_jump', value: '20', unit: '회' }],
+      });
+      const original = (await create(body, key).expect(201)).body as RecordBody;
+      const change = vi.fn(async () => {
+        if (write === 'DELETE') return remove(original.id).expect(204);
+        return patch(original.id, {
+          ageAtMeasurement: 19,
+          items: [{ measurementCode: 'cross_sit_up', value: '21', unit: '회' }],
+        }).expect(200);
+      });
+      afterMeasurementRead = { id: original.id, run: change };
+      try {
+        const response = await (
+          read === 'GET' ? get(original.id) : create(body, key)
+        ).expect(200);
+        expect(change).toHaveBeenCalledTimes(1);
+        expect(response.headers.etag).toBe('"1"');
+        expect(response.body).toEqual(original);
+        if (read === 'POST replay') {
+          expect(response.headers['idempotency-replayed']).toBe('true');
+        }
+        // A later request must observe the committed write, not a cached record.
+        if (write === 'DELETE') {
+          await get(original.id).expect(404);
+          await create(body, key).expect(410);
+        } else {
+          const updated = await get(original.id).expect(200);
+          expect(updated.headers.etag).toBe('"2"');
+          expect(updated.body).toMatchObject({
+            ageAtMeasurement: 19,
+            revision: 2,
+            items: [
+              { measurementCode: 'cross_sit_up', value: '21', unit: '회' },
+            ],
+          });
+          await create(body, key).expect(200, updated.body);
+        }
+      } finally {
+        afterMeasurementRead = undefined;
+      }
+    },
+  );
+
   it('requires write preconditions and rejects stale or empty changes', async () => {
     const original = (await create().expect(201)).body as RecordBody;
     const path = `/api/v1/measurements/${original.id}`;
@@ -536,6 +640,73 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
     const success = responses.find((result) => result.status === 200)!;
     await get(original.id).expect(200, success.body);
     expect((success.body as RecordBody).revision).toBe(2);
+  });
+
+  it('returns 412 instead of item validation errors when another PATCH changes the age and items', async () => {
+    const original = (
+      await create(
+        payload({
+          ageAtMeasurement: 18,
+          items: [
+            { measurementCode: 'repeated_jump', value: '20', unit: '회' },
+          ],
+        }),
+      ).expect(201)
+    ).body as RecordBody;
+    let winner: RecordBody | undefined;
+    const change = vi.fn(async () => {
+      winner = (
+        await patch(original.id, {
+          ageAtMeasurement: 19,
+          items: [{ measurementCode: 'cross_sit_up', value: '21', unit: '회' }],
+        }).expect(200)
+      ).body as RecordBody;
+    });
+    afterMeasurementRead = { id: original.id, run: change };
+    try {
+      await patch(original.id, { centerName: 'stale center' }).expect(412);
+      expect(change).toHaveBeenCalledTimes(1);
+      expect(winner?.revision).toBe(2);
+      const latest = await get(original.id).expect(200);
+      expect(latest.body).toEqual(winner);
+      expect((latest.body as RecordBody).centerName).toBeNull();
+
+      const retried = await patch(
+        original.id,
+        { centerName: 'updated center' },
+        2,
+      ).expect(200);
+      expect(retried.headers.etag).toBe('"3"');
+      expect(retried.body).toEqual({
+        ...winner,
+        centerName: 'updated center',
+        revision: 3,
+        updatedAt: (retried.body as RecordBody).updatedAt,
+      });
+    } finally {
+      afterMeasurementRead = undefined;
+    }
+  });
+
+  it('rolls back metadata and revision and releases the row lock when PATCH item validation fails', async () => {
+    const original = (await create().expect(201)).body as RecordBody;
+    await patch(original.id, {
+      centerName: 'must not persist',
+      measuredOn: '2026-09-16',
+      items: [{ measurementCode: 'cross_sit_up', value: '1.5', unit: '회' }],
+    }).expect(400);
+    await get(original.id).expect(200, original);
+
+    const updated = await patch(original.id, {
+      centerName: 'valid retry',
+    }).expect(200);
+    expect(updated.headers.etag).toBe('"2"');
+    expect(updated.body).toEqual({
+      ...original,
+      centerName: 'valid retry',
+      revision: 2,
+      updatedAt: (updated.body as RecordBody).updatedAt,
+    });
   });
 
   it('deletes the record and items while preventing a retried create from resurrecting it', async () => {
