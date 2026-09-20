@@ -59,6 +59,7 @@ export function createDraftStore(
 ) {
   let owner: string | null = null;
   const memory = new Map<string, string>();
+  const writers = new Map<string, symbol>();
   const keyFor = (userId: string, id: string) => `${prefix}${userId}:${id}`;
   function persisted() {
     try {
@@ -91,6 +92,7 @@ export function createDraftStore(
   }
   return {
     setOwner(userId: string) {
+      if (owner !== userId) writers.clear();
       owner = userId;
       for (const key of keys())
         if (!key.startsWith(`${prefix}${userId}:`)) remove(key);
@@ -98,13 +100,34 @@ export function createDraftStore(
     // Expiry requires reauthentication, not destruction of the user's unsaved work.
     suspend() {
       owner = null;
+      writers.clear();
     },
     clear() {
       owner = null;
+      writers.clear();
       for (const key of keys()) remove(key);
     },
-    remove(userId: string, id: string) {
+    // A new form gets exclusive write access without changing the saved
+    // request key/body. Releasing an old form cannot revoke its replacement.
+    acquire(userId: string, id: string) {
+      if (owner !== userId) return;
+      const version = Symbol();
+      writers.set(keyFor(userId, id), version);
+      return version;
+    },
+    release(userId: string, id: string, version: symbol) {
+      const key = keyFor(userId, id);
+      if (writers.get(key) === version) writers.delete(key);
+    },
+    remove(userId: string, id: string, version: symbol) {
+      if (
+        owner !== userId ||
+        !version ||
+        writers.get(keyFor(userId, id)) !== version
+      )
+        return false;
       remove(keyFor(userId, id));
+      return true;
     },
     read(userId: string, id: string): MeasurementDraft | undefined {
       if (owner !== userId) return;
@@ -128,9 +151,14 @@ export function createDraftStore(
       }
       remove(key);
     },
-    save(userId: string, id: string, draft: MeasurementDraft) {
+    save(userId: string, id: string, draft: MeasurementDraft, version: symbol) {
       // An old in-flight form must not restore data after logout/account switching.
-      if (owner !== userId) return;
+      if (
+        owner !== userId ||
+        !version ||
+        writers.get(keyFor(userId, id)) !== version
+      )
+        return false;
       const key = keyFor(userId, id);
       const raw = JSON.stringify({ expiresAt: now() + draftLifetime, draft });
       memory.set(key, raw);
@@ -139,6 +167,7 @@ export function createDraftStore(
       } catch {
         /* memory fallback */
       }
+      return true;
     },
   };
 }

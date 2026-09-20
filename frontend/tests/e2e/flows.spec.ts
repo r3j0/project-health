@@ -640,6 +640,212 @@ async function draftKeys(page: Page) {
   );
 }
 
+async function storedDrafts(page: Page) {
+  return page.evaluate(() =>
+    Object.entries(sessionStorage)
+      .filter(([key]) => key.startsWith("modu-measurement-draft:"))
+      .map(([key, value]) => [key, JSON.parse(value)]),
+  );
+}
+
+// Commit to the real backend, but keep the browser's first response pending.
+async function holdMutation(page: Page, method: string, url: string) {
+  const ready = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<"success" | "network" | "server">();
+  const finished = Promise.withResolvers<void>();
+  const requests: { key?: string; etag?: string; body: string | null }[] = [];
+  await page.route(url, async (route) => {
+    const request = route.request();
+    if (request.method() !== method) return route.continue();
+    requests.push({
+      key: request.headers()["idempotency-key"],
+      etag: request.headers()["if-match"],
+      body: request.postData(),
+    });
+    if (requests.length > 1) return route.continue();
+    const response = await route.fetch();
+    expect(response.ok()).toBe(true);
+    ready.resolve();
+    const outcome = await release.promise;
+    const received =
+      outcome === "network"
+        ? page.waitForEvent("requestfailed", (r) => r === request)
+        : page.waitForResponse((r) => r.request() === request);
+    if (outcome === "network") await route.abort("failed");
+    else if (outcome === "server") await failApi(route, 503);
+    else await route.fulfill({ response });
+    await received;
+    // Let fetch/json continuations and React updates finish before inspecting
+    // absence of side effects; do not reload and cancel the old request.
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+    finished.resolve();
+  });
+  return {
+    ready: ready.promise,
+    requests,
+    async finish(outcome: "success" | "network" | "server") {
+      release.resolve(outcome);
+      await finished.promise;
+    },
+  };
+}
+
+for (const outcome of ["success", "network", "server"] as const) {
+  test(`이전 생성의 늦은 ${outcome} 응답은 재확인 후 새 초안을 변경하지 않는다`, async ({
+    page,
+  }) => {
+    await signup(page);
+    await startRecord(page);
+    await add(page, "신장", "170");
+    const held = await holdMutation(page, "POST", "**/api/v1/measurements");
+    await page.getByRole("button", { name: "1개 항목 저장하기" }).click();
+    await held.ready;
+    page.on("dialog", (dialog) => dialog.accept());
+    await page.getByRole("link", { name: "이전 화면", exact: true }).click();
+    await page.getByRole("link", { name: "새 기록 등록", exact: true }).click();
+    await expect(page.getByLabel("신장", { exact: true })).toBeDisabled();
+    await page.getByRole("button", { name: "같은 내용으로 다시 확인" }).click();
+    await expect(page.getByText("170 cm", { exact: true })).toBeVisible();
+    expect(held.requests).toHaveLength(2);
+    expect(held.requests[0]).toEqual(held.requests[1]);
+    await page.getByRole("link", { name: "이전 화면", exact: true }).click();
+    await expect(page.locator(".record-card")).toHaveCount(1);
+    await startRecord(page);
+    await add(page, "신장", "181.25");
+    const before = await storedDrafts(page);
+    expect(before).toHaveLength(1);
+    await held.finish(outcome);
+    expect(await storedDrafts(page)).toEqual(before);
+    await expect(page).toHaveURL(/\/measurements\/new$/);
+    await page.reload();
+    await expect(page.getByLabel("신장", { exact: true })).toHaveValue(
+      "181.25",
+    );
+    await expect(page.getByLabel("신장", { exact: true })).toBeEnabled();
+  });
+}
+
+for (const status of [503, 0]) {
+  test(`계정 조회 ${status} 실패 중에도 로그아웃을 재시도할 수 있다`, async ({
+    page,
+  }) => {
+    const email = await signup(page, "main");
+    await page.route("**/api/v1/auth/me", (route) =>
+      status ? failApi(route, status) : route.abort(),
+    );
+    await page.getByRole("link", { name: "내 프로필", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "다시 불러오기" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "내 측정 기록", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "로그아웃", exact: true }),
+    ).toBeVisible();
+    await page.route("**/api/v1/auth/logout", (route) => failApi(route, 503));
+    await page.getByRole("button", { name: "로그아웃", exact: true }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "로그아웃", exact: true })
+      .click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "다시 불러오기" }),
+    ).toBeVisible();
+    await page.unroute("**/api/v1/auth/me");
+    await page.getByRole("button", { name: "다시 불러오기" }).click();
+    await expect(page.getByText(email, { exact: true })).toBeVisible();
+    await expect(page.locator(".notice.error")).toContainText(
+      "서버가 잠시 응답하지 않아요",
+    );
+    await page.unroute("**/api/v1/auth/logout");
+    await signout(page);
+  });
+}
+
+test("계정 조회 응답을 기다리는 동안에도 로그아웃할 수 있다", async ({
+  page,
+}) => {
+  await signup(page, "main");
+  const pending = Promise.withResolvers<Route>();
+  await page.route("**/api/v1/auth/me", (route) => pending.resolve(route));
+  await page.getByRole("link", { name: "내 프로필", exact: true }).click();
+  const route = await pending.promise;
+  await expect(
+    page.getByRole("button", { name: "로그아웃", exact: true }),
+  ).toBeVisible();
+  await signout(page);
+  await route.abort();
+});
+
+for (const outcome of ["success", "network"] as const) {
+  test(`이전 수정의 늦은 ${outcome} 응답은 재확인 후 같은 기록의 새 초안을 변경하지 않는다`, async ({
+    page,
+  }) => {
+    await signup(page);
+    await startRecord(page);
+    await add(page, "신장", "170");
+    await save(page);
+    await page.getByRole("link", { name: "기록 수정", exact: true }).click();
+    await page.getByLabel("신장", { exact: true }).fill("171");
+    const held = await holdMutation(page, "PATCH", "**/api/v1/measurements/*");
+    await page.getByRole("button", { name: "수정 내용 저장" }).click();
+    await held.ready;
+    page.on("dialog", (dialog) => dialog.accept());
+    await page.getByRole("link", { name: "이전 화면", exact: true }).click();
+    await page.getByRole("link", { name: "기록 수정", exact: true }).click();
+    await expect(page.getByLabel("신장", { exact: true })).toBeDisabled();
+    await page.getByRole("button", { name: "같은 내용으로 다시 확인" }).click();
+    // Retrying PATCH with the original ETag sees the committed first request.
+    await page.getByRole("button", { name: "최신 기록으로 다시 편집" }).click();
+    expect(held.requests).toHaveLength(2);
+    expect(held.requests[0]).toEqual(held.requests[1]);
+    await page.getByLabel("신장", { exact: true }).fill("181.25");
+    const before = await storedDrafts(page);
+    expect(before).toHaveLength(1);
+    await held.finish(outcome);
+    expect(await storedDrafts(page)).toEqual(before);
+    await expect(page).toHaveURL(/\/edit$/);
+    await page.reload();
+    await expect(page.getByLabel("신장", { exact: true })).toHaveValue(
+      "181.25",
+    );
+    await expect(page.getByLabel("신장", { exact: true })).toBeEnabled();
+    await page.getByRole("button", { name: "수정 내용 저장" }).click();
+    await expect(page.getByText("181.25 cm", { exact: true })).toBeVisible();
+  });
+}
+
+test("이전 삭제의 늦은 성공 응답은 새 입력 화면을 이동시키지 않는다", async ({
+  page,
+}) => {
+  await signup(page);
+  await startRecord(page);
+  await add(page, "신장", "170");
+  await save(page);
+  const held = await holdMutation(page, "DELETE", "**/api/v1/measurements/*");
+  await page.getByRole("button", { name: "기록 삭제", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "기록 삭제", exact: true })
+    .click();
+  await held.ready;
+  // The busy dialog blocks clicks, but browser history can still leave it.
+  await page.goBack();
+  await expect(page).toHaveURL(/\/measurements$/);
+  await startRecord(page);
+  await add(page, "신장", "181.25");
+  await held.finish("success");
+  await expect(page.getByLabel("신장", { exact: true })).toHaveValue("181.25");
+  await expect(page).toHaveURL(/\/measurements\/new$/);
+});
+
 test("로그아웃 401에서도 모든 탭의 인증과 임시 입력을 정리한다", async ({
   page,
   context,

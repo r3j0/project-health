@@ -9,7 +9,8 @@ import type { User } from "@/lib/types";
 import { ArtworkSlot, Dialog, Loading, Notice, Shell } from "./ui";
 export function Account() {
   const [user, setUser] = useState<User | null>(null),
-    [error, setError] = useState(""),
+    [profileError, setProfileError] = useState(""),
+    [logoutError, setLogoutError] = useState(""),
     [confirm, setConfirm] = useState(false),
     [busy, setBusy] = useState(false),
     [retry, setRetry] = useState(0);
@@ -17,20 +18,22 @@ export function Account() {
   useEffect(() => {
     const c = new AbortController();
     api<User>("/auth/me", { signal: c.signal })
-      .then((r) => setUser(r.data))
+      .then((r) => {
+        if (!c.signal.aborted) setUser(r.data);
+      })
       .catch((e) => {
-        if (!c.signal.aborted) setError(errorMessage(e));
+        if (!c.signal.aborted) setProfileError(errorMessage(e));
       });
     return () => c.abort();
   }, [retry]);
   async function signOut() {
     setBusy(true);
-    setError("");
+    setLogoutError("");
     try {
       await logout();
       router.replace("/login");
     } catch (e) {
-      setError(errorMessage(e));
+      setLogoutError(errorMessage(e));
       setConfirm(false);
     } finally {
       setBusy(false);
@@ -40,7 +43,7 @@ export function Account() {
     <Shell>
       <h1 className="sr-only">내 프로필</h1>
       <div className="content stack">
-        {error && <Notice>{error}</Notice>}
+        {logoutError && <Notice>{logoutError}</Notice>}
         {user ? (
           <>
             <div className="profile-card">
@@ -52,42 +55,48 @@ export function Account() {
                 </p>
               </div>
             </div>
-            <div className="menu-card">
-              <div className="menu-row">
-                <span className="muted">가입일</span>
-                <span>
-                  {new Intl.DateTimeFormat("ko-KR", {
-                    timeZone: "Asia/Seoul",
-                    dateStyle: "long",
-                  }).format(new Date(user.created_at))}
-                </span>
-              </div>
-              <Link href="/measurements" className="menu-row">
-                <strong>내 측정 기록</strong>
-                <ChevronRight size={20} />
-              </Link>
-            </div>
+          </>
+        ) : profileError ? (
+          <>
+            <Notice>{profileError}</Notice>
             <button
               className="button secondary"
-              onClick={() => setConfirm(true)}
+              onClick={() => {
+                setProfileError("");
+                setRetry((v) => v + 1);
+              }}
             >
-              <LogOut size={18} />
-              로그아웃
+              다시 불러오기
             </button>
           </>
-        ) : error ? (
-          <button
-            className="button secondary"
-            onClick={() => {
-              setError("");
-              setRetry((v) => v + 1);
-            }}
-          >
-            다시 불러오기
-          </button>
         ) : (
           <Loading />
         )}
+        <div className="menu-card">
+          {user && (
+            <div className="menu-row">
+              <span className="muted">가입일</span>
+              <span>
+                {new Intl.DateTimeFormat("ko-KR", {
+                  timeZone: "Asia/Seoul",
+                  dateStyle: "long",
+                }).format(new Date(user.created_at))}
+              </span>
+            </div>
+          )}
+          <Link href="/measurements" className="menu-row">
+            <strong>내 측정 기록</strong>
+            <ChevronRight size={20} />
+          </Link>
+        </div>
+        <button
+          className="button secondary"
+          onClick={() => setConfirm(true)}
+          disabled={busy}
+        >
+          <LogOut size={18} />
+          로그아웃
+        </button>
         <p className="support-copy">오늘의 기록이 내일의 나를 알려줘요.</p>
       </div>
       {confirm && (

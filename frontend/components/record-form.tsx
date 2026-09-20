@@ -31,6 +31,7 @@ import {
 import { CatalogPicker } from "./catalog-picker";
 import { RecordValues } from "./record-values";
 import { useUnsaved } from "./use-unsaved";
+import { useOperationScope } from "./use-operation-scope";
 export function RecordForm({
   initial,
   initialCatalog,
@@ -42,13 +43,39 @@ export function RecordForm({
   const [owner] = useState(() => getSession().user!.id);
   const [sessionGeneration] = useState(() => getSession().generation);
   const draftId = initial?.data.id ?? "new";
+  const beginOperation = useOperationScope();
+  const draftVersion = useRef<symbol | undefined>(undefined);
+  useEffect(() => {
+    const version = measurementDrafts.acquire(owner, draftId);
+    draftVersion.current = version;
+    return () => {
+      if (version) measurementDrafts.release(owner, draftId, version);
+      draftVersion.current = undefined;
+    };
+  }, [owner, draftId]);
   const persist = useCallback(
     (draft: MeasurementDraft) => {
-      if (getSession().generation === sessionGeneration)
-        measurementDrafts.save(owner, draftId, draft);
+      if (
+        getSession().generation !== sessionGeneration ||
+        !draftVersion.current
+      )
+        return false;
+      return measurementDrafts.save(
+        owner,
+        draftId,
+        draft,
+        draftVersion.current,
+      );
     },
     [owner, draftId, sessionGeneration],
   );
+  function removeDraft() {
+    return (
+      getSession().generation === sessionGeneration &&
+      !!draftVersion.current &&
+      measurementDrafts.remove(owner, draftId, draftVersion.current)
+    );
+  }
   const [restored, setRestored] = useState(() =>
     measurementDrafts.read(owner, draftId),
   );
@@ -152,34 +179,42 @@ export function RecordForm({
       return;
     }
     guard.current = true;
+    const isCurrent = beginOperation();
     setBusy(true);
     try {
-      if (!catalog)
-        setCatalog(
-          await getCatalog(
-            base?.data.catalogVersion ?? restored?.catalogVersion,
-          ),
+      if (!catalog) {
+        const value = await getCatalog(
+          base?.data.catalogVersion ?? restored?.catalogVersion,
         );
+        if (!isCurrent()) return;
+        setCatalog(value);
+      }
       setStep(2);
       window.scrollTo({ top: 0 });
     } catch (e) {
+      if (!isCurrent()) return;
       setMessage(errorMessage(e));
       scrollError();
     } finally {
-      setBusy(false);
-      guard.current = false;
+      if (isCurrent()) {
+        setBusy(false);
+        guard.current = false;
+      }
     }
   }
   async function readLatest() {
+    const isCurrent = beginOperation();
     setBusy(true);
     try {
       const value = await getRecord(base!.data.id);
+      if (!isCurrent()) return;
       setLatest(value);
       setConflict(true);
     } catch (e) {
+      if (!isCurrent()) return;
       setMessage(errorMessage(e));
     } finally {
-      setBusy(false);
+      if (isCurrent()) setBusy(false);
     }
   }
   async function submit(event: React.FormEvent) {
@@ -201,10 +236,11 @@ export function RecordForm({
       (!pending.current || (!uncertain && pending.current.body !== body))
     )
       pending.current = { body, key: crypto.randomUUID() };
+    const isCurrent = beginOperation();
+    // Persist before awaiting: a 401 can unmount this form during reauthentication.
+    if (!persist(snapshot(true))) return;
     guard.current = true;
     saveInFlight.current = true;
-    // Persist before awaiting: a 401 can unmount this form during reauthentication.
-    persist(snapshot(true));
     setBusy(true);
     try {
       const result = await api<Measurement>(
@@ -217,17 +253,19 @@ export function RecordForm({
             : { "Idempotency-Key": pending.current!.key },
         },
       );
+      if (!isCurrent()) return;
       if (!result.data?.id)
         throw new ApiError(
           0,
           "저장 결과를 확인하지 못했어요. 다시 확인해 주세요.",
         );
+      if (!removeDraft()) return;
       savedRef.current = true;
-      measurementDrafts.remove(owner, draftId);
       setDirty(false);
       setUncertain(false);
       router.replace(`/measurements/${result.data.id}?saved=1`);
     } catch (e) {
+      if (!isCurrent()) return;
       setMessage(errorMessage(e));
       const resolved =
         e instanceof ApiError &&
@@ -248,9 +286,14 @@ export function RecordForm({
           if (e.status === 410 || (base && e.status === 404)) setGone(true);
           if (e.status === 412 && base) {
             setConflict(true);
+            setLatest(null);
             getRecord(base.data.id)
-              .then(setLatest)
-              .catch((error) => setMessage(errorMessage(error)));
+              .then((value) => {
+                if (isCurrent()) setLatest(value);
+              })
+              .catch((error) => {
+                if (isCurrent()) setMessage(errorMessage(error));
+              });
           }
           const fields: Record<string, string> = {};
           for (const [field, text] of Object.entries(e.fields)) {
@@ -283,9 +326,11 @@ export function RecordForm({
       }
       scrollError();
     } finally {
-      saveInFlight.current = false;
-      setBusy(false);
-      guard.current = false;
+      if (isCurrent()) {
+        saveInFlight.current = false;
+        setBusy(false);
+        guard.current = false;
+      }
     }
   }
   function useLatest() {
@@ -311,7 +356,7 @@ export function RecordForm({
     setErrors({});
     setDirty(false);
     setUncertain(false);
-    measurementDrafts.remove(owner, draftId);
+    removeDraft();
     setRestored(undefined);
   }
   function discardDraft() {
@@ -323,7 +368,7 @@ export function RecordForm({
       )
     )
       return;
-    measurementDrafts.remove(owner, draftId);
+    removeDraft();
     pending.current = null;
     setRestored(undefined);
     setBase(initial);

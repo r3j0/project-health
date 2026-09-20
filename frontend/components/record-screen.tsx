@@ -9,6 +9,7 @@ import { ApiError, errorMessage } from "@/lib/http";
 import type { Catalog, RecordResponse } from "@/lib/types";
 import { RecordForm } from "./record-form";
 import { RecordValues } from "./record-values";
+import { useOperationScope } from "./use-operation-scope";
 import { Dialog, Header, Loading, Notice, Shell } from "./ui";
 export function RecordScreen({
   id,
@@ -110,9 +111,11 @@ function RecordDetail({
     [error, setError] = useState(""),
     [stale, setStale] = useState(false);
   const guard = useRef(false);
+  const beginOperation = useOperationScope();
   async function remove() {
     if (guard.current) return;
     guard.current = true;
+    const isCurrent = beginOperation();
     setBusy(true);
     setError("");
     try {
@@ -120,15 +123,19 @@ function RecordDetail({
         method: "DELETE",
         headers: { "If-Match": record.etag },
       });
+      if (!isCurrent()) return;
       router.replace("/measurements");
     } catch (e) {
+      if (!isCurrent()) return;
       setError(errorMessage(e));
       setConfirm(false);
       if (e instanceof ApiError && [412, 404].includes(e.status))
         setStale(true);
     } finally {
-      setBusy(false);
-      guard.current = false;
+      if (isCurrent()) {
+        setBusy(false);
+        guard.current = false;
+      }
     }
   }
   return (
