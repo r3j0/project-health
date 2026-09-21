@@ -1,5 +1,14 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
 
+// Authentication writes share the real backend's 60/minute IP limit with the
+// preceding test file. Begin this group in a fresh window instead of disabling it.
+test.beforeAll(async () => {
+  test.setTimeout(65000);
+  await new Promise((resolve) =>
+    setTimeout(resolve, 60000 - (Date.now() % 60000) + 250),
+  );
+});
+
 const api = process.env.E2E_API_BASE_URL ?? "http://localhost:3001/api/v1";
 const password = "phase-two-test-password-2026!";
 async function register(page: Page) {
@@ -134,6 +143,14 @@ test("주요 화면은 좁은 모바일 너비에서 가로 넘침 없이 사용
       path: testInfo.outputPath(`${path.replaceAll("/", "-") || "home"}.png`),
       fullPage: true,
     });
+    if (path === "/workout") {
+      // Fixed bottom navigation must not block actions after scrolling at 320px.
+      await page.getByRole("button", { name: "처음부터", exact: true }).click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+      await page.getByRole("button", { name: "취소", exact: true }).click();
+      await page.getByRole("link", { name: "나중에 이어하기" }).click();
+      await expect(page).toHaveURL(new URL("/", page.url()).href);
+    }
   }
 });
 
