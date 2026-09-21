@@ -144,11 +144,15 @@ function RecordDetail({
       <div className="content stack">
         {saved && <Notice tone="success">측정 기록을 저장했어요.</Notice>}
         <section>
-          <p className="eyebrow">국민체력100</p>
+          <p className="eyebrow">
+            {r.entryMethod === "self_assessment" ? "간이측정" : "국민체력100"}
+          </p>
           <h2 style={{ fontSize: 26 }}>{displayDate(r.measuredOn)}</h2>
           <div className="record-meta">
             <span>만 {r.ageAtMeasurement}세</span>
-            <span>직접 입력</span>
+            <span>
+              {r.entryMethod === "self_assessment" ? "자가측정" : "직접 입력"}
+            </span>
             {r.centerName && <span>{r.centerName}</span>}
           </div>
         </section>
@@ -180,7 +184,11 @@ function RecordDetail({
           r.reportKind !== "unknown" ||
           r.reportedOverallGrade) && (
           <details className="accordion">
-            <summary>결과표 추가 정보</summary>
+            <summary>
+              {r.entryMethod === "self_assessment"
+                ? "측정 정보"
+                : "결과표 추가 정보"}
+            </summary>
             <dl className="value-list">
               {r.sexAtMeasurement && (
                 <div className="value-row">
@@ -192,9 +200,11 @@ function RecordDetail({
                 <div className="value-row">
                   <dt>측정 유형</dt>
                   <dd>
-                    {r.reportKind === "standard"
-                      ? "일반 체력측정"
-                      : "공식 간편측정"}
+                    {r.entryMethod === "self_assessment"
+                      ? "성인 간이측정"
+                      : r.reportKind === "standard"
+                        ? "일반 체력측정"
+                        : "공식 간편측정"}
                   </dd>
                 </div>
               )}
@@ -211,7 +221,9 @@ function RecordDetail({
           </details>
         )}
         <p className="caption">
-          결과표에 적힌 값을 그대로 보관했어요.
+          {r.entryMethod === "self_assessment"
+            ? "직접 측정한 값을 보관했어요."
+            : "결과표에 적힌 값을 그대로 보관했어요."}
           <br />
           점수와 등급은 자동으로 계산하지 않아요.
         </p>

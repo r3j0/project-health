@@ -40,13 +40,16 @@ export function Onboarding() {
           <Timer size={24} />
           <h2>결과표가 아직 없나요?</h2>
           <p className="muted">
-            간이측정 체험에서 안내, 타이머, 결과 입력 방법을 먼저 확인해 보세요.
+            안내를 따라 직접 측정하고, 측정한 항목만 기록해 보세요.
           </p>
-          <Link href="/workout" className="button secondary">
-            간이측정 체험하기
+          <Link
+            href="/workout?curriculum=adult-self-assessment-v1"
+            className="button secondary"
+          >
+            간이측정 시작하기
           </Link>
           <p className="caption">
-            체험은 실제 체력 평가나 측정 기록 등록으로 처리되지 않아요.
+            만 19~64세 · 장비가 없는 항목은 건너뛸 수 있어요.
           </p>
         </section>
         <div className="stack onboarding-footer">

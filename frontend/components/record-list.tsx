@@ -204,7 +204,11 @@ function RecordFeed({ filters }: { filters: { from: string; to: string } }) {
                 <span className="date-chip">
                   {record.measuredOn.replaceAll("-", ".")}
                 </span>
-                <h2>{record.centerName || "국민체력100 측정"}</h2>
+                <h2>
+                  {record.entryMethod === "self_assessment"
+                    ? "간이측정"
+                    : record.centerName || "국민체력100 측정"}
+                </h2>
                 <p>
                   만 {record.ageAtMeasurement}세 · {record.itemCount}개 항목
                   입력

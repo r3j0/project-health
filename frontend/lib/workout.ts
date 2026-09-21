@@ -1,78 +1,128 @@
+export type WorkoutSegment = {
+  shortLabel?: string;
+  id: string;
+  title: string;
+  durationSeconds: number | null;
+  cadence?: { intervalMs: number; cues: string[] };
+  canFinish?: boolean;
+};
 export type WorkoutStep = {
   id: string;
   title: string;
-  instruction: string;
-  durationSeconds: number;
-  restSeconds: number;
-  result: { kind: "count" | "seconds"; label: string; unit: string };
+  factor: string;
+  instructions: string[];
+  equipment: string[];
+  videoUrl: string;
+  segments: WorkoutSegment[];
+  result: {
+    code: string;
+    label: string;
+    unit: string;
+    storedUnit: string;
+    kind: "integer" | "decimal";
+    minimum?: number;
+    multiplier?: number;
+    hint: string;
+  };
 };
 export type WorkoutDefinition = {
   id: string;
+  version: number;
   title: string;
+  description: string;
+  sourceUrl: string;
   steps: WorkoutStep[];
 };
 export type WorkoutState = {
-  phase: "ready" | "active" | "record" | "rest" | "complete";
+  phase: "ready" | "countdown" | "active" | "record" | "interrupted" | "review";
   index: number;
+  segmentIndex: number;
   remainingMs: number;
+  elapsedMs: number;
   runningSince: number | null;
   results: Record<string, string>;
+  skipped: string[];
   draftValue: string;
+  reviewing: boolean;
 };
 export type WorkoutAction =
-  | { type: "start" | "pause" | "resume" | "tick" | "finish"; now: number }
-  | { type: "record" | "input"; value: string }
-  | { type: "next" | "reset" };
+  | { type: "start" | "tick" | "finish"; now: number }
+  | { type: "interrupt" | "restart" | "skip" }
+  | { type: "input" | "record"; value: string }
+  | { type: "repeat"; index: number };
 
-// Explicit demonstration content; this is neither an assessment protocol nor a recommendation.
-export const demoWorkout: WorkoutDefinition = {
-  id: "simple-assessment-demo-v1",
-  title: "간이측정 체험",
-  steps: [
-    {
-      id: "count",
-      title: "횟수 측정 연습",
-      instruction:
-        "동작 안내를 읽고 타이머를 시작하는 단계예요. 이번 체험에서는 운동 없이 진행 방법을 확인하고 예시 횟수를 입력해 보세요.",
-      durationSeconds: 10,
-      restSeconds: 5,
-      result: { kind: "count", label: "예시 횟수", unit: "회" },
-    },
-    {
-      id: "time",
-      title: "시간 측정 연습",
-      instruction:
-        "시간으로 기록하는 항목도 같은 흐름으로 진행해요. 타이머를 확인한 뒤 예시 시간을 입력해 보세요.",
-      durationSeconds: 10,
-      restSeconds: 0,
-      result: { kind: "seconds", label: "예시 시간", unit: "초" },
-    },
-  ],
-};
 export const initialWorkout = (): WorkoutState => ({
   phase: "ready",
   index: 0,
+  segmentIndex: 0,
   remainingMs: 0,
+  elapsedMs: 0,
   runningSince: null,
   results: {},
+  skipped: [],
   draftValue: "",
+  reviewing: false,
 });
-export function remainingTime(state: WorkoutState, now: number) {
-  return Math.max(
-    0,
-    state.remainingMs -
-      (state.runningSince === null ? 0 : Math.max(0, now - state.runningSince)),
-  );
-}
-export function resultError(step: WorkoutStep, value: string) {
-  if (!value) return "값을 입력해 주세요. 0도 입력할 수 있어요.";
-  const pattern =
-    step.result.kind === "count" ? /^(0|[1-9]\d*)$/ : /^(0|[1-9]\d*)(\.\d+)?$/;
-  if (value.length > 16 || !pattern.test(value))
-    return step.result.kind === "count"
-      ? "0 이상의 정수를 입력해 주세요."
-      : "0 이상의 숫자를 입력해 주세요.";
+export function resultError(step: WorkoutStep, raw: string) {
+  const value = raw.trim().replace(/^\+/, "");
+  if (!value)
+    return "측정한 값을 입력해 주세요. 측정하지 않았다면 건너뛰기를 선택해 주세요.";
+  if (value.length > 16 || !/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value))
+    return "숫자로 입력해 주세요.";
+  if (step.result.kind === "integer" && !/^-?\d+$/.test(value))
+    return "정수로 입력해 주세요.";
+  if (step.result.minimum !== undefined && Number(value) < step.result.minimum)
+    return `${step.result.minimum} 이상으로 입력해 주세요.`;
   return null;
+}
+export function resultValue(step: WorkoutStep, raw: string) {
+  const value = raw.trim().replace(/^\+/, "");
+  return step.result.multiplier
+    ? String(BigInt(value) * BigInt(step.result.multiplier))
+    : value;
+}
+export function workoutClock(state: WorkoutState, now: number) {
+  const delta =
+    state.runningSince === null ? 0 : Math.max(0, now - state.runningSince);
+  return {
+    remainingMs: Math.max(0, state.remainingMs - delta),
+    elapsedMs: state.elapsedMs + delta,
+  };
+}
+export function interruptedWorkout(state: WorkoutState): WorkoutState {
+  return state.phase === "active" || state.phase === "countdown"
+    ? {
+        ...state,
+        phase: "interrupted",
+        runningSince: null,
+        remainingMs: 0,
+        elapsedMs: 0,
+        segmentIndex: 0,
+      }
+    : state;
+}
+function nextStep(
+  definition: WorkoutDefinition,
+  state: WorkoutState,
+): WorkoutState {
+  if (state.reviewing || state.index === definition.steps.length - 1)
+    return {
+      ...state,
+      phase: "review",
+      runningSince: null,
+      draftValue: "",
+      reviewing: false,
+    };
+  return {
+    ...state,
+    phase: "ready",
+    index: state.index + 1,
+    segmentIndex: 0,
+    remainingMs: 0,
+    elapsedMs: 0,
+    runningSince: null,
+    draftValue: "",
+  };
 }
 export function advanceWorkout(
   definition: WorkoutDefinition,
@@ -80,46 +130,84 @@ export function advanceWorkout(
   action: WorkoutAction,
 ): WorkoutState {
   const step = definition.steps[state.index];
-  if (action.type === "reset") return initialWorkout();
-  if (!step || state.phase === "complete") return state;
+  if (!step) return state;
   switch (action.type) {
     case "start":
-      return state.phase === "ready"
-        ? {
-            ...state,
-            phase: "active",
-            remainingMs: step.durationSeconds * 1000,
-            runningSince: action.now,
-          }
-        : state;
-    case "pause":
-      return state.runningSince !== null
-        ? {
-            ...state,
-            remainingMs: remainingTime(state, action.now),
-            runningSince: null,
-          }
-        : state;
-    case "resume":
-      return (state.phase === "active" || state.phase === "rest") &&
-        state.runningSince === null
-        ? { ...state, runningSince: action.now }
-        : state;
+      if (state.phase !== "ready" && state.phase !== "interrupted")
+        return state;
+      return {
+        ...state,
+        phase: step.segments.length ? "countdown" : "record",
+        segmentIndex: 0,
+        remainingMs: step.segments.length ? 3000 : 0,
+        elapsedMs: 0,
+        runningSince: step.segments.length ? action.now : null,
+        draftValue: "",
+      };
     case "tick": {
-      if (state.runningSince === null) return state;
-      const remainingMs = remainingTime(state, action.now);
-      return remainingMs === 0
+      if (
+        state.runningSince === null ||
+        !["countdown", "active"].includes(state.phase)
+      )
+        return state;
+      let next = { ...state };
+      let delta = Math.max(0, action.now - state.runningSince);
+      // Consume elapsed time across linked recovery/pulse stages without relying
+      // on callback frequency. Visibility interruptions invalidate the attempt.
+      for (;;) {
+        const segment = step.segments[next.segmentIndex];
+        if (next.phase === "active" && segment.durationSeconds === null)
+          return {
+            ...next,
+            elapsedMs: next.elapsedMs + delta,
+            runningSince: action.now,
+          };
+        if (delta < next.remainingMs)
+          return {
+            ...next,
+            remainingMs: next.remainingMs - delta,
+            elapsedMs: next.elapsedMs + delta,
+            runningSince: action.now,
+          };
+        delta -= next.remainingMs;
+        if (next.phase === "countdown") {
+          next = { ...next, phase: "active", segmentIndex: 0 };
+        } else if (next.segmentIndex + 1 < step.segments.length) {
+          next = { ...next, segmentIndex: next.segmentIndex + 1 };
+        } else
+          return {
+            ...next,
+            phase: "record",
+            remainingMs: 0,
+            elapsedMs: 0,
+            runningSince: null,
+          };
+        const upcoming = step.segments[next.segmentIndex];
+        next = {
+          ...next,
+          remainingMs: (upcoming.durationSeconds ?? 0) * 1000,
+          elapsedMs: 0,
+        };
+      }
+    }
+    case "interrupt":
+      return interruptedWorkout(state);
+    case "restart":
+      return state.phase === "interrupted" || state.phase === "record"
         ? {
             ...state,
-            phase: state.phase === "rest" ? "ready" : "record",
+            phase: "ready",
+            segmentIndex: 0,
             remainingMs: 0,
+            elapsedMs: 0,
             runningSince: null,
+            draftValue: "",
           }
-        : { ...state, remainingMs, runningSince: action.now };
-    }
+        : state;
     case "finish":
-      return state.phase === "active"
-        ? { ...state, phase: "record", remainingMs: 0, runningSince: null }
+      return state.phase === "active" &&
+        step.segments[state.segmentIndex]?.canFinish
+        ? { ...state, phase: "record", runningSince: null, remainingMs: 0 }
         : state;
     case "input":
       return state.phase === "record"
@@ -128,22 +216,126 @@ export function advanceWorkout(
     case "record": {
       if (state.phase !== "record" || resultError(step, action.value))
         return state;
-      const results = { ...state.results, [step.id]: action.value };
-      if (state.index === definition.steps.length - 1)
-        return { ...state, phase: "complete", results };
-      return {
+      return nextStep(definition, {
         ...state,
-        index: state.index + 1,
-        results,
-        draftValue: "",
-        phase: step.restSeconds > 0 ? "rest" : "ready",
-        remainingMs: step.restSeconds * 1000,
-        runningSince: null,
-      };
+        results: {
+          ...state.results,
+          [step.id]: action.value.trim().replace(/^\+/, ""),
+        },
+        skipped: state.skipped.filter((id) => id !== step.id),
+      });
     }
-    case "next":
-      return state.phase === "rest"
-        ? { ...state, phase: "ready", remainingMs: 0, runningSince: null }
+    case "skip": {
+      if (!["ready", "record", "interrupted"].includes(state.phase))
+        return state;
+      const results = { ...state.results };
+      delete results[step.id];
+      return nextStep(definition, {
+        ...state,
+        results,
+        skipped: Array.from(new Set([...state.skipped, step.id])),
+      });
+    }
+    case "repeat":
+      return state.phase === "review" && definition.steps[action.index]
+        ? {
+            ...state,
+            phase: "ready",
+            index: action.index,
+            segmentIndex: 0,
+            runningSince: null,
+            remainingMs: 0,
+            elapsedMs: 0,
+            draftValue: "",
+            reviewing: true,
+          }
         : state;
   }
+}
+export function isWorkoutState(
+  value: unknown,
+  definition: WorkoutDefinition,
+): value is WorkoutState {
+  if (!value || typeof value !== "object") return false;
+  const state = value as WorkoutState;
+  if (
+    !definition.steps[state.index] ||
+    !Number.isInteger(state.index) ||
+    ![
+      "ready",
+      "countdown",
+      "active",
+      "record",
+      "interrupted",
+      "review",
+    ].includes(state.phase) ||
+    !Number.isInteger(state.segmentIndex) ||
+    state.segmentIndex < 0 ||
+    state.segmentIndex >
+      Math.max(0, definition.steps[state.index].segments.length - 1) ||
+    typeof state.draftValue !== "string" ||
+    state.draftValue.length > 16 ||
+    typeof state.reviewing !== "boolean" ||
+    !state.results ||
+    typeof state.results !== "object" ||
+    Array.isArray(state.results) ||
+    !Array.isArray(state.skipped)
+  )
+    return false;
+  if (
+    ![state.remainingMs, state.elapsedMs].every(
+      (n) => Number.isFinite(n) && n >= 0,
+    ) ||
+    (state.runningSince !== null && !Number.isFinite(state.runningSince))
+  )
+    return false;
+  if (
+    Object.entries(state.results).some(([id, v]) => {
+      const step = definition.steps.find((s) => s.id === id);
+      return !step || typeof v !== "string" || !!resultError(step, v);
+    })
+  )
+    return false;
+  if (
+    state.skipped.some(
+      (id) =>
+        typeof id !== "string" ||
+        !definition.steps.some((s) => s.id === id) ||
+        id in state.results,
+    ) ||
+    new Set(state.skipped).size !== state.skipped.length
+  )
+    return false;
+  const timed = state.phase === "active" || state.phase === "countdown";
+  const segment = definition.steps[state.index].segments[state.segmentIndex];
+  if (timed && (!segment || state.runningSince === null)) return false;
+  if (!timed && state.runningSince !== null) return false;
+  if (
+    state.phase === "countdown" &&
+    (state.segmentIndex !== 0 || state.remainingMs > 3000)
+  )
+    return false;
+  if (
+    state.phase === "active" &&
+    segment.durationSeconds !== null &&
+    state.remainingMs > segment.durationSeconds * 1000
+  )
+    return false;
+  if (
+    !state.reviewing &&
+    state.phase !== "review" &&
+    definition.steps
+      .slice(state.index)
+      .some(
+        (step) => step.id in state.results || state.skipped.includes(step.id),
+      )
+  )
+    return false;
+  const required =
+    state.phase === "review"
+      ? definition.steps
+      : definition.steps.slice(0, state.index);
+  return required.every(
+    (step) => step.id in state.results || state.skipped.includes(step.id),
+  );
 }

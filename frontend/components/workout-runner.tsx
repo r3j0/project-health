@@ -1,249 +1,405 @@
 "use client";
-import { useEffect, useReducer, useState } from "react";
-import Link from "next/link";
-import { Play, Pause, Timer } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import {
-  advanceWorkout,
-  demoWorkout,
-  initialWorkout,
+  Play,
+  Square,
+  RotateCcw,
+  Volume2,
+  VolumeX,
+  ExternalLink,
+  Check,
+  SkipForward,
+} from "lucide-react";
+import {
   resultError,
+  resultValue,
+  type WorkoutDefinition,
+  type WorkoutState,
+  type WorkoutAction,
 } from "@/lib/workout";
-import {
-  readWorkoutProgress,
-  saveWorkoutProgress,
-} from "@/lib/workout-progress";
-import { getSession } from "@/lib/session";
-import { Dialog, FieldError, Header, Notice, Shell } from "./ui";
+import { FieldError, Notice } from "./ui";
 
-export function WorkoutRunner() {
-  const [owner] = useState(() => getSession().user!.id);
-  const [generation] = useState(() => getSession().generation);
-  const [state, dispatch] = useReducer(
-    (
-      current: ReturnType<typeof initialWorkout>,
-      action: Parameters<typeof advanceWorkout>[2],
-    ) => advanceWorkout(demoWorkout, current, action),
-    undefined,
-    () => readWorkoutProgress(owner) ?? initialWorkout(),
-  );
+type Props = {
+  definition: WorkoutDefinition;
+  state: WorkoutState;
+  dispatch: (action: WorkoutAction) => void;
+  disabled?: boolean;
+};
+const clock = (ms: number) =>
+  `${Math.floor(Math.ceil(ms / 1000) / 60)}:${String(Math.ceil(ms / 1000) % 60).padStart(2, "0")}`;
+export function WorkoutRunner({
+  definition,
+  state,
+  dispatch,
+  disabled = false,
+}: Props) {
   const [error, setError] = useState("");
-  const [confirmReset, setConfirmReset] = useState(false);
-  const step = demoWorkout.steps[state.index];
+  const [sound, setSound] = useState(false);
+  const [audioError, setAudioError] = useState("");
+  const audio = useRef<AudioContext | null>(null);
+  const lastBeat = useRef("");
+  const title = useRef<HTMLHeadingElement>(null);
+  const step = definition.steps[state.index];
+  const segment = step.segments[state.segmentIndex];
+  const running = state.phase === "countdown" || state.phase === "active";
+  const reviewing = state.phase === "review";
   useEffect(() => {
-    if (getSession().generation === generation)
-      saveWorkoutProgress(owner, state);
-  }, [owner, generation, state]);
+    title.current?.focus({ preventScroll: true });
+  }, [state.index, reviewing]);
   useEffect(() => {
-    if (state.runningSince === null) return;
+    if (!running) return;
     const timer = window.setInterval(
       () => dispatch({ type: "tick", now: Date.now() }),
-      250,
+      100,
     );
-    const pause = () => {
-      if (document.hidden) dispatch({ type: "pause", now: Date.now() });
+    const interrupt = () => {
+      if (document.hidden) dispatch({ type: "interrupt" });
     };
-    document.addEventListener("visibilitychange", pause);
+    const pageHide = () => dispatch({ type: "interrupt" });
+    document.addEventListener("visibilitychange", interrupt);
+    window.addEventListener("pagehide", pageHide);
     return () => {
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", pause);
+      clearInterval(timer);
+      dispatch({ type: "interrupt" });
+      document.removeEventListener("visibilitychange", interrupt);
+      window.removeEventListener("pagehide", pageHide);
     };
-  }, [state.runningSince]);
-  function record(event: React.FormEvent) {
-    event.preventDefault();
-    const problem = resultError(step, state.draftValue);
-    setError(problem ?? "");
-    if (!problem) {
-      dispatch({ type: "record", value: state.draftValue });
+  }, [running, dispatch]);
+  const beat =
+    state.phase === "countdown"
+      ? Math.floor(state.elapsedMs / 1000)
+      : segment?.cadence
+        ? Math.floor(state.elapsedMs / segment.cadence.intervalMs)
+        : 0;
+  const cue =
+    state.phase === "active" && segment?.cadence
+      ? segment.cadence.cues[beat % segment.cadence.cues.length]
+      : "";
+  useEffect(() => {
+    const id = `${state.index}:${state.phase}:${state.segmentIndex}:${beat}`;
+    if (lastBeat.current === id) return;
+    lastBeat.current = id;
+    if (
+      !sound ||
+      !audio.current ||
+      !["countdown", "active", "record"].includes(state.phase)
+    )
+      return;
+    const context = audio.current;
+    if (context.state !== "running") return;
+    const tone = context.createOscillator(),
+      gain = context.createGain();
+    tone.frequency.value =
+      state.phase === "record" ? 880 : beat % 4 === 0 ? 660 : 440;
+    gain.gain.setValueAtTime(0.12, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.12);
+    tone.connect(gain).connect(context.destination);
+    tone.start();
+    tone.stop(context.currentTime + 0.13);
+  }, [sound, state.index, state.phase, state.segmentIndex, beat]);
+  useEffect(
+    () => () => {
+      void audio.current?.close();
+    },
+    [],
+  );
+  async function toggleSound() {
+    if (sound) {
+      setSound(false);
+      return;
+    }
+    try {
+      audio.current ??= new AudioContext();
+      await audio.current.resume();
+      setSound(true);
+      setAudioError("");
+    } catch {
+      setAudioError("소리를 켤 수 없어요. 화면의 박자 안내를 따라 주세요.");
     }
   }
-  const running = state.runningSince !== null;
-  const seconds = Math.ceil(state.remainingMs / 1000);
+  function act(action: WorkoutAction) {
+    setError("");
+    dispatch(action);
+  }
+  if (state.phase === "review")
+    return (
+      <section className="stack" aria-labelledby="workout-review-title">
+        <div className="intro">
+          <span className="eyebrow">MEASUREMENT COMPLETE</span>
+          <h2 id="workout-review-title" ref={title} tabIndex={-1}>
+            측정한 값을 확인해요
+          </h2>
+          <p>건너뛴 항목은 기록에 포함되지 않아요.</p>
+        </div>
+        <div className="assessment-results">
+          {definition.steps.map((item, index) => (
+            <div className="assessment-result" key={item.id}>
+              <div>
+                <span className="caption">{item.factor}</span>
+                <h3>{item.title}</h3>
+                <strong>
+                  {state.results[item.id] !== undefined
+                    ? `${resultValue(item, state.results[item.id])} ${item.result.storedUnit}`
+                    : "건너뜀"}
+                </strong>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                disabled={disabled}
+                aria-label={`${item.title} 다시 측정`}
+                onClick={() => act({ type: "repeat", index })}
+              >
+                <RotateCcw size={18} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  const total =
+    state.phase === "countdown" ? 3000 : (segment?.durationSeconds ?? 0) * 1000;
+  const progress = total ? 1 - state.remainingMs / total : 1;
   return (
-    <Shell>
-      <Header title="간이측정 체험" back="/" />
-      <div className="content stack">
-        <Notice tone="info">
-          진행 방법을 익히는 체험이에요. 입력값은 체력 기록이나 운동 완료로
-          저장되지 않아요.
-        </Notice>
-        {state.phase === "complete" ? (
-          <section className="feature-card stack">
-            <span className="eyebrow">체험 완료</span>
-            <h2>진행 방법을 모두 확인했어요</h2>
-            <p className="muted">
-              체험은 여기까지예요. 입력한 예시 값으로 체력을 평가하지 않아요.
-            </p>
-            <Link className="button primary" href="/">
-              메인으로 돌아가기
-            </Link>
-            <button
-              className="button secondary"
-              onClick={() => dispatch({ type: "reset" })}
-            >
-              다시 체험하기
-            </button>
-          </section>
-        ) : (
+    <div className="stack">
+      <ol className="assessment-steps" aria-label="측정 순서">
+        {definition.steps.map((item, index) => (
+          <li
+            key={item.id}
+            aria-current={index === state.index ? "step" : undefined}
+          >
+            <span>
+              {item.id in state.results ? (
+                <Check size={16} />
+              ) : state.skipped.includes(item.id) ? (
+                <SkipForward size={14} />
+              ) : (
+                index + 1
+              )}
+            </span>
+            <small>{item.factor}</small>
+          </li>
+        ))}
+      </ol>
+      <section
+        className={`workout-stage stack ${running ? "running" : ""}`}
+        aria-labelledby="workout-title"
+      >
+        <div className="between">
+          <span className="eyebrow">
+            {String(state.index + 1).padStart(2, "0")} /{" "}
+            {String(definition.steps.length).padStart(2, "0")} · {step.factor}
+          </span>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={sound ? "안내 소리 끄기" : "안내 소리 켜기"}
+            aria-pressed={sound}
+            onClick={() => void toggleSound()}
+          >
+            {sound ? <Volume2 size={21} /> : <VolumeX size={21} />}
+          </button>
+        </div>
+        <h2 id="workout-title" ref={title} tabIndex={-1}>
+          {step.title}
+        </h2>
+        {audioError && <p className="caption">{audioError}</p>}
+        {running ? (
           <>
-            <div className="workout-progress">
-              <span>
-                항목 {state.index + 1} / {demoWorkout.steps.length}
-              </span>
-              <progress
-                aria-label="체험 진행률"
-                max={demoWorkout.steps.length}
-                value={Object.keys(state.results).length}
-              />
-            </div>
-            <section
-              className="feature-card stack"
-              aria-labelledby="workout-title"
-            >
-              <span className="eyebrow">
-                {state.phase === "rest"
-                  ? "잠시 쉬어가기"
-                  : state.phase === "record"
-                    ? "결과 입력"
-                    : "간이측정 체험"}
-              </span>
-              <h2 id="workout-title">
-                {state.phase === "rest" ? "다음 항목을 준비해요" : step.title}
-              </h2>
-              <p className="muted">
-                {state.phase === "rest"
-                  ? `다음은 ${step.title}이에요. 준비되면 바로 넘어가도 괜찮아요.`
-                  : step.instruction}
-              </p>
-              {state.phase === "ready" && (
-                <>
-                  <p className="caption">
-                    예시 진행 시간 {step.durationSeconds}초 · {step.result.unit}{" "}
-                    단위 입력
-                  </p>
-                  <button
-                    className="button primary"
-                    onClick={() => dispatch({ type: "start", now: Date.now() })}
-                  >
-                    <Play size={18} />
-                    타이머 시작
-                  </button>
-                </>
-              )}
-              {(state.phase === "active" || state.phase === "rest") && (
-                <>
-                  <div
-                    className="workout-clock"
-                    role="timer"
-                    aria-label="남은 시간"
-                  >
-                    <Timer size={24} />
-                    <strong>{seconds}</strong>
-                    <span>초</span>
-                  </div>
-                  <button
-                    className="button primary"
-                    onClick={() =>
-                      dispatch({
-                        type: running ? "pause" : "resume",
-                        now: Date.now(),
-                      })
-                    }
-                  >
-                    {running ? <Pause size={18} /> : <Play size={18} />}
-                    {running ? "일시정지" : "계속하기"}
-                  </button>
-                  <button
-                    className="button secondary"
-                    onClick={() =>
-                      state.phase === "rest"
-                        ? dispatch({ type: "next" })
-                        : dispatch({ type: "finish", now: Date.now() })
-                    }
-                  >
-                    {state.phase === "rest" ? "다음 항목으로" : "기록 입력으로"}
-                  </button>
-                </>
-              )}
-              {state.phase === "record" && (
-                <form className="stack" onSubmit={record} noValidate>
-                  <div className="field">
-                    <label htmlFor="workout-result">
-                      {step.result.label} ({step.result.unit})
-                    </label>
-                    <input
-                      id="workout-result"
-                      type="text"
-                      inputMode={
-                        step.result.kind === "count" ? "numeric" : "decimal"
-                      }
-                      maxLength={16}
-                      value={state.draftValue}
-                      onChange={(e) =>
-                        dispatch({ type: "input", value: e.target.value })
-                      }
-                      aria-invalid={!!error}
-                      aria-describedby="workout-error"
-                      autoComplete="off"
-                    />
-                    <FieldError id="workout-error" message={error} />
-                  </div>
-                  <button className="button primary">
-                    {state.index === demoWorkout.steps.length - 1
-                      ? "체험 마치기"
-                      : "입력하고 다음으로"}
-                  </button>
-                </form>
-              )}
-            </section>
-            <p className="caption">
-              진행 상황은 이 탭에 임시 보관돼요. 다시 열면 일시정지 상태로
-              이어갈 수 있어요.
+            <p className="workout-stage-label" role="status">
+              {state.phase === "countdown"
+                ? "자세를 준비해 주세요"
+                : segment.title}
             </p>
-            <div className="button-row">
-              <Link className="button secondary" href="/">
-                나중에 이어하기
-              </Link>
-              <button
-                className="button secondary"
-                onClick={() => {
-                  dispatch({ type: "pause", now: Date.now() });
-                  setConfirmReset(true);
-                }}
+            <div
+              className="timer-ring"
+              style={
+                {
+                  "--timer-progress": `${Math.round(progress * 100)}%`,
+                } as React.CSSProperties
+              }
+            >
+              <div
+                role="timer"
+                aria-label={
+                  state.phase === "countdown"
+                    ? "시작 카운트다운"
+                    : segment.durationSeconds === null
+                      ? "경과 시간"
+                      : "남은 시간"
+                }
               >
-                처음부터
-              </button>
+                <strong>
+                  {state.phase === "countdown"
+                    ? Math.ceil(state.remainingMs / 1000)
+                    : clock(
+                        segment.durationSeconds === null
+                          ? state.elapsedMs
+                          : state.remainingMs,
+                      )}
+                </strong>
+                <span>
+                  {state.phase === "countdown"
+                    ? "곧 시작해요"
+                    : segment.durationSeconds === null
+                      ? "경과 시간"
+                      : "남은 시간"}
+                </span>
+              </div>
             </div>
-          </>
-        )}
-      </div>
-      {confirmReset && (
-        <Dialog
-          title="체험을 처음부터 할까요?"
-          onClose={() => setConfirmReset(false)}
-        >
-          <div className="stack">
-            <p>현재 체험의 입력과 진행 상황을 지워요.</p>
-            <div className="button-row">
-              <button
-                className="button secondary"
-                onClick={() => setConfirmReset(false)}
-              >
-                취소
-              </button>
+            {cue && (
+              <div className="cadence-cue">
+                <b>{cue}</b>
+                <span>
+                  {segment.cadence?.intervalMs === 625
+                    ? "96 BPM · 네 박자 반복"
+                    : "3초 간격 · 자세를 지켜 주세요"}
+                </span>
+              </div>
+            )}
+            {step.segments.length > 1 && (
+              <div className="segment-track">
+                {step.segments.map((s, i) => (
+                  <span
+                    className={i === state.segmentIndex ? "active" : ""}
+                    key={s.id}
+                  >
+                    {s.shortLabel ?? s.title}
+                  </span>
+                ))}
+              </div>
+            )}
+            {state.phase === "active" && segment.canFinish && (
               <button
                 className="button primary"
-                onClick={() => {
-                  dispatch({ type: "reset" });
-                  setError("");
-                  setConfirmReset(false);
+                onClick={() => act({ type: "finish", now: Date.now() })}
+              >
+                측정 종료 · 횟수 입력
+              </button>
+            )}
+            <button
+              className="button secondary"
+              onClick={() => act({ type: "interrupt" })}
+            >
+              <Square size={17} />
+              측정 중단
+            </button>
+            <p className="caption center">
+              화면을 켜 둔 채 진행해 주세요. 중단하면 이 항목을 다시 측정해요.
+            </p>
+          </>
+        ) : (
+          <>
+            {state.phase === "interrupted" && (
+              <Notice tone="info">
+                측정이 중단됐어요. 정확한 시간 기준을 위해 이 항목은 처음부터
+                다시 측정해 주세요. 앞서 입력한 값은 유지돼요.
+              </Notice>
+            )}
+            {(state.phase === "ready" || state.phase === "interrupted") && (
+              <>
+                <div className="equipment-list">
+                  {step.equipment.map((item) => (
+                    <span key={item}>{item}</span>
+                  ))}
+                </div>
+                <ol className="exercise-guide">
+                  {step.instructions.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ol>
+                <a
+                  className="text-link workout-video"
+                  href={step.videoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink size={16} />
+                  국민체력100 동영상 안내
+                </a>
+                <button
+                  className="button primary"
+                  onClick={() => act({ type: "start", now: Date.now() })}
+                >
+                  <Play size={19} />
+                  {step.segments.length
+                    ? state.phase === "interrupted"
+                      ? "이 항목 다시 시작"
+                      : "측정 시작"
+                    : "측정값 입력"}
+                </button>
+              </>
+            )}
+            {state.phase === "record" && (
+              <form
+                className="stack"
+                noValidate
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const problem = resultError(step, state.draftValue);
+                  setError(problem ?? "");
+                  if (!problem)
+                    act({ type: "record", value: state.draftValue });
                 }}
               >
-                처음부터 시작
-              </button>
-            </div>
-          </div>
-        </Dialog>
-      )}
-    </Shell>
+                <p className="muted">{step.result.hint}</p>
+                <div className="field">
+                  <label htmlFor="workout-result">
+                    {step.result.label} ({step.result.unit})
+                  </label>
+                  <input
+                    id="workout-result"
+                    type="text"
+                    inputMode={
+                      step.result.minimum === undefined
+                        ? "text"
+                        : step.result.kind === "integer"
+                          ? "numeric"
+                          : "decimal"
+                    }
+                    maxLength={16}
+                    autoComplete="off"
+                    value={state.draftValue}
+                    onChange={(e) =>
+                      act({ type: "input", value: e.target.value })
+                    }
+                    aria-invalid={!!error}
+                    aria-describedby="result-hint workout-error"
+                  />
+                  <p className="caption" id="result-hint">
+                    {step.result.multiplier &&
+                    !resultError(step, state.draftValue)
+                      ? `분당 심박수 ${resultValue(step, state.draftValue)} bpm으로 저장돼요.`
+                      : "측정하지 않았다면 건너뛰기를 선택해 주세요."}
+                  </p>
+                  <FieldError id="workout-error" message={error} />
+                </div>
+                <button className="button primary">
+                  {state.reviewing ||
+                  state.index === definition.steps.length - 1
+                    ? "결과 확인"
+                    : "입력하고 다음으로"}
+                </button>
+                {step.segments.length > 0 && (
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => act({ type: "restart" })}
+                  >
+                    이 항목 다시 측정
+                  </button>
+                )}
+              </form>
+            )}
+            <button
+              className="text-button"
+              onClick={() => act({ type: "skip" })}
+            >
+              이 항목 건너뛰기
+            </button>
+          </>
+        )}
+      </section>
+    </div>
   );
 }

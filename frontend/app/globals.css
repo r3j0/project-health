@@ -1039,3 +1039,338 @@ fieldset:disabled select {
     transition: none !important;
   }
 }
+
+/* Shared workout runner: the definition supplies tests, timings and results. */
+.assessment-hero {
+  padding: 12px 0 8px;
+}
+.assessment-hero h2 {
+  font-size: 30px;
+  line-height: 1.45;
+  letter-spacing: -0.04em;
+  margin: 12px 0;
+}
+.assessment-hero p {
+  color: var(--muted);
+  line-height: 1.8;
+}
+.assessment-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  background: #eef3cf;
+  color: #4b652d;
+  margin-bottom: 20px;
+}
+.assessment-steps {
+  list-style: none;
+  display: flex;
+  padding: 0;
+  margin: 0;
+  gap: 10px;
+}
+.assessment-steps li {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 0;
+  color: #737971;
+  border-bottom: 2px solid #e4e8df;
+}
+.assessment-steps li[aria-current] {
+  color: #344a20;
+  border-color: #6c8637;
+}
+.assessment-steps li > span {
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #edf1e7;
+  font-size: 12px;
+  font-weight: 700;
+}
+.assessment-steps small {
+  font-size: 12px;
+}
+.workout-stage {
+  padding: 24px 20px;
+  border: 1px solid #e1e6da;
+  border-radius: 26px;
+  background: #fff;
+}
+.workout-stage h2 {
+  font-size: 25px;
+  line-height: 1.45;
+  letter-spacing: -0.035em;
+  outline: none;
+}
+.workout-stage-label {
+  text-align: center;
+  font-weight: 600;
+  min-height: 24px;
+}
+.equipment-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.equipment-list span {
+  border-radius: 8px;
+  background: #f0f3e8;
+  color: #50633d;
+  padding: 6px 9px;
+  font-size: 12px;
+}
+.exercise-guide {
+  padding-left: 22px;
+  margin: 0;
+  display: grid;
+  gap: 14px;
+  color: #50594d;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.exercise-guide li::marker {
+  color: #587536;
+  font-weight: 700;
+}
+.workout-video {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.timer-ring {
+  width: min(232px, 100%);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  padding: 9px;
+  background: conic-gradient(#718b35 var(--timer-progress), #edf1e5 0);
+  align-self: center;
+}
+.timer-ring > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  border-radius: 50%;
+  background: #fff;
+}
+.timer-ring strong {
+  font-variant-numeric: tabular-nums;
+  font-size: 54px;
+  line-height: 1.3;
+  letter-spacing: -0.05em;
+  color: #283f21;
+}
+.timer-ring span {
+  font-size: 13px;
+  color: #737b6b;
+}
+.cadence-cue {
+  display: grid;
+  gap: 5px;
+  text-align: center;
+  min-height: 64px;
+}
+.cadence-cue b {
+  font-size: 25px;
+  color: #3a5129;
+}
+.cadence-cue span {
+  color: #77816f;
+  font-size: 12px;
+}
+.segment-track {
+  display: flex;
+  gap: 5px;
+}
+.segment-track span {
+  flex: 1;
+  text-align: center;
+  padding: 8px 3px;
+  background: #f3f5f0;
+  border-radius: 8px;
+  font-size: 11px;
+  color: #71796b;
+}
+.segment-track .active {
+  color: #385025;
+  background: #e8f0d5;
+  font-weight: 700;
+}
+.assessment-results {
+  border: 1px solid #e3e7dd;
+  border-radius: 20px;
+  overflow: hidden;
+}
+.assessment-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  gap: 12px;
+  background: #fff;
+}
+.assessment-result + .assessment-result {
+  border-top: 1px solid #eef0e9;
+}
+.assessment-result h3 {
+  font-size: 14px;
+  margin: 5px 0 10px;
+}
+.assessment-result strong {
+  color: #344a24;
+  font-size: 22px;
+}
+.bmi-preview {
+  display: flex;
+  justify-content: space-between;
+  background: #f4f6ef;
+  padding: 14px;
+  border-radius: 12px;
+  gap: 8px;
+}
+.bmi-preview small {
+  font-size: 11px;
+  color: #77816f;
+  font-weight: 400;
+}
+.endurance-choice {
+  display: grid;
+  gap: 12px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.endurance-choice legend {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.endurance-choice .choice-card {
+  margin: 0;
+  cursor: pointer;
+}
+.endurance-choice .choice-card:has(input:checked) {
+  border-color: #718b35;
+  background: #f7faef;
+}
+.endurance-choice input {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  flex: 0 0 18px;
+  accent-color: #5d782d;
+}
+.endurance-choice small {
+  display: block;
+  font-size: 12px;
+  color: #77816f;
+  margin-top: 6px;
+}
+.assessment-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  justify-content: center;
+  align-items: center;
+}
+.assessment-footer p {
+  width: 100%;
+  text-align: center;
+}
+.assessment-source {
+  text-align: center;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  margin-top: 6px;
+}
+.assessment-complete {
+  text-align: center;
+  align-items: center;
+  padding: 36px 24px;
+}
+.assessment-complete > svg {
+  color: #647f34;
+}
+.assessment-complete .button {
+  width: 100%;
+}
+
+.authenticated-app:has(.assessment-shell.is-running) .bottom-navigation {
+  display: none;
+}
+.authenticated-app .assessment-shell.is-running {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.assessment-shell.is-running .page-header {
+  min-height: 60px;
+  padding-block: 8px;
+}
+.assessment-shell.is-running .content {
+  padding-top: 6px;
+  padding-bottom: 16px;
+  gap: 12px;
+}
+.assessment-shell.is-running .content > .stack {
+  gap: 12px;
+}
+.assessment-shell.is-running .assessment-source {
+  display: none;
+}
+.workout-stage.running {
+  position: relative;
+  gap: 12px;
+  padding: 18px 16px;
+}
+.workout-stage.running > .between {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+.workout-stage.running > .between > .eyebrow {
+  display: none;
+}
+.workout-stage.running h2 {
+  font-size: 21px;
+  padding-right: 40px;
+}
+.workout-stage.running .timer-ring {
+  width: min(29dvh, 212px);
+}
+.workout-stage.running .workout-stage-label {
+  font-size: 14px;
+}
+.workout-stage.running .cadence-cue {
+  min-height: 48px;
+}
+.workout-stage.running .cadence-cue b {
+  font-size: 22px;
+}
+.workout-stage.running .caption {
+  font-size: 11px;
+}
+@media (max-height: 700px) {
+  .workout-stage.running {
+    gap: 8px;
+    padding-block: 12px;
+  }
+  .workout-stage.running .timer-ring {
+    width: 155px;
+  }
+  .workout-stage.running .timer-ring strong {
+    font-size: 44px;
+  }
+  .workout-stage.running .button {
+    min-height: 44px;
+  }
+}

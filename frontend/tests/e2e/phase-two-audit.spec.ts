@@ -1,3 +1,4 @@
+import { prepareAssessment } from "./workout-helpers";
 import { test, expect, type Page } from "@playwright/test";
 
 // Authentication writes share the real backend's 60/minute IP limit with the
@@ -26,23 +27,20 @@ const png = Buffer.from(
   "base64",
 );
 
-test("진행 중인 운동에서 나갔다가 뒤로 돌아오면 시간이 멈춰 있다", async ({
+test("진행 중인 측정에서 나갔다가 돌아오면 해당 항목을 다시 시작한다", async ({
   page,
 }) => {
   await register(page);
   await page.goto("/workout");
-  await page.getByRole("button", { name: "타이머 시작" }).click();
-  await page.getByRole("link", { name: "나중에 이어하기" }).click();
-  await expect(page).toHaveURL(new URL("/", page.url()).href);
-  // A real delay detects elapsed wall-clock time leaking across cached navigation.
-  await page.waitForTimeout(1600);
+  await prepareAssessment(page);
+  await page.getByRole("button", { name: "측정 시작", exact: true }).click();
+  await page.getByRole("link", { name: "이전 화면", exact: true }).click();
+  await expect(page).toHaveURL(/\/onboarding$/);
   await page.goBack();
   await expect(
-    page.getByRole("button", { name: "계속하기", exact: true }),
+    page.getByRole("button", { name: "이 항목 다시 시작" }),
   ).toBeVisible();
-  const value = await page.getByRole("timer").textContent();
-  await page.waitForTimeout(1200);
-  await expect(page.getByRole("timer")).toHaveText(value!);
+  await expect(page.getByRole("timer")).toHaveCount(0);
 });
 
 test("사진은 이탈 시 지우고 입력 초안은 사진 없이 이어갈 수 있다", async ({
@@ -159,8 +157,8 @@ for (const committed of [false, true]) {
   }) => {
     const account = await register(page);
     await page.goto("/workout");
-    await page.getByRole("button", { name: "타이머 시작" }).click();
-    await page.getByRole("button", { name: "기록 입력으로" }).click();
+    await prepareAssessment(page);
+    await page.getByRole("button", { name: "이 항목 건너뛰기" }).click();
     await page.goto("/account/settings");
     const other = await context.newPage();
     await other.goto("/account");
@@ -191,7 +189,9 @@ for (const committed of [false, true]) {
     await expect(page).toHaveURL(/\/login/);
     await expect(other).toHaveURL(/\/login/);
     expect(
-      await page.evaluate(() => sessionStorage.getItem("modu-workout-demo-v1")),
+      await page.evaluate(() =>
+        sessionStorage.getItem("modu-workout-session-v2"),
+      ),
     ).toBeNull();
     await page.getByLabel("이메일", { exact: true }).fill(account.email);
     await page.getByLabel("비밀번호", { exact: true }).fill(password);

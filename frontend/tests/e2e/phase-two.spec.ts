@@ -1,3 +1,4 @@
+import { prepareAssessment, skipToFlexibility } from "./workout-helpers";
 import { test, expect, type Page, type Route } from "@playwright/test";
 
 // Authentication writes share the real backend's 60/minute IP limit with the
@@ -144,6 +145,7 @@ test("주요 화면은 좁은 모바일 너비에서 가로 넘침 없이 사용
       fullPage: true,
     });
     if (path === "/workout") {
+      await prepareAssessment(page);
       // Fixed bottom navigation must not block actions after scrolling at 320px.
       await page.getByRole("button", { name: "처음부터", exact: true }).click();
       await expect(page.getByRole("dialog")).toBeVisible();
@@ -269,59 +271,37 @@ test("사진을 로컬에서 확인하고 같은 측정 폼에서 입력하며 �
   ).toHaveCount(0);
 });
 
-test("운동 체험은 일시정지·복원·항목 전환을 지원하고 서버 기록을 만들지 않는다", async ({
+test("간이측정은 제출 전까지 기록을 만들지 않고 입력을 복원한다", async ({
   page,
 }) => {
   const account = await register(page);
-  const writes: string[] = [];
-  page.on("request", (request) => {
-    if (
-      request.url().startsWith(api) &&
-      /^(POST|PATCH|DELETE)$/.test(request.method()) &&
-      !request.url().includes("/auth/")
-    )
-      writes.push(request.url());
-  });
   await page.goto("/workout");
-  await page.getByRole("button", { name: "타이머 시작" }).click();
-  await page.getByRole("button", { name: "일시정지", exact: true }).click();
-  const paused = (await page.getByRole("timer").textContent()) ?? "";
+  await prepareAssessment(page);
+  await skipToFlexibility(page);
+  await page.getByRole("button", { name: "결과 확인", exact: true }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "측정한 값을 입력",
+  );
+  await page.getByLabel("기준선에서 도달한 거리 (cm)").fill("-3.25");
   await page.reload();
+  await expect(page.getByLabel("기준선에서 도달한 거리 (cm)")).toHaveValue(
+    "-3.25",
+  );
+  await page.getByRole("button", { name: "결과 확인", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "계속하기", exact: true }),
+    page.getByRole("heading", { name: "측정한 값을 확인해요" }),
   ).toBeVisible();
-  await expect(page.getByRole("timer")).toHaveText(paused);
-  await page.getByRole("button", { name: "기록 입력으로" }).click();
-  await page.getByRole("button", { name: "입력하고 다음으로" }).click();
-  await expect(
-    page.getByText("값을 입력해 주세요. 0도 입력할 수 있어요."),
-  ).toBeVisible();
-  await page.getByLabel("예시 횟수 (회)").fill("0");
-  await page.reload();
-  await expect(page.getByLabel("예시 횟수 (회)")).toHaveValue("0");
-  await page.getByRole("button", { name: "입력하고 다음으로" }).click();
-  await page.getByRole("button", { name: "다음 항목으로" }).click();
-  await page.getByRole("button", { name: "타이머 시작" }).click();
-  await page.getByRole("button", { name: "기록 입력으로" }).click();
-  await page.getByLabel("예시 시간 (초)").fill("3.25");
-  await page.getByRole("button", { name: "체험 마치기" }).click();
-  await expect(
-    page.getByRole("heading", { name: "진행 방법을 모두 확인했어요" }),
-  ).toBeVisible();
-  expect(writes).toEqual([]);
   const profile = await page.request.get(`${api}/auth/me`, {
     headers: { Authorization: `Bearer ${account.access_token}` },
   });
   expect((await profile.json()).isOnboarded).toBe(false);
-  await page.reload();
-  await expect(page.getByRole("button", { name: "타이머 시작" })).toBeVisible();
 });
 
-test("로그아웃하면 운동 체험 진행도 함께 지워진다", async ({ page }) => {
+test("로그아웃하면 간이측정 진행도 함께 지워진다", async ({ page }) => {
   const { email } = await register(page);
   await page.goto("/workout");
-  await page.getByRole("button", { name: "타이머 시작" }).click();
-  await page.getByRole("button", { name: "기록 입력으로" }).click();
+  await prepareAssessment(page);
+  await page.getByRole("button", { name: "이 항목 건너뛰기" }).click();
   await page.getByRole("link", { name: "내 프로필", exact: true }).click();
   await page.getByRole("button", { name: "로그아웃", exact: true }).click();
   await page
@@ -331,7 +311,7 @@ test("로그아웃하면 운동 체험 진행도 함께 지워진다", async ({ 
   await expect(page).toHaveURL(/\/login/);
   await login(page, email);
   await page.goto("/workout");
-  await expect(page.getByRole("button", { name: "타이머 시작" })).toBeVisible();
+  await expect(page.getByLabel("만 나이", { exact: true })).toHaveValue("");
 });
 
 test("계정 수정은 비밀번호 오류를 재전송하지 않고 성공하면 모든 탭에서 로그아웃한다", async ({

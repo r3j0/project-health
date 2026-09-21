@@ -76,6 +76,7 @@ export interface MeasurementPage {
   nextCursor: string | null;
 }
 export interface MeasurementInput extends MeasurementMetadata {
+  entryMethod?: "manual" | "self_assessment";
   catalogVersion: string;
   items: MeasurementItem[];
 }

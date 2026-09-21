@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CircleMinus, Plus } from "lucide-react";
 import { ApiError, errorMessage } from "@/lib/http";
 import { api, getSession } from "@/lib/session";
+import { calculateBodyItems, bmiFrom } from "@/lib/assessment";
 import {
   measurementDrafts,
   type MeasurementDraft,
@@ -43,6 +44,17 @@ export function RecordForm({
   onboarding?: boolean;
   reference?: React.ReactNode;
 }) {
+  const selfAssessment = initial?.data.entryMethod === "self_assessment";
+  const selfCodes = [
+    "height",
+    "weight",
+    "bmi",
+    "waist_circumference",
+    "cross_sit_up",
+    "self_curl_up",
+    "ymca_recovery_heart_rate",
+    "sit_and_reach",
+  ];
   const router = useRouter();
   const [owner] = useState(() => getSession().user!.id);
   const [sessionGeneration] = useState(() => getSession().generation);
@@ -160,9 +172,12 @@ export function RecordForm({
     setDirty(true);
   }
   function updateItem(code: string, key: "value" | "grade", value: string) {
-    setItems((current) =>
-      current.map((i) => (i.code === code ? { ...i, [key]: value } : i)),
-    );
+    setItems((current) => {
+      const next = current.map((i) =>
+        i.code === code ? { ...i, [key]: value } : i,
+      );
+      return selfAssessment ? calculateBodyItems(next) : next;
+    });
     setDirty(true);
   }
   function scrollError() {
@@ -175,6 +190,8 @@ export function RecordForm({
     event.preventDefault();
     if (guard.current) return;
     const next = validateMetadata(meta, koreaDate());
+    if (selfAssessment && Number(meta.age) < 19)
+      next.ageAtMeasurement = "성인 간이측정은 만 19~64세를 지원해요.";
     setErrors(next);
     setMessage("");
     if (Object.keys(next).length) {
@@ -224,7 +241,21 @@ export function RecordForm({
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (guard.current || !catalog || gone) return;
-    const built = buildInput(meta, items, catalog, koreaDate());
+    const built = buildInput(
+      meta,
+      selfAssessment ? calculateBodyItems(items) : items,
+      catalog,
+      koreaDate(),
+    );
+    if (selfAssessment) {
+      const height = items.find((i) => i.code === "height")?.value ?? "";
+      const weight = items.find((i) => i.code === "weight")?.value ?? "";
+      if (height && weight && !bmiFrom(height, weight))
+        built.errors.items =
+          "BMI를 계산할 수 없어요. 신장과 체중을 확인해 주세요.";
+    }
+    if (selfAssessment && Number(meta.age) < 19)
+      built.errors.ageAtMeasurement = "성인 간이측정은 만 19~64세를 지원해요.";
     setErrors(built.errors);
     setMessage("");
     if (Object.keys(built.errors).length) {
@@ -454,6 +485,14 @@ export function RecordForm({
       />
       <div className="content">
         {reference}
+        {!initial && !onboarding && step === 1 && (
+          <Link
+            className="text-link"
+            href="/workout?curriculum=adult-self-assessment-v1"
+          >
+            결과표가 없다면 간이측정으로 기록하기
+          </Link>
+        )}
         <div className="stepper" aria-label={`${step}단계 / 2단계`}>
           <span className={`step ${step === 1 ? "active" : ""}`}>
             <b>1</b>기본 정보
@@ -533,7 +572,9 @@ export function RecordForm({
                   <span className="input-unit">세</span>
                 </div>
                 <p className="caption" id="age-hint">
-                  만 13~64세의 기록을 등록할 수 있어요.
+                  {selfAssessment
+                    ? "성인 간이측정은 만 19~64세를 지원해요."
+                    : "만 13~64세의 기록을 등록할 수 있어요."}
                 </p>
                 <FieldError id="age-error" message={errors.ageAtMeasurement} />
               </div>
@@ -561,6 +602,7 @@ export function RecordForm({
                     <label htmlFor="kind">측정 유형</label>
                     <select
                       id="kind"
+                      disabled={selfAssessment}
                       value={meta.kind}
                       onChange={(e) =>
                         update("kind", e.target.value as FormMetadata["kind"])
@@ -568,7 +610,9 @@ export function RecordForm({
                     >
                       <option value="unknown">모름 / 선택 안 함</option>
                       <option value="standard">일반 체력측정</option>
-                      <option value="simple">공식 간편측정</option>
+                      <option value="simple">
+                        {selfAssessment ? "성인 간이측정" : "공식 간편측정"}
+                      </option>
                     </select>
                   </div>
                   {textField(
@@ -578,13 +622,14 @@ export function RecordForm({
                     200,
                     "centerName",
                   )}
-                  {textField(
-                    "grade",
-                    "결과표 종합등급",
-                    "grade",
-                    100,
-                    "reportedOverallGrade",
-                  )}
+                  {!selfAssessment &&
+                    textField(
+                      "grade",
+                      "결과표 종합등급",
+                      "grade",
+                      100,
+                      "reportedOverallGrade",
+                    )}
                   <p className="caption">
                     결과표에 적힌 그대로 입력해 주세요. 서비스가 계산한 등급이
                     아니에요.
@@ -645,15 +690,21 @@ export function RecordForm({
                           type="button"
                           className="icon-button"
                           aria-label={`${label} 항목 삭제`}
+                          disabled={selfAssessment && item.code === "bmi"}
                           onClick={() => {
                             if (
                               (item.value || item.grade) &&
                               !window.confirm(`${label}의 입력값을 삭제할까요?`)
                             )
                               return;
-                            setItems((old) =>
-                              old.filter((i) => i.code !== item.code),
-                            );
+                            setItems((old) => {
+                              const next = old.filter(
+                                (i) => i.code !== item.code,
+                              );
+                              return selfAssessment
+                                ? calculateBodyItems(next)
+                                : next;
+                            });
                             setDirty(true);
                           }}
                         >
@@ -664,6 +715,7 @@ export function RecordForm({
                         <input
                           className="input"
                           id={`value-${item.code}`}
+                          readOnly={selfAssessment && item.code === "bmi"}
                           type="text"
                           inputMode={
                             definition?.minValue === null
@@ -701,7 +753,7 @@ export function RecordForm({
                 측정 항목 추가
               </button>
               <FieldError message={errors.items} />
-              {!!items.length && (
+              {!selfAssessment && !!items.length && (
                 <details className="accordion">
                   <summary>
                     항목별 결과표 등급{" "}
@@ -757,7 +809,19 @@ export function RecordForm({
           <CatalogPicker
             definitions={catalog.definitions.filter(
               (d) =>
-                Number(meta.age) >= d.minAge && Number(meta.age) <= d.maxAge,
+                Number(meta.age) >= d.minAge &&
+                Number(meta.age) <= d.maxAge &&
+                (!selfAssessment ||
+                  (selfCodes.includes(d.code) &&
+                    d.code !== "bmi" &&
+                    !(
+                      d.code === "cross_sit_up" &&
+                      items.some((i) => i.code === "self_curl_up")
+                    ) &&
+                    !(
+                      d.code === "self_curl_up" &&
+                      items.some((i) => i.code === "cross_sit_up")
+                    ))),
             )}
             selected={items.map((i) => i.code)}
             onSelect={(code) => {

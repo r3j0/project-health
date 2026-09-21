@@ -1,4 +1,4 @@
-import type { Catalog, Measurement, MeasurementInput } from "./types";
+import type { Catalog, Measurement, MeasurementInput } from "./types.ts";
 export interface FormMetadata {
   measuredOn: string;
   age: string;
