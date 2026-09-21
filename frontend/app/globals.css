@@ -647,13 +647,6 @@ fieldset:disabled select {
     transform: rotate(360deg);
   }
 }
-.list-intro {
-  background: linear-gradient(180deg, #f0f8fc, white);
-  padding: 28px 20px 24px;
-}
-.list-intro .button {
-  margin-top: 22px;
-}
 .list-heading {
   margin-bottom: 16px;
 }
@@ -1014,9 +1007,6 @@ fieldset:disabled select {
   }
   .page-header {
     padding: 20px 24px;
-  }
-  .list-intro {
-    padding: 28px 32px;
   }
   .metadata-form {
     min-height: calc(100dvh - 220px);

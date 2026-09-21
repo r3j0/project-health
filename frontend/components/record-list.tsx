@@ -19,19 +19,19 @@ export function RecordList() {
   return (
     <Shell>
       <h1 className="sr-only">내 측정 기록</h1>
-      <div className="list-intro">
-        <p className="eyebrow">MY FITNESS RECORD</p>
-        <h2>차곡차곡, 나의 체력 기록</h2>
-        <p className="muted" style={{ marginTop: 8 }}>
-          국민체력100 결과를 한곳에 모아보세요.
-        </p>
-        <Link href="/measurements/new" className="button primary">
-          <Plus size={20} />새 기록 등록
-        </Link>
-      </div>
       <div className="content">
         <div className="between list-heading">
-          <h2>최근 기록</h2>
+          <div className="row">
+            <h2>최근 기록</h2>
+            <Link
+              href="/measurements/new"
+              className="icon-button"
+              aria-label="새 기록 등록"
+              title="새 기록 등록"
+            >
+              <Plus size={20} aria-hidden="true" />
+            </Link>
+          </div>
           <button
             className="button secondary inline"
             onClick={() => setOpen((v) => !v)}
