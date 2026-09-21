@@ -165,11 +165,30 @@ export async function api<T>(path: string, options: RequestInit = {}) {
     userId = session.user?.id,
     token = accessToken;
   if (!token) throw new ApiError(401, "로그인이 필요해요.");
-  const send = () =>
-    request<T>(path, {
-      ...options,
-      headers: { ...options.headers, Authorization: `Bearer ${accessToken}` },
-    });
+  const changesProfile =
+    !!options.method &&
+    /^(POST|PATCH|DELETE)$/i.test(options.method) &&
+    /^\/measurements(?:\/|$)/.test(path);
+  const send = async () => {
+    try {
+      return await request<T>(path, {
+        ...options,
+        headers: { ...options.headers, Authorization: `Bearer ${accessToken}` },
+      });
+    } catch (error) {
+      // A lost response does not prove the server rejected the write. Re-read
+      // the profile, while the form retains its original request for reconciliation.
+      if (
+        changesProfile &&
+        session.user?.id === userId &&
+        session.generation === generation &&
+        error instanceof ApiError &&
+        (error.status === 0 || error.status >= 500)
+      )
+        invalidateUserProfile();
+      throw error;
+    }
+  };
   let result;
   try {
     result = await send();
@@ -182,12 +201,7 @@ export async function api<T>(path: string, options: RequestInit = {}) {
   }
   if (session.user?.id !== userId || session.generation !== generation)
     throw new ApiError(401, "로그인 상태가 변경되었어요.");
-  if (
-    options.method &&
-    /^(POST|PATCH|DELETE)$/i.test(options.method) &&
-    /^\/measurements(?:\/|$)/.test(path)
-  )
-    invalidateUserProfile();
+  if (changesProfile) invalidateUserProfile();
   return result;
 }
 

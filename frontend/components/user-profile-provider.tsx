@@ -52,7 +52,11 @@ export function UserProfileProvider({
       if (document.visibilityState === "visible") invalidateUserProfile();
     };
     window.addEventListener("focus", refresh);
-    return () => window.removeEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, []);
   return (
     <ProfileContext.Provider
