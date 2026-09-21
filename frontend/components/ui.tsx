@@ -8,6 +8,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useId, useRef } from "react";
+import { useViewEntrance } from "./use-view-entrance";
 export function Brand() {
   return (
     <Link href="/" className="brand" aria-label="모두채력 시작 화면">
@@ -35,8 +36,9 @@ export function Shell({
   children: React.ReactNode;
   className?: string;
 }) {
+  const entrance = useViewEntrance();
   return (
-    <main id="main" className={`app-shell ${className}`}>
+    <main ref={entrance} id="main" className={`app-shell ${className}`}>
       {children}
     </main>
   );
@@ -61,9 +63,7 @@ export function Header({
           모두<span>채력</span>
         </Link>
       )}
-      <h1 key={title} className="page-title-enter">
-        {title}
-      </h1>
+      <h1>{title}</h1>
       <div className="header-right">{right}</div>
     </header>
   );

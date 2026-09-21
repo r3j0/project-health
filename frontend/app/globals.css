@@ -305,19 +305,6 @@ h3 {
   align-items: center;
   gap: 4px;
 }
-.page-title-enter {
-  animation: page-title-enter 380ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-@keyframes page-title-enter {
-  from {
-    opacity: 0;
-    transform: translateX(-16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
 .page-header h1 {
   text-align: center;
   font-size: 20px;
@@ -1045,9 +1032,6 @@ fieldset:disabled select {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .page-title-enter {
-    animation: none;
-  }
   *,
   *::before,
   *::after {

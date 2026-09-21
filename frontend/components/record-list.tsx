@@ -22,7 +22,7 @@ export function RecordList() {
       <div className="content">
         <div className="between list-heading">
           <div className="row">
-            <h2 className="page-title-enter">최근 기록</h2>
+            <h2>최근 기록</h2>
             <Link
               href="/measurements/new"
               className="icon-button"

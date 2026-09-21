@@ -88,12 +88,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       <div className="auth-content">
         {!register && <ArtworkSlot />}
         <div className="intro">
-          <h1
-            key={register ? "register" : "login"}
-            className="page-title-enter"
-          >
-            {register ? "가볍게 시작해요" : "다시 만나 반가워요"}
-          </h1>
+          <h1>{register ? "가볍게 시작해요" : "다시 만나 반가워요"}</h1>
           <p>
             {register
               ? "이메일로 간단하게 가입해요."
