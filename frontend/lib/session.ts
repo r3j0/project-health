@@ -194,3 +194,53 @@ export function invalidateUserProfile(broadcast = true) {
   if (broadcast)
     channel?.postMessage({ type: "profile-changed", userId: session.user?.id });
 }
+
+/** Credential mutations are never replayed: a 401 can mean a wrong password. */
+export async function changeAccount(
+  method: "PATCH" | "DELETE",
+  body:
+    | { currentPassword: string; email?: string; newPassword?: string }
+    | { password: string },
+) {
+  const generation = session.generation;
+  // Refresh an expired session with a safe read before entering the auth lock.
+  await api<User>("/auth/me");
+  return locked(async () => {
+    if (session.generation !== generation || !accessToken)
+      throw new ApiError(
+        401,
+        "로그인 상태가 변경되었어요. 다시 로그인해 주세요.",
+      );
+    try {
+      await request<null>("/users/me", {
+        method,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "X-CSRF-Protection": "1",
+        },
+        body: JSON.stringify(body),
+      });
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401)
+        throw new ApiError(
+          401,
+          "본인 확인에 실패했어요. 현재 비밀번호를 확인해 주세요. 계속 실패하면 다시 로그인해 주세요.",
+        );
+      if (error instanceof ApiError && error.status === 409)
+        throw new ApiError(
+          409,
+          "이미 사용 중인 이메일이에요. 다른 이메일을 입력해 주세요.",
+        );
+      if (
+        error instanceof ApiError &&
+        (error.status === 0 || error.status >= 500)
+      )
+        throw new ApiError(
+          error.status,
+          "처리 결과를 확인하지 못했어요. 계정이 변경되었을 수 있으니 다시 로그인해 확인해 주세요.",
+        );
+      throw error;
+    }
+    if (session.generation === generation) clear("logout");
+  });
+}

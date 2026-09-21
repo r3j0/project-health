@@ -56,6 +56,12 @@ export function Account() {
         <div className="menu-card">
           {user && (
             <div className="menu-row">
+              <span className="muted">보유 재화</span>
+              <strong>{user.currency.balance.toLocaleString("ko-KR")}</strong>
+            </div>
+          )}
+          {user && (
+            <div className="menu-row">
               <span className="muted">가입일</span>
               <span>
                 {new Intl.DateTimeFormat("ko-KR", {
@@ -67,6 +73,10 @@ export function Account() {
           )}
           <Link href="/measurements" className="menu-row">
             <strong>내 측정 기록</strong>
+            <ChevronRight size={20} />
+          </Link>
+          <Link href="/account/settings" className="menu-row">
+            <strong>계정 설정</strong>
             <ChevronRight size={20} />
           </Link>
         </div>

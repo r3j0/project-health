@@ -13,6 +13,22 @@
   --success: #157347;
   --bottom-navigation-height: 72px;
 }
+.segmented {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.segmented button {
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--canvas);
+  color: var(--muted);
+  min-height: 44px;
+}
+.segmented button[aria-pressed="true"] {
+  background: var(--navy);
+  color: white;
+}
 * {
   box-sizing: border-box;
 }

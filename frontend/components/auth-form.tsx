@@ -18,6 +18,7 @@ function destination() {
   const next = new URLSearchParams(window.location.search).get("next") ?? "";
   return /^\/measurements(?:\/new|\/[a-f0-9-]+(?:\/edit)?)?$/.test(next) ||
     next === "/account" ||
+    next === "/account/settings" ||
     next === "/"
     ? next
     : "/";
