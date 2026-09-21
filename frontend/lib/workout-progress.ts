@@ -37,8 +37,13 @@ export function setWorkoutOwner(owner: string | null, erase = false) {
 }
 export function readWorkoutProgress(owner: string): WorkoutState | null {
   try {
-    const raw = storage()?.getItem(key);
-    const saved: Saved | null = raw ? JSON.parse(raw) : memory;
+    let saved: Saved | null = memory;
+    try {
+      const raw = storage()?.getItem(key);
+      if (raw) saved = JSON.parse(raw);
+    } catch {
+      // Storage can be blocked or malformed. Validate the memory fallback below too.
+    }
     if (!saved) return null;
     if (
       saved.owner !== owner ||
@@ -79,7 +84,7 @@ export function readWorkoutProgress(owner: string): WorkoutState | null {
       return null;
     return s;
   } catch {
-    return memory?.owner === owner ? memory.state : null;
+    return null;
   }
 }
 export function saveWorkoutProgress(owner: string, state: WorkoutState) {
