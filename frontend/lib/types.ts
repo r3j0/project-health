@@ -4,6 +4,18 @@ export interface User {
   created_at: string;
   updated_at: string;
 }
+export interface CurriculumAssignment {
+  id: string;
+  status: "assigned" | "completed";
+  assignedAt: string;
+  completedAt: string | null;
+  curriculum: { id: string; name: string };
+}
+export interface UserProfile extends User {
+  isOnboarded: boolean;
+  currency: { balance: number };
+  currentCurriculum: CurriculumAssignment | null;
+}
 export interface AuthResponse {
   user: User;
   access_token: string;

@@ -1,31 +1,18 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronRight, LogOut } from "lucide-react";
-import { api, logout } from "@/lib/session";
+import { logout } from "@/lib/session";
 import { errorMessage } from "@/lib/http";
-import type { User } from "@/lib/types";
+import { useUserProfile } from "./user-profile-provider";
 import { ArtworkSlot, Dialog, Loading, Notice, Shell } from "./ui";
 export function Account() {
-  const [user, setUser] = useState<User | null>(null),
-    [profileError, setProfileError] = useState(""),
-    [logoutError, setLogoutError] = useState(""),
+  const { data: user, error: profileError, reload } = useUserProfile();
+  const [logoutError, setLogoutError] = useState(""),
     [confirm, setConfirm] = useState(false),
-    [busy, setBusy] = useState(false),
-    [retry, setRetry] = useState(0);
+    [busy, setBusy] = useState(false);
   const router = useRouter();
-  useEffect(() => {
-    const c = new AbortController();
-    api<User>("/auth/me", { signal: c.signal })
-      .then((r) => {
-        if (!c.signal.aborted) setUser(r.data);
-      })
-      .catch((e) => {
-        if (!c.signal.aborted) setProfileError(errorMessage(e));
-      });
-    return () => c.abort();
-  }, [retry]);
   async function signOut() {
     setBusy(true);
     setLogoutError("");
@@ -59,13 +46,7 @@ export function Account() {
         ) : profileError ? (
           <>
             <Notice>{profileError}</Notice>
-            <button
-              className="button secondary"
-              onClick={() => {
-                setProfileError("");
-                setRetry((v) => v + 1);
-              }}
-            >
+            <button className="button secondary" onClick={reload}>
               다시 불러오기
             </button>
           </>

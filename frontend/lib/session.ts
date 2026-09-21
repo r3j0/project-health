@@ -6,8 +6,14 @@ type Session = {
   user: User | null;
   error?: string;
   generation: number;
+  profileRevision: number;
 };
-const initial: Session = { status: "loading", user: null, generation: 0 };
+const initial: Session = {
+  status: "loading",
+  user: null,
+  generation: 0,
+  profileRevision: 0,
+};
 let session = initial;
 let accessToken: string | null = null;
 let refreshPromise: Promise<void> | undefined;
@@ -32,6 +38,7 @@ function accept(auth: AuthResponse, broadcast = true, newLogin = false) {
   publish({
     status: "authenticated",
     user: auth.user,
+    profileRevision: session.profileRevision,
     generation:
       session.generation +
       (newLogin || session.user?.id !== auth.user.id ? 1 : 0),
@@ -47,6 +54,7 @@ function clear(reason: "expired" | "logout" = "expired", broadcast = true) {
     status: "anonymous",
     user: null,
     generation: session.generation + 1,
+    profileRevision: session.profileRevision + 1,
   });
   if (broadcast) channel?.postMessage({ type: "logout", reason });
 }
@@ -62,6 +70,8 @@ export function startSession() {
     channel.onmessage = ({ data }) => {
       if (data?.type === "logout")
         clear(data.reason === "expired" ? "expired" : "logout", false);
+      if (data?.type === "profile-changed" && data.userId === session.user?.id)
+        invalidateUserProfile(false);
       if (
         data?.type === "authenticated" &&
         typeof data.auth?.access_token === "string" &&
@@ -76,6 +86,7 @@ export function startSession() {
         status: "error",
         user: null,
         generation: session.generation,
+        profileRevision: session.profileRevision,
         error: errorMessage(error),
       });
   });
@@ -168,5 +179,18 @@ export async function api<T>(path: string, options: RequestInit = {}) {
   }
   if (session.user?.id !== userId || session.generation !== generation)
     throw new ApiError(401, "로그인 상태가 변경되었어요.");
+  if (
+    options.method &&
+    /^(POST|PATCH|DELETE)$/i.test(options.method) &&
+    /^\/measurements(?:\/|$)/.test(path)
+  )
+    invalidateUserProfile();
   return result;
+}
+
+export function invalidateUserProfile(broadcast = true) {
+  if (session.status !== "authenticated") return;
+  publish({ ...session, profileRevision: session.profileRevision + 1 });
+  if (broadcast)
+    channel?.postMessage({ type: "profile-changed", userId: session.user?.id });
 }
