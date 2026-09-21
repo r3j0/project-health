@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import {
   AccountChangeUncertainError,
   changeAccount,
@@ -128,6 +127,19 @@ export function AccountSettings() {
           </p>
         </div>
         <form className="stack" onSubmit={submit}>
+          <div className="field">
+            <label htmlFor="current-password">현재 비밀번호</label>
+            <input
+              id="current-password"
+              type="password"
+              autoComplete="current-password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
+              maxLength={128}
+              disabled={busy || uncertain}
+            />
+          </div>
           {mode === "email" && (
             <div className="field">
               <label htmlFor="new-email">새 이메일</label>
@@ -182,19 +194,6 @@ export function AccountSettings() {
               </div>
             </>
           )}
-          <div className="field">
-            <label htmlFor="current-password">현재 비밀번호</label>
-            <input
-              id="current-password"
-              type="password"
-              autoComplete="current-password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              required
-              maxLength={128}
-              disabled={busy || uncertain}
-            />
-          </div>
           {error && <Notice>{error}</Notice>}
           {canReauthenticate && (
             <button
@@ -222,9 +221,6 @@ export function AccountSettings() {
             </SubmitLabel>
           </button>
         </form>
-        <Link href="/account" className="text-link">
-          내 프로필로 돌아가기
-        </Link>
       </div>
       {confirmDelete && (
         <Dialog

@@ -104,7 +104,7 @@ test("설정 요청 중 화면을 떠났다가 돌아와도 재시도할 수 있
     .click();
   await started;
   page.on("dialog", (dialog) => dialog.accept());
-  await page.getByRole("link", { name: "내 프로필로 돌아가기" }).click();
+  await page.getByRole("link", { name: "이전 화면", exact: true }).click();
   await expect(page).toHaveURL(/\/account$/);
   release();
   await page.waitForTimeout(300);
