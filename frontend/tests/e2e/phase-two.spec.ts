@@ -30,6 +30,71 @@ async function login(page: Page, email: string, secret = password) {
   await expect(page).not.toHaveURL(/\/login/);
 }
 
+test("운동 체험은 일시정지·복원·항목 전환을 지원하고 서버 기록을 만들지 않는다", async ({
+  page,
+}) => {
+  const account = await register(page);
+  const writes: string[] = [];
+  page.on("request", (request) => {
+    if (
+      request.url().startsWith(api) &&
+      /^(POST|PATCH|DELETE)$/.test(request.method()) &&
+      !request.url().includes("/auth/")
+    )
+      writes.push(request.url());
+  });
+  await page.goto("/workout");
+  await page.getByRole("button", { name: "타이머 시작" }).click();
+  await page.getByRole("button", { name: "일시정지", exact: true }).click();
+  const paused = (await page.getByRole("timer").textContent()) ?? "";
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "계속하기", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("timer")).toHaveText(paused);
+  await page.getByRole("button", { name: "기록 입력으로" }).click();
+  await page.getByRole("button", { name: "입력하고 다음으로" }).click();
+  await expect(
+    page.getByText("값을 입력해 주세요. 0도 입력할 수 있어요."),
+  ).toBeVisible();
+  await page.getByLabel("예시 횟수 (회)").fill("0");
+  await page.reload();
+  await expect(page.getByLabel("예시 횟수 (회)")).toHaveValue("0");
+  await page.getByRole("button", { name: "입력하고 다음으로" }).click();
+  await page.getByRole("button", { name: "다음 항목으로" }).click();
+  await page.getByRole("button", { name: "타이머 시작" }).click();
+  await page.getByRole("button", { name: "기록 입력으로" }).click();
+  await page.getByLabel("예시 시간 (초)").fill("3.25");
+  await page.getByRole("button", { name: "체험 마치기" }).click();
+  await expect(
+    page.getByRole("heading", { name: "진행 방법을 모두 확인했어요" }),
+  ).toBeVisible();
+  expect(writes).toEqual([]);
+  const profile = await page.request.get(`${api}/auth/me`, {
+    headers: { Authorization: `Bearer ${account.access_token}` },
+  });
+  expect((await profile.json()).isOnboarded).toBe(false);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "타이머 시작" })).toBeVisible();
+});
+
+test("로그아웃하면 운동 체험 진행도 함께 지워진다", async ({ page }) => {
+  const { email } = await register(page);
+  await page.goto("/workout");
+  await page.getByRole("button", { name: "타이머 시작" }).click();
+  await page.getByRole("button", { name: "기록 입력으로" }).click();
+  await page.getByRole("link", { name: "내 프로필", exact: true }).click();
+  await page.getByRole("button", { name: "로그아웃", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "로그아웃", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/login/);
+  await login(page, email);
+  await page.goto("/workout");
+  await expect(page.getByRole("button", { name: "타이머 시작" })).toBeVisible();
+});
+
 test("계정 수정은 비밀번호 오류를 재전송하지 않고 성공하면 모든 탭에서 로그아웃한다", async ({
   page,
   context,

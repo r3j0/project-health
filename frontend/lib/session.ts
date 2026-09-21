@@ -1,6 +1,7 @@
 import { ApiError, errorMessage, request } from "./http";
 import type { AuthResponse, User } from "./types";
 import { measurementDrafts } from "./measurement-drafts";
+import { setWorkoutOwner } from "./workout-progress";
 type Session = {
   status: "loading" | "authenticated" | "anonymous" | "error";
   user: User | null;
@@ -34,6 +35,7 @@ function publish(next: Session) {
 }
 function accept(auth: AuthResponse, broadcast = true, newLogin = false) {
   measurementDrafts.setOwner(auth.user.id);
+  setWorkoutOwner(auth.user.id);
   accessToken = auth.access_token;
   publish({
     status: "authenticated",
@@ -47,6 +49,7 @@ function accept(auth: AuthResponse, broadcast = true, newLogin = false) {
     channel?.postMessage({ type: "authenticated", auth, newLogin });
 }
 function clear(reason: "expired" | "logout" = "expired", broadcast = true) {
+  setWorkoutOwner(null, reason === "logout");
   if (reason === "logout") measurementDrafts.clear();
   else measurementDrafts.suspend();
   accessToken = null;

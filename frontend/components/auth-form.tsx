@@ -19,6 +19,7 @@ function destination() {
   return /^\/measurements(?:\/new|\/[a-f0-9-]+(?:\/edit)?)?$/.test(next) ||
     next === "/account" ||
     next === "/account/settings" ||
+    next === "/workout" ||
     next === "/"
     ? next
     : "/";

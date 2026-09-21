@@ -29,6 +29,43 @@
   background: var(--navy);
   color: white;
 }
+.feature-card {
+  padding: 24px;
+  border-radius: 24px;
+  background: var(--tint);
+}
+.eyebrow {
+  color: var(--sky);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.workout-progress {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.workout-progress progress {
+  flex: 1;
+  min-width: 0;
+  height: 8px;
+  accent-color: var(--sky);
+}
+.workout-clock {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 10px;
+  padding: 20px 0;
+  color: var(--navy);
+  font-variant-numeric: tabular-nums;
+}
+.workout-clock strong {
+  font-size: 64px;
+  line-height: 1.2;
+}
 * {
   box-sizing: border-box;
 }
