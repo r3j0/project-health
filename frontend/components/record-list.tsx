@@ -188,7 +188,7 @@ function RecordFeed({ filters }: { filters: { from: string; to: string } }) {
             : "측정한 항목 하나부터 가볍게 시작해요. 나머지는 나중에 채워도 괜찮아요."}
         </p>
         {!filters.from && !filters.to && (
-          <Link href="/measurements/new" className="button secondary">
+          <Link href="/onboarding" className="button secondary">
             첫 측정 기록 등록
           </Link>
         )}

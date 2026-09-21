@@ -11,7 +11,6 @@ export function Onboarding() {
       <Header title="체력 기록 시작하기" back="/" />
       <div className="content stack">
         <div className="intro">
-          <span className="eyebrow">내 몸을 알아가는 첫걸음</span>
           <h2>어떤 방법으로 시작할까요?</h2>
           <p>국민체력100 결과표가 있다면 측정한 항목부터 등록해 주세요.</p>
         </div>
@@ -50,12 +49,14 @@ export function Onboarding() {
             체험은 실제 체력 평가나 측정 기록 등록으로 처리되지 않아요.
           </p>
         </section>
-        <Link href="/" className="text-link">
-          나중에 등록하기
-        </Link>
-        <Link href="/measurements" className="text-link">
-          내 측정 기록 보기
-        </Link>
+        <div className="stack onboarding-footer">
+          <Link href="/" className="text-link">
+            나중에 등록하기
+          </Link>
+          <Link href="/measurements" className="text-link">
+            내 측정 기록 보기
+          </Link>
+        </div>
       </div>
     </Shell>
   );

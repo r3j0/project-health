@@ -158,7 +158,11 @@ test("온보딩 직접 입력은 기존 폼을 복원하고 실제 저장 후 �
   page,
 }) => {
   const account = await register(page);
-  await page.goto("/onboarding");
+  await page.goto("/measurements");
+  await page
+    .getByRole("link", { name: "첫 측정 기록 등록", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/onboarding$/);
   await page
     .getByRole("link", { name: "결과 직접 입력", exact: false })
     .click();

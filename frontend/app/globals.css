@@ -393,6 +393,9 @@ h3 {
   text-transform: uppercase;
   margin-bottom: 12px;
 }
+.onboarding-footer {
+  align-items: center;
+}
 .text-link {
   color: var(--navy);
   text-decoration: underline;
