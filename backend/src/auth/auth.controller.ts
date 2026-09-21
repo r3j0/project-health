@@ -10,9 +10,9 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { parseCookie } from 'cookie';
-import type { CookieOptions, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { RefreshCookieService } from './refresh-cookie.service.js';
+import { UserProfileService } from '../users/user-profile.service.js';
 import { AuthService } from './auth.service.js';
 import { AuthRateLimitService } from './auth-rate-limit.service.js';
 import { AccessTokenGuard, AuthRequestGuard } from './auth.guards.js';
@@ -23,25 +23,13 @@ import { API_V1 } from '../config/api-version.js';
 @Controller({ path: 'auth', version: API_V1 })
 @UseGuards(AuthRequestGuard)
 export class AuthController {
-  private readonly cookieName: string;
-  private readonly cookieOptions: CookieOptions;
-
   constructor(
     @Inject(AuthService) private readonly auth: AuthService,
     @Inject(AuthRateLimitService) private readonly limits: AuthRateLimitService,
-    @Inject(ConfigService) config: ConfigService,
-  ) {
-    const secure = config.getOrThrow<string>('NODE_ENV') === 'production';
-    this.cookieName = secure
-      ? '__Host-project_health_refresh'
-      : 'project_health_refresh';
-    this.cookieOptions = {
-      httpOnly: true,
-      secure,
-      sameSite: config.getOrThrow<'lax' | 'none'>('AUTH_COOKIE_SAME_SITE'),
-      path: '/',
-    };
-  }
+    @Inject(RefreshCookieService)
+    private readonly cookies: RefreshCookieService,
+    @Inject(UserProfileService) private readonly profiles: UserProfileService,
+  ) {}
 
   @Post('register')
   async register(
@@ -78,11 +66,11 @@ export class AuthController {
   ) {
     try {
       return this.respond(
-        await this.auth.refresh(this.refreshCookie(request)),
+        await this.auth.refresh(this.cookies.read(request)),
         response,
       );
     } catch (error) {
-      if (error instanceof UnauthorizedException) this.clearCookie(response);
+      if (error instanceof UnauthorizedException) this.cookies.clear(response);
       throw error;
     }
   }
@@ -94,34 +82,23 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     await this.auth.logout(
-      this.refreshCookie(request),
+      this.cookies.read(request),
       request.headers.authorization,
     );
-    this.clearCookie(response);
+    this.cookies.clear(response);
   }
 
   @Get('me')
   @UseGuards(AccessTokenGuard)
   me(@Req() request: AuthenticatedRequest) {
-    return request.user;
-  }
-
-  private refreshCookie(request: Request) {
-    return parseCookie(request.headers.cookie ?? '')[this.cookieName];
+    return this.profiles.get(request.user.id);
   }
 
   private respond(
     result: Awaited<ReturnType<AuthService['login']>>,
     response: Response,
   ) {
-    response.cookie(this.cookieName, result.refreshToken, {
-      ...this.cookieOptions,
-      expires: result.expiresAt,
-    });
+    this.cookies.set(response, result.refreshToken, result.expiresAt);
     return result.body;
-  }
-
-  private clearCookie(response: Response) {
-    response.clearCookie(this.cookieName, this.cookieOptions);
   }
 }

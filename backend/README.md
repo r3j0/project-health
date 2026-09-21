@@ -4,7 +4,8 @@ Project Health의 NestJS API 서버입니다. 백엔드 코드·설정·문서·
 
 - [개발 원칙](AGENTS.md)
 - [API 버전 관리](docs/api-versioning.md): 현재 `/api/v1`, DB·측정 기준·기록 수정 버전과 구분
-- [계정 스키마](docs/account-schema.md): `id`, `email`, `password`, `created_at`, `updated_at`
+- [계정 스키마](docs/account-schema.md): 인증 필드·선호 운동·운동 목적과 사용자 관계
+- [사용자 프로필·목표·재화·커리큘럼·영구 탈퇴 API](docs/users-api.md)
 - [회원가입·로그인·로그아웃·토큰 갱신 API와 직접 테스트](docs/auth-api.md)
 - [측정 데이터 명세](docs/measurement-data-spec.md)
 - [측정 기록 CRUD API와 직접 테스트](docs/measurements-api.md)
@@ -42,7 +43,7 @@ curl http://localhost:3001/api/v1/health/ready
 
 `/health`는 프로세스 응답 여부, `/health/ready`는 실제 DB 연결·계정 스키마·검사 카탈로그 준비 여부를 검사합니다. 준비되지 않으면 503을 반환하고 DB 접속 정보는 노출하지 않습니다. 서버 시작 시 DB 연결에 실패하면 시작을 중단합니다.
 
-현재 이메일 인증과 국민체력100 측정 기록 CRUD API를 구현했습니다. 비밀번호는 Argon2id 해시로 저장하고, 측정 기록은 인증된 본인만 조회·수정·삭제합니다. [인증 테스트](docs/auth-api.md)와 [측정 기록 테스트](docs/measurements-api.md)에 curl 예제가 있습니다. 소셜 로그인·이메일 확인·비밀번호 재설정·측정 점수 분석은 후속 범위입니다.
+현재 이메일 인증·국민체력100 측정 CRUD와 개인 정보 수정·현재 체력·목표 CRUD·온보딩·재화 조회·영구 탈퇴를 구현했습니다. 운동 1회분 배정·완료·이력은 내부 서비스까지 제공하며 콘텐츠·추천 HTTP 호출은 후속 범위입니다. 비밀번호는 Argon2id 해시로 저장하고, 측정 기록은 인증된 본인만 조회·수정·삭제합니다. [인증 테스트](docs/auth-api.md)와 [측정 기록 테스트](docs/measurements-api.md)에 curl 예제가 있습니다. 소셜 로그인·이메일 확인·비밀번호 재설정·측정 점수 분석은 후속 범위입니다.
 
 ## 환경변수
 
@@ -93,11 +94,20 @@ npm run check
 | 테스트                           | 검증                                                                     |
 | -------------------------------- | ------------------------------------------------------------------------ |
 | `src/config/environment.spec.ts` | 환경변수·접속 주소 검증                                                  |
-| `test/accounts.e2e-spec.ts`      | 계정 5개 컬럼, 이메일 유일성·정규화, 수정 시각                           |
+| `test/accounts.e2e-spec.ts`      | 확장 계정 컬럼, 이메일 유일성·정규화, 수정 시각                          |
 | `test/auth.e2e-spec.ts`          | 실제 API·해싱·토큰 회전·재사용·동시 요청·로그아웃·CSRF·요청 제한         |
 | `test/database.e2e-spec.ts`      | 실제 저장·조회, 부분 기록, 단위·연령·값 제약, 동시 삭제, 카탈로그 불변성 |
 | `test/measurements.e2e-spec.ts`  | 측정 CRUD·소유권·재시도 중복 방지·수정 충돌·삭제·페이지 조회             |
 | `test/app.e2e-spec.ts`           | 서버 초기화, CORS, 상태 확인·503 응답                                    |
+
+추가 PostgreSQL 통합 테스트:
+
+- `test/users.e2e-spec.ts`: 허용 필드·프로필 스냅샷·현재 측정/온보딩·재화 제약·영구 삭제/쿠키·모든 토큰 차단
+- `test/fitness-goals.e2e-spec.ts`: 목표 CRUD·소유권·중복/동시 요청·단위/값·Decimal·DB 무결성
+- `test/curricula.e2e-spec.ts`: 현재 배정/소유권·중복 키·동시 배정/완료·완료 이력 보존
+- `test/user-migration.e2e-spec.ts`: 이전 스키마의 실제 데이터 보존·재화 백필·기존 사용자 온보딩
+
+새 사용자 기능 마이그레이션의 적용 절차는 [DB 문서](docs/database.md), 프론트 연동 예시는 [사용자 API](docs/users-api.md)를 참고합니다. 테스트는 운영·개발 DB에 적용하지 않습니다.
 
 ## 디렉토리 구조
 
@@ -112,6 +122,8 @@ backend/
 ├── src/
 │   ├── auth/                   # 이메일 인증 API·해싱·토큰·가드
 │   ├── config/                 # 환경변수 검증
+│   ├── curricula/              # 운동 1회분 배정·완료·이력 내부 서비스
+│   ├── users/                  # 프로필·목표 CRUD·영구 탈퇴
 │   ├── database/               # Prisma 연결·종료·준비 상태
 │   ├── generated/prisma/       # 생성 코드, Git 제외
 │   ├── measurements/           # 공식 카탈로그·본인 측정 기록 CRUD

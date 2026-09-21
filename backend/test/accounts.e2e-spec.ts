@@ -20,7 +20,7 @@ describe('Account schema', () => {
     await database.onModuleDestroy();
   });
 
-  it('has exactly the five account columns requested by the user', async () => {
+  it('extends the account fields with preferences without persisting derived fitness state', async () => {
     const schema = new URL(process.env.DATABASE_URL!).searchParams.get(
       'schema',
     )!;
@@ -31,8 +31,10 @@ describe('Account schema', () => {
     expect(columns.map((column) => column.column_name).sort()).toEqual([
       'created_at',
       'email',
+      'exercise_goals',
       'id',
       'password',
+      'preferred_exercises',
       'updated_at',
     ]);
   });

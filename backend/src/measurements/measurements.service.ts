@@ -22,7 +22,7 @@ import type {
   parseListQuery,
 } from './measurement-input.js';
 
-const includeRecord = {
+export const includeRecord = {
   items: { orderBy: { code: 'asc' } },
   catalog: { include: { definitions: { orderBy: { code: 'asc' } } } },
 } satisfies Prisma.MeasurementInclude;

@@ -110,7 +110,9 @@ describe('Email authentication against PostgreSQL', () => {
       createHash('sha256').update(rawRefresh).digest('hex'),
     );
     expect(tokens[0].tokenHash).not.toBe(rawRefresh);
-    await me(body.access_token).expect(200, body.user);
+    expect((await me(body.access_token).expect(200)).body).toMatchObject(
+      body.user,
+    );
   });
 
   it('uses a different salt for the same password', async () => {
@@ -160,7 +162,9 @@ describe('Email authentication against PostgreSQL', () => {
     const response = await post('login')
       .send({ email: body.user.email.toUpperCase(), password })
       .expect(200);
-    await me((response.body as AuthBody).access_token).expect(200, body.user);
+    expect(
+      (await me((response.body as AuthBody).access_token).expect(200)).body,
+    ).toMatchObject(body.user);
   });
 
   it('never accepts null or manually entered plaintext passwords', async () => {

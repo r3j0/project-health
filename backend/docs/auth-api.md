@@ -26,9 +26,9 @@ npm run start:dev
 | `POST /auth/login`    | 동일                                         | 200, 계정·access token·refresh 쿠키                      |
 | `POST /auth/refresh`  | refresh 쿠키                                 | 200, 계정·새 access token·새 refresh 쿠키                |
 | `POST /auth/logout`   | refresh 쿠키 또는 Bearer access token        | 204, 해당 세션 폐기·쿠키 삭제                            |
-| `GET /auth/me`        | `Authorization: Bearer <access_token>`       | 200, 내 계정 4개 공개 필드                               |
+| `GET /auth/me`        | `Authorization: Bearer <access_token>`       | 200, 기존 공개 필드와 확장 프로필                        |
 
-회원가입·로그인·갱신 응답은 `{ "user": { "id", "email", "created_at", "updated_at" }, "access_token", "token_type": "Bearer", "expires_in": 900 }` 형태다. `expires_in`은 초 단위이며 세션 만료가 가까우면 짧아진다. 비밀번호 원문·해시와 refresh token은 JSON 응답에 포함하지 않는다. `GET /auth/me`는 `user` 내부 객체를 반환한다.
+회원가입·로그인·갱신 응답은 `{ "user": { "id", "email", "created_at", "updated_at" }, "access_token", "token_type": "Bearer", "expires_in": 900 }` 형태다. `expires_in`은 초 단위이며 세션 만료가 가까우면 짧아진다. 비밀번호 원문·해시와 refresh token은 JSON 응답에 포함하지 않는다. `GET /auth/me`는 기존 공개 필드를 유지하고 선호 운동·운동 목적·온보딩·현재 체력·목표·재화·현재 배정을 추가한다. 상세 계약과 영구 탈퇴는 [사용자 API](users-api.md)를 따른다. 가입·로그인·갱신의 `user` 객체는 기존 형태를 유지한다.
 
 이메일은 앞뒤 공백 제거·소문자화·형식 검증 후 저장한다. 회원가입 비밀번호는 15~128자이며 공백을 제거하거나 문자열을 바꾸지 않는다. 숫자·특수문자 조합을 강제하지 않는다. 알 수 없는 요청 필드도 400으로 거절한다.
 
@@ -96,7 +96,7 @@ curl -i -X POST http://localhost:3001/api/v1/auth/logout \
 
 ## 저장과 운영
 
-- `users`의 실제 컬럼은 기존 5개를 유지한다. Prisma의 `sessions`는 관계 표시다.
+- `users`는 기존 인증 필드에 선호 운동·운동 목적 배열을 추가했다(2026-09-21). 온보딩·현재 체력은 저장 기록에서 계산하며 인증 가드에서 상세 관계를 로드하지 않는다. 신규 가입의 계정·재화(0)·세션·토큰은 동일한 nested write 트랜잭션으로 생성한다.
 - `auth_sessions`: 계정 연결, 생성 시각, 고정 만료 시각, 폐기 시각. 기본 7일이며 갱신으로 연장되지 않는다.
 - `auth_refresh_tokens`: 256비트 난수 토큰의 SHA-256 해시, 세션 연결, 사용 시각. 사용한 해시도 세션 만료까지 유지해 재사용을 탐지한다. 비밀번호에는 SHA-256을 쓰지 않는다.
 - `auth_rate_limits`: 서버 간 공유하는 DB 요청 횟수. IP·이메일은 키를 이용한 HMAC으로 처리한다. 인증 POST는 IP당 분당 60회, 회원가입은 이메일당 15분당 5회, 로그인은 이메일당 15분당 10회다. 성공·실패 모두 센다. 시간 구간이 바뀌면 다시 허용하며 경계 부근에는 두 구간의 요청이 인접할 수 있다.

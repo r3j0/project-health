@@ -37,23 +37,25 @@ const age = z.number().int().min(13).max(64);
 const text = (max: number) => z.string().trim().min(1).max(max);
 const version = text(100);
 
+// Strings retain all submitted digits through JSON parsing. This bound limits
+// input size, not a physiological range; values are never rounded.
+export const decimalValueSchema = z
+  .string()
+  .min(1)
+  .max(128)
+  .regex(
+    /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/,
+    '측정값은 지수 표기 없는 10진수 문자열로 입력해 주세요.',
+  )
+  .transform((value) => new Prisma.Decimal(value).toFixed());
+
 const itemSchema = z.strictObject({
   measurementCode: z
     .string()
     .min(1)
     .max(100)
     .regex(/^[a-z][a-z0-9_]*$/),
-  // Strings retain all submitted digits through JSON parsing. This bound limits
-  // input size, not a physiological range; values are never rounded.
-  value: z
-    .string()
-    .min(1)
-    .max(128)
-    .regex(
-      /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/,
-      '측정값은 지수 표기 없는 10진수 문자열로 입력해 주세요.',
-    )
-    .transform((value) => new Prisma.Decimal(value).toFixed()),
+  value: decimalValueSchema,
   unit: text(30),
   reportedGrade: text(100).nullable().optional().default(null),
 });

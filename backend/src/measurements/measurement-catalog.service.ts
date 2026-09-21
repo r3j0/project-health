@@ -87,31 +87,42 @@ export function validateItems(
         field: `${field}.measurementCode`,
         message: `측정 당시 ${def.minAge}~${def.maxAge}세에게 적용되는 검사입니다.`,
       });
-    if (item.unit !== def.unit)
-      errors.push({
-        field: `${field}.unit`,
-        message: `단위는 ${def.unit}이어야 합니다.`,
-      });
-    const value = new Prisma.Decimal(item.value);
-    if (def.valueType === 'integer' && !value.isInteger())
-      errors.push({
-        field: `${field}.value`,
-        message: '횟수는 정수여야 합니다.',
-      });
-    if (
-      def.minValue !== null &&
-      (value.lessThan(def.minValue) ||
-        (!def.minInclusive && value.equals(def.minValue)))
-    )
-      errors.push({
-        field: `${field}.value`,
-        message: `${def.minValue.toFixed()} ${def.minInclusive ? '이상' : '초과'}이어야 합니다.`,
-      });
-    if (def.maxValue !== null && value.greaterThan(def.maxValue))
-      errors.push({
-        field: `${field}.value`,
-        message: `${def.maxValue.toFixed()} 이하여야 합니다.`,
-      });
+    errors.push(...definitionValueErrors(item, def, `${field}.`));
   });
   if (errors.length) invalidInput(errors);
+}
+
+// Shared numeric/unit rules. Goal values carry no measurement-age assertion.
+export function definitionValueErrors(
+  item: { value: string; unit: string },
+  def: MeasurementDefinition,
+  prefix = '',
+): FieldError[] {
+  const errors: FieldError[] = [];
+  if (item.unit !== def.unit)
+    errors.push({
+      field: `${prefix}unit`,
+      message: `단위는 ${def.unit}이어야 합니다.`,
+    });
+  const value = new Prisma.Decimal(item.value);
+  if (def.valueType === 'integer' && !value.isInteger())
+    errors.push({
+      field: `${prefix}value`,
+      message: '횟수는 정수여야 합니다.',
+    });
+  if (
+    def.minValue !== null &&
+    (value.lessThan(def.minValue) ||
+      (!def.minInclusive && value.equals(def.minValue)))
+  )
+    errors.push({
+      field: `${prefix}value`,
+      message: `${def.minValue.toFixed()} ${def.minInclusive ? '이상' : '초과'}이어야 합니다.`,
+    });
+  if (def.maxValue !== null && value.greaterThan(def.maxValue))
+    errors.push({
+      field: `${prefix}value`,
+      message: `${def.maxValue.toFixed()} 이하여야 합니다.`,
+    });
+  return errors;
 }
