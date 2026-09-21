@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { ArrowRight, ClipboardList, Timer } from "lucide-react";
+import { ArrowRight, ClipboardList } from "lucide-react";
 import { Loading, Notice, Shell } from "./ui";
 import { useUserProfile } from "./user-profile-provider";
 
@@ -26,7 +26,6 @@ export function Home() {
         {user && (
           <>
             <section className="feature-card home-intro stack">
-              <span className="eyebrow">오늘도 나의 속도로</span>
               <h2>
                 {user.isOnboarded
                   ? "나의 기록을 이어가요"
@@ -79,38 +78,11 @@ export function Home() {
               ) : (
                 <div className="curriculum-card stack">
                   <h3>아직 배정된 운동이 없어요</h3>
-                  <p className="muted">
-                    운동이 배정되면 이곳에서 확인할 수 있어요.
-                  </p>
                 </div>
               )}
             </section>
           </>
         )}
-        <section className="feature-card stack">
-          <div className="section-heading">
-            <Timer size={22} />
-            <h2>간이측정, 먼저 체험해 볼까요?</h2>
-          </div>
-          <p className="muted">
-            안내를 따라 타이머와 입력 방법을 확인해요. 중간에 멈췄다면 이어서
-            진행할 수 있어요.
-          </p>
-          <Link className="button secondary" href="/workout">
-            간이측정 체험 시작·이어하기
-          </Link>
-          <p className="caption">
-            체험 결과는 실제 측정 기록으로 저장되지 않아요.
-          </p>
-        </section>
-        <div className="home-links">
-          <Link className="text-link" href="/onboarding">
-            측정 결과 등록 방법
-          </Link>
-          <Link className="text-link" href="/account/settings">
-            계정 설정
-          </Link>
-        </div>
       </div>
     </Shell>
   );
