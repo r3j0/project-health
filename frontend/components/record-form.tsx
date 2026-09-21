@@ -485,14 +485,6 @@ export function RecordForm({
       />
       <div className="content">
         {reference}
-        {!initial && !onboarding && step === 1 && (
-          <Link
-            className="text-link"
-            href="/workout?curriculum=adult-self-assessment-v1"
-          >
-            결과표가 없다면 간이측정으로 기록하기
-          </Link>
-        )}
         <div className="stepper" aria-label={`${step}단계 / 2단계`}>
           <span className={`step ${step === 1 ? "active" : ""}`}>
             <b>1</b>기본 정보

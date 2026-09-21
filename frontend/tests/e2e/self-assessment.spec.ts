@@ -427,8 +427,14 @@ test("저장 완료 화면에서 새 측정을 시작하면 이전 값 없이 �
     await expect(
       page.getByRole("heading", { name: "나의 체력을 기록했어요" }),
     ).toBeVisible();
-    if (value === "1")
-      await page.getByRole("button", { name: "새 간이측정 시작" }).click();
+    if (value === "1") {
+      await page.getByRole("link", { name: "새 체력 기록 시작" }).click();
+      await expect(page).toHaveURL(/\/onboarding$/);
+      await expect(
+        page.getByRole("heading", { name: "체력 기록 시작하기", exact: true }),
+      ).toBeVisible();
+      await page.getByRole("link", { name: "간이측정 시작하기" }).click();
+    }
   }
   const response = await page.request.get(`${api}/measurements`, {
     headers: { Authorization: `Bearer ${account.access_token}` },

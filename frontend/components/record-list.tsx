@@ -24,7 +24,7 @@ export function RecordList() {
           <div className="row">
             <h2>최근 기록</h2>
             <Link
-              href="/measurements/new"
+              href="/onboarding"
               className="icon-button"
               aria-label="새 기록 등록"
               title="새 기록 등록"

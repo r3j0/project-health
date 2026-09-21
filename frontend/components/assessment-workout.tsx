@@ -391,16 +391,17 @@ export function AssessmentWorkout({ curriculum }: { curriculum?: string }) {
             <Link className="button secondary" href="/">
               메인으로
             </Link>
-            <button
-              className="text-button"
-              onClick={() => {
+            <Link
+              className="text-link"
+              href="/onboarding"
+              onNavigate={() => {
                 saved.current = false;
                 setComplete(null);
                 resetSession();
               }}
             >
-              새 간이측정 시작
-            </button>
+              새 체력 기록 시작
+            </Link>
           </section>
         ) : loadError ? (
           <>
