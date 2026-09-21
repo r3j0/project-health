@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { ArrowRight, ClipboardList, Timer } from "lucide-react";
-import { Header, Loading, Notice, Shell } from "./ui";
+import { Loading, Notice, Shell } from "./ui";
 import { useUserProfile } from "./user-profile-provider";
 
 export function Home() {
@@ -10,7 +10,7 @@ export function Home() {
   const assignment = user?.currentCurriculum;
   return (
     <Shell>
-      <Header title="메인" />
+      <h1 className="sr-only">메인</h1>
       <div className="content stack home-content">
         {profile.status === "loading" && (
           <Loading label="나의 기록을 확인하고 있어요" />
