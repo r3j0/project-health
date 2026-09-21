@@ -93,7 +93,7 @@ test("저장 응답을 잃어도 메인은 실제 서버의 등록 상태를 반
   page.on("dialog", (dialog) => dialog.accept());
   await page.getByRole("link", { name: "메인", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "나의 기록을 이어가요" }),
+    page.getByRole("link", { name: "내 측정 기록 보기", exact: true }),
   ).toBeVisible();
   expect(creates).toBe(1);
 });
@@ -123,7 +123,7 @@ test("focus 없이 화면이 다시 표시되어도 외부 변경을 반영한�
     document.dispatchEvent(new Event("visibilitychange"));
   });
   await expect(
-    page.getByRole("heading", { name: "나의 기록을 이어가요" }),
+    page.getByRole("link", { name: "내 측정 기록 보기", exact: true }),
   ).toBeVisible();
 });
 
@@ -134,7 +134,7 @@ test("마지막 기록의 삭제 응답을 잃어도 메인 등록 상태를 다
   const record = await createRecord(page, account.access_token);
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "나의 기록을 이어가요" }),
+    page.getByRole("link", { name: "내 측정 기록 보기", exact: true }),
   ).toBeVisible();
   await page
     .getByRole("link", { name: "내 측정 기록 보기", exact: true })

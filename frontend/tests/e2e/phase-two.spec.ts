@@ -201,7 +201,7 @@ test("온보딩 직접 입력은 기존 폼을 복원하고 실제 저장 후 �
   const other = await page.context().newPage();
   await other.goto("/");
   await expect(
-    other.getByRole("heading", { name: "나의 기록을 이어가요" }),
+    other.getByRole("link", { name: "내 측정 기록 보기", exact: true }),
   ).toBeVisible();
   const records = await page.request.get(`${api}/measurements`, {
     headers: { Authorization: `Bearer ${account.access_token}` },

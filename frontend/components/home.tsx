@@ -25,25 +25,22 @@ export function Home() {
         )}
         {user && (
           <>
-            <section className="feature-card home-intro stack">
-              <h2>
-                {user.isOnboarded
-                  ? "나의 기록을 이어가요"
-                  : "내 체력 기록부터 시작해요"}
-              </h2>
-              <p className="muted">
-                {user.isOnboarded
-                  ? "저장한 측정 결과를 확인하고 새로운 기록을 차근차근 쌓아 보세요."
-                  : "국민체력100 결과표가 있다면 측정한 항목부터 등록해 보세요."}
-              </p>
-              <Link
-                className="button primary"
-                href={user.isOnboarded ? "/measurements" : "/onboarding"}
-              >
-                {user.isOnboarded ? "내 측정 기록 보기" : "체력 기록 등록하기"}
-                <ArrowRight size={18} />
+            {!user.isOnboarded ? (
+              <section className="feature-card home-intro stack">
+                <h2>내 체력 기록부터 시작해요</h2>
+                <p className="muted">
+                  국민체력100 결과표가 있다면 측정한 항목부터 등록해 보세요.
+                </p>
+                <Link className="button primary" href="/onboarding">
+                  체력 기록 등록하기
+                  <ArrowRight size={18} />
+                </Link>
+              </section>
+            ) : (
+              <Link className="text-link" href="/measurements">
+                내 측정 기록 보기
               </Link>
-            </section>
+            )}
             <section className="stack" aria-labelledby="today-title">
               <div className="section-heading">
                 <ClipboardList size={22} />

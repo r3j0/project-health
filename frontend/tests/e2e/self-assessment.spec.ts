@@ -127,6 +127,16 @@ test("교차 윗몸일으키기와 YMCA의 실제 시간·맥박 환산·저장�
     .fill("96");
   await page.getByRole("button", { name: "수정 내용 저장" }).click();
   await expect(page).toHaveURL(/saved=1/);
+  await page.getByRole("link", { name: "메인", exact: true }).click();
+  await expect(
+    page.getByRole("link", { name: "내 측정 기록 보기", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "내 체력 기록부터 시작해요" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "나의 기록을 이어가요" }),
+  ).toHaveCount(0);
 });
 test("건너뛰기는 0을 만들지 않고, 응답 유실 후 같은 요청으로 한 번만 저장한다", async ({
   page,
