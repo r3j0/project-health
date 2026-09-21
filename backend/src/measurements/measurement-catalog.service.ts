@@ -92,10 +92,13 @@ export function validateItems(
   if (errors.length) invalidInput(errors);
 }
 
-// Shared numeric/unit rules. Goal values carry no measurement-age assertion.
+// Shared by saving and extraction, including the catalog's JSON representation.
 export function definitionValueErrors(
   item: { value: string; unit: string },
-  def: MeasurementDefinition,
+  def: Pick<MeasurementDefinition, 'unit' | 'valueType' | 'minInclusive'> & {
+    minValue: Prisma.Decimal | string | null;
+    maxValue: Prisma.Decimal | string | null;
+  },
   prefix = '',
 ): FieldError[] {
   const errors: FieldError[] = [];
@@ -117,12 +120,12 @@ export function definitionValueErrors(
   )
     errors.push({
       field: `${prefix}value`,
-      message: `${def.minValue.toFixed()} ${def.minInclusive ? '이상' : '초과'}이어야 합니다.`,
+      message: `${new Prisma.Decimal(def.minValue).toFixed()} ${def.minInclusive ? '이상' : '초과'}이어야 합니다.`,
     });
   if (def.maxValue !== null && value.greaterThan(def.maxValue))
     errors.push({
       field: `${prefix}value`,
-      message: `${def.maxValue.toFixed()} 이하여야 합니다.`,
+      message: `${new Prisma.Decimal(def.maxValue).toFixed()} 이하여야 합니다.`,
     });
   return errors;
 }

@@ -36,6 +36,6 @@ export function configureApp(app: INestApplication): void {
       'Idempotency-Key',
       'If-Match',
     ],
-    exposedHeaders: ['ETag', 'Location', 'Idempotency-Replayed'],
+    exposedHeaders: ['ETag', 'Location', 'Idempotency-Replayed', 'Retry-After'],
   });
 }

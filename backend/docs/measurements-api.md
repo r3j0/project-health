@@ -1,6 +1,6 @@
 # 국민체력100 측정 기록 API
 
-국민체력100 결과를 직접 입력하고 실제 DB에 저장·조회·수정·삭제한다. OCR·자가측정·점수 계산·운동 추천은 포함하지 않는다. [측정 데이터 명세](measurement-data-spec.md)의 지원 연령, 공식 항목, 부분 저장 정책을 따른다.
+국민체력100 결과를 사용자가 확인하여 실제 DB에 저장·조회·수정·삭제한다. 2026-09-21 사용자 결정으로 [사진 추출 API](measurement-extraction-api.md)를 저장 전 초안 단계에 추가했다. 자가측정·점수 계산·운동 추천은 포함하지 않는다. [측정 데이터 명세](measurement-data-spec.md)의 지원 연령, 공식 항목, 부분 저장 정책을 따른다.
 
 ## 실행과 인증
 
@@ -19,14 +19,15 @@ npm run start:dev
 
 ## 경로와 응답
 
-| 요청                              | 성공 응답         | 설명                                                        |
-| --------------------------------- | ----------------- | ----------------------------------------------------------- |
-| `GET /measurement-catalog?age=25` | 200               | 해당 연령의 실제 검사 정의·단위·출처·버전. 공개 기준 데이터 |
-| `POST /measurements`              | 201, 재시도는 200 | 최소 한 개 측정값과 회차 정보 생성                          |
-| `GET /measurements`               | 200               | 내 기록의 페이지별 목록                                     |
-| `GET /measurements/:id`           | 200               | 내 기록 상세와 ETag                                         |
-| `PATCH /measurements/:id`         | 200               | 지정한 필드 수정, revision 증가                             |
-| `DELETE /measurements/:id`        | 204               | 회차와 모든 항목 삭제                                       |
+| 요청                              | 성공 응답         | 설명                                                           |
+| --------------------------------- | ----------------- | -------------------------------------------------------------- |
+| `GET /measurement-catalog?age=25` | 200               | 해당 연령의 실제 검사 정의·단위·출처·버전. 공개 기준 데이터    |
+| `POST /measurements`              | 201, 재시도는 200 | 최소 한 개 측정값과 회차 정보 생성                             |
+| `POST /measurements/extract`      | 200               | 사진 1장 추출 초안. 저장·온보딩 변경 없음. 별도 multipart 계약 |
+| `GET /measurements`               | 200               | 내 기록의 페이지별 목록                                        |
+| `GET /measurements/:id`           | 200               | 내 기록 상세와 ETag                                            |
+| `PATCH /measurements/:id`         | 200               | 지정한 필드 수정, revision 증가                                |
+| `DELETE /measurements/:id`        | 204               | 회차와 모든 항목 삭제                                          |
 
 다른 사용자의 기록과 존재하지 않는 기록은 모두 404다. 개인 기록 응답은 `Cache-Control: no-store`다. 이 경로들은 프론트 화면이 아니라 HTTP API다. 주소창은 GET만 보내므로 생성·수정·삭제는 curl, Postman 또는 프론트 코드로 요청한다.
 
@@ -37,6 +38,8 @@ npm run start:dev
 응답의 `version`을 생성 요청의 `catalogVersion`에 넣는다. `definitions`에는 `code`, `label`, `category`, `factor`, `unit`, `valueType`, `minAge`, `maxAge`, `minValue`, `minInclusive`, `maxValue`, `sourceUrls`가 있다. 숫자 경계는 문자열 또는 null이다. `checkedOn`은 자료 확인일이며 공식 시행일과 구분한다.
 
 ### 생성 입력
+
+사진 추출 응답 전체를 저장 요청으로 보내지 않는다. 사용자 확인 후의 메타데이터와 items만 전송한다. `entryMethod`는 기존대로 서버가 `manual`로 설정하며 OCR 출처 DB 필드는 추가하지 않는다. 변환 예시는 [사진 추출 안내](measurement-extraction-api.md)를 따른다. 아래 Idempotency-Key·revision 계약은 저장 CRUD에 적용한다.
 
 필수: `catalogVersion`, `measuredOn`(YYYY-MM-DD), `ageAtMeasurement`(13~64), `items`(1개 이상).
 

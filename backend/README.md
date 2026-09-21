@@ -9,6 +9,7 @@ Project Health의 NestJS API 서버입니다. 백엔드 코드·설정·문서·
 - [회원가입·로그인·로그아웃·토큰 갱신 API와 직접 테스트](docs/auth-api.md)
 - [측정 데이터 명세](docs/measurement-data-spec.md)
 - [측정 기록 CRUD API와 직접 테스트](docs/measurements-api.md)
+- [국민체력100 사진 추출 API·환경설정·프론트 연동](docs/measurement-extraction-api.md)
 - [DB 설계와 마이그레이션](docs/database.md)
 
 ## 개발 환경
@@ -51,18 +52,20 @@ curl http://localhost:3001/api/v1/health/ready
 
 시스템 환경변수가 `.env`보다 우선합니다. 실제 접속 정보와 `.local/`은 Git에서 제외됩니다.
 
-| 변수                       | 기본값                    | 용도                                                 |
-| -------------------------- | ------------------------- | ---------------------------------------------------- |
-| `NODE_ENV`                 | `development`             | `development`, `production`, `test`                  |
-| `PORT`                     | `3001`                    | API 포트                                             |
-| `FRONTEND_ORIGIN`          | `http://localhost:3000`   | CORS 허용 origin. 인증을 대신하지 않음               |
-| `DATABASE_URL`             | 없음, 필수                | PostgreSQL 접속 주소. `schema` 옵션 지원             |
-| `TEST_DATABASE_URL`        | 없음, 통합 테스트 시 필수 | 개발·운영 DB와 다른 테스트 전용 DB                   |
-| `AUTH_JWT_SECRET`          | 없음, 필수                | 임의 32바이트 키의 64자리 hex 표현                   |
-| `AUTH_ACCESS_TTL_SECONDS`  | `900`                     | access token 수명(60~3600초)                         |
-| `AUTH_REFRESH_TTL_SECONDS` | `604800`                  | 세션 고정 수명(3600~2592000초, access보다 길어야 함) |
-| `AUTH_COOKIE_SAME_SITE`    | `lax`                     | 운영 HTTPS에서 `none` 허용                           |
-| `TRUST_PROXY_CIDRS`        | 없음                      | 실제 신뢰할 프록시 IP/CIDR을 쉼표로 구분             |
+| 변수                       | 기본값                    | 용도                                                            |
+| -------------------------- | ------------------------- | --------------------------------------------------------------- |
+| `NODE_ENV`                 | `development`             | `development`, `production`, `test`                             |
+| `PORT`                     | `3001`                    | API 포트                                                        |
+| `FRONTEND_ORIGIN`          | `http://localhost:3000`   | CORS 허용 origin. 인증을 대신하지 않음                          |
+| `DATABASE_URL`             | 없음, 필수                | PostgreSQL 접속 주소. `schema` 옵션 지원                        |
+| `TEST_DATABASE_URL`        | 없음, 통합 테스트 시 필수 | 개발·운영 DB와 다른 테스트 전용 DB                              |
+| `AUTH_JWT_SECRET`          | 없음, 필수                | 임의 32바이트 키의 64자리 hex 표현                              |
+| `AUTH_ACCESS_TTL_SECONDS`  | `900`                     | access token 수명(60~3600초)                                    |
+| `AUTH_REFRESH_TTL_SECONDS` | `604800`                  | 세션 고정 수명(3600~2592000초, access보다 길어야 함)            |
+| `AUTH_COOKIE_SAME_SITE`    | `lax`                     | 운영 HTTPS에서 `none` 허용                                      |
+| `TRUST_PROXY_CIDRS`        | 없음                      | 실제 신뢰할 프록시 IP/CIDR을 쉼표로 구분                        |
+| `OPENAI_API_KEY`           | 없음, 추출 사용 시 필수   | 서버 비밀 설정. 미설정 시 추출만 503                            |
+| `OPENAI_OCR_MODEL`         | 없음, 추출 사용 시 필수   | 이미지·Responses·Structured Outputs 지원 및 계정 접근 확인 필요 |
 
 ## DB와 배포 명령
 
@@ -108,6 +111,8 @@ npm run check
 - `test/account-update.e2e-spec.ts`: 이메일·비밀번호 변경·본인 확인·중복/동시 요청·세션 폐기·이전 자격증명 차단
 - `test/curricula.e2e-spec.ts`: 현재 배정/소유권·중복 키·동시 배정/완료·완료 이력 보존
 - `test/user-migration.e2e-spec.ts`: 폐기 데이터 제거와 계정/측정/잔액/배정/세션 보존·재화 백필·기존 사용자 온보딩
+- `test/measurement-extraction.e2e-spec.ts`: 이미지 업로드·인증·실제 카탈로그·호출 제한·추출 시 저장/온보딩 불변·확인 후 기존 저장. OpenAI transport만 대역 사용
+- `src/measurements/extraction/*.spec.ts`: 실제 이미지 디코딩, 추출 내용 검증, strict 스키마·프롬프트 전달, 외부 오류·시간/횟수 제한
 
 새 사용자 기능 마이그레이션의 적용 절차는 [DB 문서](docs/database.md), 프론트 연동 예시는 [사용자 API](docs/users-api.md)를 참고합니다. 테스트는 운영·개발 DB에 적용하지 않습니다.
 

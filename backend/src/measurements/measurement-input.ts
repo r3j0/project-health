@@ -86,6 +86,15 @@ const mutableFields = {
   items,
 };
 
+// Extraction validates each metadata field independently, using the save rules.
+export const measurementMetadataSchemas = {
+  measuredOn,
+  ageAtMeasurement: age,
+  sexAtMeasurement: mutableFields.sexAtMeasurement,
+  centerName: mutableFields.centerName,
+  reportedOverallGrade: mutableFields.reportedOverallGrade,
+};
+
 const createSchema = z.strictObject({
   ...mutableFields,
   catalogVersion: version,
