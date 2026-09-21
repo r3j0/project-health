@@ -7,6 +7,10 @@ import {
   PreconditionFailedException,
 } from '@nestjs/common';
 import { createHash } from 'node:crypto';
+import {
+  selfAssessmentCodes,
+  validateSelfAssessment,
+} from './self-assessment.js';
 import { DatabaseService } from '../database/database.service.js';
 import { Prisma } from '../generated/prisma/client.js';
 import type { MeasurementCreateRequest } from '../generated/prisma/client.js';
@@ -82,7 +86,11 @@ export function serializeRecord(record: RecordWithItems) {
         (def) =>
           record.ageAtMeasurement >= def.minAge &&
           record.ageAtMeasurement <= def.maxAge &&
-          !entered.has(def.code),
+          !entered.has(def.code) &&
+          (record.entryMethod !== 'self_assessment' ||
+            (selfAssessmentCodes.has(def.code) &&
+              !(def.code === 'self_curl_up' && entered.has('cross_sit_up')) &&
+              !(def.code === 'cross_sit_up' && entered.has('self_curl_up')))),
       )
       .map((def) => def.code),
     // No evaluation engine/rules have been implemented. This reports capability,
@@ -101,10 +109,14 @@ export class MeasurementsService {
   ) {}
 
   async create(userId: string, key: string, input: CreateMeasurementInput) {
+    validateSelfAssessment(input);
+    // Preserve hashes issued before entryMethod was added to this API.
+    const { entryMethod, ...legacyInput } = input;
+    const hashInput = entryMethod === 'manual' ? legacyInput : input;
     const requestHash = createHash('sha256')
       .update(
         JSON.stringify({
-          ...input,
+          ...hashInput,
           items: [...input.items].sort((a, b) =>
             a.measurementCode.localeCompare(b.measurementCode),
           ),
@@ -143,7 +155,7 @@ export class MeasurementsService {
             userId,
             measuredOn: new Date(`${input.measuredOn}T00:00:00.000Z`),
             sourceProgram: 'nfa100',
-            entryMethod: 'manual',
+            entryMethod: input.entryMethod,
             items: { create: storedItems(items) },
           },
           include: includeRecord,
@@ -255,6 +267,7 @@ export class MeasurementsService {
           unit: item.unit,
           reportedGrade: item.reportedGrade,
         }));
+      validateSelfAssessment({ ...current, items });
       validateItems(
         { ageAtMeasurement: current.ageAtMeasurement, items },
         current.catalog.definitions,
