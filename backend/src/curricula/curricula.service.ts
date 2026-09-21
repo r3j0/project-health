@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service.js';
 import type { Prisma } from '../generated/prisma/client.js';
-import { parseGoalId, invalidUserInput } from '../users/user-input.js';
+import { parseEntityId, invalidUserInput } from '../users/user-input.js';
 
 export const includeAssignment = {
   curriculum: true,
@@ -34,9 +34,9 @@ export class CurriculaService {
   ) {}
 
   async assign(userId: string, curriculumId: string, requestKey: string) {
-    userId = parseGoalId(userId);
-    curriculumId = parseGoalId(curriculumId);
-    requestKey = parseGoalId(requestKey);
+    userId = parseEntityId(userId);
+    curriculumId = parseEntityId(curriculumId);
+    requestKey = parseEntityId(requestKey);
     return this.database.$transaction(async (tx) => {
       await this.lockUser(tx, userId);
       const previous = await tx.userCurriculumAssignment.findUnique({
@@ -77,8 +77,8 @@ export class CurriculaService {
   }
 
   async complete(userId: string, assignmentId: string) {
-    userId = parseGoalId(userId);
-    assignmentId = parseGoalId(assignmentId);
+    userId = parseEntityId(userId);
+    assignmentId = parseEntityId(assignmentId);
     return this.database.$transaction(async (tx) => {
       await this.lockUser(tx, userId);
       const row = await tx.userCurriculumAssignment.findFirst({
@@ -103,21 +103,21 @@ export class CurriculaService {
 
   async current(userId: string) {
     const row = await this.database.userCurriculumAssignment.findUnique({
-      where: { currentForUserId: parseGoalId(userId) },
+      where: { currentForUserId: parseEntityId(userId) },
       include: includeAssignment,
     });
     return row ? serializeAssignment(row) : null;
   }
 
   async history(userId: string, limit = 20, cursor?: string) {
-    userId = parseGoalId(userId);
+    userId = parseEntityId(userId);
     if (!Number.isInteger(limit) || limit < 1 || limit > 50)
       invalidUserInput([
         { field: 'limit', message: '1~50 범위의 정수를 사용해 주세요.' },
       ]);
     const boundary = cursor
       ? await this.database.userCurriculumAssignment.findFirst({
-          where: { id: parseGoalId(cursor), userId },
+          where: { id: parseEntityId(cursor), userId },
         })
       : null;
     if (cursor && !boundary)

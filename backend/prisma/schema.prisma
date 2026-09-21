@@ -50,17 +50,14 @@ enum MeasurementEntryMethod {
   manual
 }
 
-// Profile preferences extend the original account fields (2026-09-21).
-// Current fitness and onboarding are derived from measurements, never stored here.
+// Account updates change credentials only (2026-09-21 scope correction).
+// Onboarding is derived from measurement existence, never stored here.
 model User {
   id                          String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                       String                     @unique
   password                    String?
   createdAt                   DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                   DateTime                   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  preferredExercises          String[]                   @default([]) @map("preferred_exercises")
-  exerciseGoals               String[]                   @default([]) @map("exercise_goals")
-  fitnessGoals                UserFitnessGoal[]
   currency                    UserCurrency?
   curriculumAssignments       UserCurriculumAssignment[] @relation("AssignmentOwner")
   currentCurriculumAssignment UserCurriculumAssignment?  @relation("CurrentAssignment")
@@ -131,7 +128,6 @@ model MeasurementDefinition {
   sourceUrls     String[]             @map("source_urls")
   catalog        MeasurementCatalog   @relation(fields: [catalogVersion], references: [version], onDelete: Restrict, onUpdate: Restrict)
   items          MeasurementItem[]
-  fitnessGoals   UserFitnessGoal[]
 
   @@id([catalogVersion, code])
   @@unique([catalogVersion, code, unit])
@@ -160,7 +156,6 @@ model Measurement {
 
   @@unique([id, catalogVersion])
   @@index([userId, measuredOn(sort: Desc), id])
-  @@index([userId, measuredOn(sort: Desc), createdAt(sort: Desc), id])
   @@map("measurements")
 }
 
@@ -191,23 +186,6 @@ model MeasurementCreateRequest {
 
   @@id([userId, key])
   @@map("measurement_create_requests")
-}
-
-model UserFitnessGoal {
-  id             String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId         String                @map("user_id") @db.Uuid
-  catalogVersion String                @map("catalog_version")
-  code           String
-  value          Decimal               @db.Decimal
-  unit           String
-  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Restrict)
-  definition     MeasurementDefinition @relation(fields: [catalogVersion, code, unit], references: [catalogVersion, code, unit], onDelete: Restrict, onUpdate: Restrict)
-
-  @@unique([userId, code])
-  @@index([catalogVersion, code, unit])
-  @@map("user_fitness_goals")
 }
 
 model UserCurrency {

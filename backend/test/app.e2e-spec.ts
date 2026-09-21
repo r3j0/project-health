@@ -61,17 +61,6 @@ describe('API bootstrap (e2e)', () => {
         ['get', '/auth/me'],
         ['patch', '/users/me'],
         ['delete', '/users/me'],
-        ['get', '/users/me/fitness-goals'],
-        ['post', '/users/me/fitness-goals'],
-        ['get', '/users/me/fitness-goals/00000000-0000-4000-8000-000000000001'],
-        [
-          'patch',
-          '/users/me/fitness-goals/00000000-0000-4000-8000-000000000001',
-        ],
-        [
-          'delete',
-          '/users/me/fitness-goals/00000000-0000-4000-8000-000000000001',
-        ],
         ['get', '/measurement-catalog'],
         ['post', '/measurements'],
         ['get', '/measurements'],

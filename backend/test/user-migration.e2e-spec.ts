@@ -7,7 +7,7 @@ import { expect, it } from 'vitest';
 import { DatabaseService } from '../src/database/database.service.js';
 import { UserProfileService } from '../src/users/user-profile.service.js';
 
-it('upgrades populated pre-feature storage without resetting accounts, measurements or sessions', async () => {
+it('upgrades populated schemas, removes retired profile data and preserves credentials, measurements and account relations', async () => {
   const url = new URL(process.env.DATABASE_URL!);
   // Only the isolated runner can opt into creating this additional test schema.
   if (
@@ -72,19 +72,55 @@ it('upgrades populated pre-feature storage without resetting accounts, measureme
       "INSERT INTO auth_refresh_tokens(token_hash, session_id) VALUES (repeat('b', 64), $1)",
       [sessionId],
     );
-    const accountBefore = (
-      await client.query('SELECT * FROM users ORDER BY id')
-    ).rows as unknown[];
+    let accountBefore = (await client.query('SELECT * FROM users ORDER BY id'))
+      .rows as unknown[];
     const measurementBefore = (await client.query('SELECT * FROM measurements'))
       .rows as unknown[];
     const itemsBefore = (await client.query('SELECT * FROM measurement_items'))
       .rows as unknown[];
     const sessionsBefore = (await client.query('SELECT * FROM auth_sessions'))
       .rows as unknown[];
-    for (const name of directories.filter((name) => name >= extension))
+    let assignmentsBefore: unknown[] = [];
+    for (const name of directories.filter((name) => name >= extension)) {
       await client.query(
         await readFile(new URL(`${name}/migration.sql`, migrationRoot), 'utf8'),
       );
+      if (name === extension) {
+        // Represent a database that already used the now-retired first version.
+        expect(
+          (await client.query('SELECT balance FROM user_currencies')).rows,
+        ).toEqual([{ balance: 0 }, { balance: 0 }]);
+        await client.query(
+          "UPDATE users SET preferred_exercises = ARRAY['수영'], exercise_goals = ARRAY['체력 유지'] WHERE id = $1",
+          [owner],
+        );
+        await client.query(
+          "INSERT INTO user_fitness_goals(user_id, catalog_version, code, value, unit) VALUES ($1, 'nfa100-2026-09-19', 'height', '170', 'cm')",
+          [owner],
+        );
+        await client.query(
+          'UPDATE user_currencies SET balance = 123 WHERE user_id = $1',
+          [owner],
+        );
+        const curriculumId = randomUUID();
+        await client.query(
+          "INSERT INTO workout_curricula(id, name) VALUES ($1, '[TEST ONLY] retained workout')",
+          [curriculumId],
+        );
+        await client.query(
+          'INSERT INTO user_curriculum_assignments(user_id, curriculum_id, request_key, current_for_user_id) VALUES ($1, $2, $3, $1)',
+          [owner, curriculumId, randomUUID()],
+        );
+        accountBefore = (
+          await client.query(
+            'SELECT id, email, password, created_at, updated_at FROM users ORDER BY id',
+          )
+        ).rows as unknown[];
+        assignmentsBefore = (
+          await client.query('SELECT * FROM user_curriculum_assignments')
+        ).rows as unknown[];
+      }
+    }
     expect(
       (
         await client.query(
@@ -115,7 +151,9 @@ it('upgrades populated pre-feature storage without resetting accounts, measureme
         )
       ).rows,
     ).toEqual(
-      [owner, emptyUser].sort().map((user_id) => ({ user_id, balance: 0 })),
+      [owner, emptyUser]
+        .sort()
+        .map((user_id) => ({ user_id, balance: user_id === owner ? 123 : 0 })),
     );
     url.searchParams.set('schema', schema);
     database = new DatabaseService(
@@ -123,30 +161,46 @@ it('upgrades populated pre-feature storage without resetting accounts, measureme
     );
     await database.onModuleInit();
     const profiles = new UserProfileService(database);
-    expect(await profiles.get(owner)).toMatchObject({
+    const profile = await profiles.get(owner);
+    expect(profile).toMatchObject({
       id: owner,
-      preferredExercises: [],
-      exerciseGoals: [],
-      currency: { balance: 0 },
+      currency: { balance: 123 },
       isOnboarded: true,
-      currentFitness: {
-        id: measurementId,
-        items: [{ value: '0.301234567890123456789' }],
-      },
-      fitnessGoals: [],
-      currentCurriculum: null,
+      currentCurriculum: { status: 'assigned' },
     });
+    for (const field of [
+      'preferredExercises',
+      'exerciseGoals',
+      'currentFitness',
+      'fitnessGoals',
+    ])
+      expect(profile).not.toHaveProperty(field);
     expect(await profiles.get(emptyUser)).toMatchObject({
       isOnboarded: false,
-      currentFitness: null,
       currency: { balance: 0 },
     });
-    expect(await database.workoutCurriculum.count()).toBe(0);
+    expect(
+      (await client.query('SELECT * FROM user_curriculum_assignments')).rows,
+    ).toEqual(assignmentsBefore);
+    expect(await database.workoutCurriculum.count()).toBe(1);
+    expect(
+      (
+        await client.query(
+          "SELECT table_name FROM information_schema.tables WHERE table_schema = $1 AND table_name = 'user_fitness_goals'",
+          [schema],
+        )
+      ).rows,
+    ).toEqual([]);
+    expect(
+      (
+        await client.query(
+          "SELECT column_name FROM information_schema.columns WHERE table_schema = $1 AND table_name = 'users' ORDER BY column_name",
+          [schema],
+        )
+      ).rows.map((row: { column_name: string }) => row.column_name),
+    ).toEqual(['created_at', 'email', 'id', 'password', 'updated_at']);
     await database.measurement.delete({ where: { id: measurementId } });
-    expect(await profiles.get(owner)).toMatchObject({
-      isOnboarded: false,
-      currentFitness: null,
-    });
+    expect(await profiles.get(owner)).toMatchObject({ isOnboarded: false });
   } finally {
     await database?.onModuleDestroy();
     // Clear a failed transaction before removing only this test's own schema.

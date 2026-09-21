@@ -20,7 +20,7 @@ describe('Account schema', () => {
     await database.onModuleDestroy();
   });
 
-  it('extends the account fields with preferences without persisting derived fitness state', async () => {
+  it('keeps only credential fields and account timestamps after the scope correction', async () => {
     const schema = new URL(process.env.DATABASE_URL!).searchParams.get(
       'schema',
     )!;
@@ -31,10 +31,8 @@ describe('Account schema', () => {
     expect(columns.map((column) => column.column_name).sort()).toEqual([
       'created_at',
       'email',
-      'exercise_goals',
       'id',
       'password',
-      'preferred_exercises',
       'updated_at',
     ]);
   });

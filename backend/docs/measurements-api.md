@@ -129,8 +129,8 @@ curl -i -X DELETE "http://localhost:3001/api/v1/measurements/$MEASUREMENT_ID" \
 
 204 후 같은 ID 조회는 404, 같은 생성 요청 키·본문 재전송은 410이어야 한다. access token이 만료되면 인증 API에서 갱신하거나 다시 로그인한다. 측정 API는 refresh 쿠키만으로 인증하지 않는다.
 
-## 현재 체력·온보딩 연계 (2026-09-21)
+## 온보딩 연계 (2026-09-21 정정)
 
-`GET /api/v1/auth/me`의 `currentFitness`는 최신 측정일 한 회차를 위 상세 응답과 같은 형태로 반환한다. 같은 측정일은 createdAt 내림차순, id 오름차순으로 선택한다. 현재 선택 정책은 기존 목록의 페이지 정렬과 별개다. 부분 회차도 실제 items만 반환하고 다른 날짜의 누락값을 합치지 않는다.
+기존 Measurement·MeasurementItem과 측정 CRUD를 유지한다. `GET /api/v1/auth/me`의 `currentFitness` 응답만 제거하며 실제 수치는 위 측정 목록·상세 경로에서 조회한다. 선호 운동·운동 목적·개인별 목표/기준값은 폐기했다.
 
-남은 유효한 회차가 있으면 `isOnboarded: true`, 마지막 회차 삭제 후 false다. 선호 운동·운동 목적·목표는 조건이 아니다. 기존 측정 CRUD와 revision 계약은 변경하지 않는다. 조회 스냅샷·목표와 측정값의 차이·MVP 온보딩 조건은 [사용자 API](users-api.md)를 따른다.
+남은 유효한 회차가 있으면 `isOnboarded: true`, 마지막 회차 삭제 후 false다. 기존 측정 CRUD·부분 입력·소유권·revision·Decimal 계약과 데이터는 변경하지 않는다. MVP 온보딩 조건과 계정 정보 변경은 [사용자 API](users-api.md)를 따른다.

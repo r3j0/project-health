@@ -21,7 +21,7 @@ export class DatabaseService
   }
 
   // Raw row locks must use the same schema as generated Prisma queries.
-  table(name: 'users' | 'user_fitness_goals' | 'user_curriculum_assignments') {
+  table(name: 'users' | 'user_curriculum_assignments') {
     return Prisma.raw(`"${this.dbSchema.replaceAll('"', '""')}"."${name}"`);
   }
 
@@ -51,8 +51,6 @@ export class DatabaseService
             id: true,
             email: true,
             updatedAt: true,
-            preferredExercises: true,
-            exerciseGoals: true,
           },
         }),
         this.measurementDefinition.count(),
@@ -61,7 +59,6 @@ export class DatabaseService
         this.authRateLimit.findFirst({ select: { attempts: true } }),
         this.measurementCreateRequest.findFirst({ select: { key: true } }),
         this.userCurrency.findFirst({ select: { balance: true } }),
-        this.userFitnessGoal.findFirst({ select: { id: true } }),
         this.workoutCurriculum.findFirst({ select: { id: true } }),
         this.userCurriculumAssignment.findFirst({ select: { id: true } }),
       ]);

@@ -6,9 +6,30 @@ const loginSchema = z.strictObject({
   email,
   password: z.string().min(1).max(128),
 });
-const registerSchema = loginSchema.extend({
-  password: z.string().min(15).max(128),
-});
+const newPassword = z.string().min(15).max(128);
+const registerSchema = loginSchema.extend({ password: newPassword });
+const accountUpdateSchema = z
+  .strictObject({
+    currentPassword: z.string().min(1).max(128),
+    email: email.optional(),
+    newPassword: newPassword.optional(),
+  })
+  .refine(
+    (input) => input.email !== undefined || input.newPassword !== undefined,
+  );
+
+export type AccountUpdateInput = z.output<typeof accountUpdateSchema>;
+
+export function parseAccountUpdate(input: unknown): AccountUpdateInput {
+  const result = accountUpdateSchema.safeParse(input);
+  if (!result.success)
+    throw new BadRequestException({
+      statusCode: 400,
+      message:
+        '현재 비밀번호와 변경할 이메일 또는 15~128자 새 비밀번호를 입력해 주세요.',
+    });
+  return result.data;
+}
 
 export function parseCredentials(input: unknown, registration = false) {
   const result = (registration ? registerSchema : loginSchema).safeParse(input);

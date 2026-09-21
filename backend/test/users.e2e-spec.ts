@@ -32,15 +32,7 @@ type Account = {
 };
 type Profile = {
   id: string;
-  preferredExercises: string[];
-  exerciseGoals: string[];
   isOnboarded: boolean;
-  currentFitness: {
-    id: string;
-    items: unknown[];
-    missingMeasurementCodes: string[];
-  } | null;
-  fitnessGoals: unknown[];
   currency: { balance: number };
   currentCurriculum: { id: string; status: string } | null;
 };
@@ -103,13 +95,6 @@ describe('User profile and permanent deletion against PostgreSQL', () => {
     observedQueries = undefined;
     await database.authRateLimit.deleteMany();
     await database.measurement.deleteMany({ where: { userId: owner.user.id } });
-    await database.userFitnessGoal.deleteMany({
-      where: { userId: owner.user.id },
-    });
-    await database.user.update({
-      where: { id: owner.user.id },
-      data: { preferredExercises: [], exerciseGoals: [] },
-    });
   });
 
   afterAll(async () => {
@@ -141,11 +126,6 @@ describe('User profile and permanent deletion against PostgreSQL', () => {
     request(app.getHttpServer())
       .get('/api/v1/auth/me')
       .set('Authorization', `Bearer ${account.access_token}`);
-  const patch = (body: unknown, account = owner) =>
-    request(app.getHttpServer())
-      .patch('/api/v1/users/me')
-      .set('Authorization', `Bearer ${account.access_token}`)
-      .send(body as object);
   const remove = (account: Account, input = { password }) =>
     request(app.getHttpServer())
       .delete('/api/v1/users/me')
@@ -194,11 +174,7 @@ describe('User profile and permanent deletion against PostgreSQL', () => {
     expect(response.body).toMatchObject({
       id: owner.user.id,
       email: owner.user.email,
-      preferredExercises: [],
-      exerciseGoals: [],
       isOnboarded: false,
-      currentFitness: null,
-      fitnessGoals: [],
       currency: { balance: 0 },
       currentCurriculum: null,
     });
@@ -208,11 +184,7 @@ describe('User profile and permanent deletion against PostgreSQL', () => {
         'email',
         'created_at',
         'updated_at',
-        'preferredExercises',
-        'exerciseGoals',
         'isOnboarded',
-        'currentFitness',
-        'fitnessGoals',
         'currency',
         'currentCurriculum',
       ].sort(),
@@ -231,115 +203,43 @@ describe('User profile and permanent deletion against PostgreSQL', () => {
     expect(await database.workoutCurriculum.count()).toBe(0);
   });
 
-  it('normalizes and replaces only supplied preference fields for the authenticated owner', async () => {
-    const initial = await patch({
-      preferredExercises: ['  수영 ', '수영', '빠른\t 걷기'],
-      exerciseGoals: [' 체력 유지 '],
-    }).expect(200);
-    expect(initial.body).toMatchObject({
-      preferredExercises: ['수영', '빠른 걷기'],
-      exerciseGoals: ['체력 유지'],
-      isOnboarded: false,
-    });
-    const changed = await patch({ preferredExercises: [] }).expect(200);
-    expect(changed.body).toMatchObject({
-      preferredExercises: [],
-      exerciseGoals: ['체력 유지'],
-    });
-    expect((await me(other)).body).toMatchObject({
-      preferredExercises: [],
-      exerciseGoals: [],
-    });
-    expect(changed.headers['cache-control']).toBe('no-store');
-    await request(app.getHttpServer())
-      .patch('/api/v1/users/me')
-      .send({ exerciseGoals: [] })
-      .expect(401);
-    await request(app.getHttpServer())
-      .patch(`/api/v1/users/${other.user.id}`)
-      .set('Authorization', `Bearer ${owner.access_token}`)
-      .send({ exerciseGoals: [] })
-      .expect(404);
-  });
-
-  it.each([
-    {},
-    { preferredExercises: null },
-    { exerciseGoals: '수영' },
-    { exerciseGoals: [1] },
-    { exerciseGoals: ['   '] },
-    { exerciseGoals: ['x'.repeat(81)] },
-    { exerciseGoals: Array.from({ length: 21 }, (_, i) => String(i)) },
-    { userId: randomUUID() },
-    { email: 'changed@example.test' },
-    { password: 'new password' },
-    { balance: 100 },
-    { currency: { balance: 10 } },
-    { isOnboarded: true },
-    { onboardingCompletedAt: '2026-09-21' },
-    { currentFitness: {} },
-    { currentCurriculum: {} },
-    { fitnessGoals: [] },
-    { preferredExercises: [], unknown: true },
-  ])('rejects invalid or server-managed PATCH input %j', async (input) => {
-    await patch(input).expect(400);
-    expect((await me()).body).toMatchObject({
-      preferredExercises: [],
-      exerciseGoals: [],
-      isOnboarded: false,
-    });
-  });
-
-  it('selects by measured date, then creation time, then ID without merging partial records', async () => {
-    expect(((await me()).body as Profile).isOnboarded).toBe(false);
-    const earlier = await measurement(owner, '2026-09-16');
-    expect(((await me()).body as Profile).isOnboarded).toBe(true);
-    const first = await measurement(owner, '2026-09-17', 'weight', '60');
-    const second = await measurement(owner, '2026-09-17', 'height', '170');
-    await measurement(owner, '2026-09-15', 'weight', '55');
-    await database.measurement.update({
-      where: { id: first.id },
-      data: { createdAt: new Date('2026-09-20T00:00:00Z') },
-    });
-    await database.measurement.update({
-      where: { id: second.id },
-      data: { createdAt: new Date('2026-09-20T01:00:00Z') },
-    });
-    expect(((await me()).body as Profile).currentFitness?.id).toBe(second.id);
-    await database.measurement.update({
-      where: { id: second.id },
-      data: { createdAt: new Date('2026-09-20T00:00:00Z') },
-    });
-    const selectedId = [first.id, second.id].sort()[0];
-    const selected = selectedId === first.id ? first : second;
-    const profile = (await me()).body as Profile;
-    expect(profile.currentFitness).toMatchObject({
-      id: selected.id,
-      items: selected.items,
-      missingMeasurementCodes: selected.missingMeasurementCodes,
-    });
-    expect(profile.currentFitness?.items).toHaveLength(1);
-    await removeMeasurement(selectedId);
-    expect(((await me()).body as Profile).currentFitness?.id).toBe(
-      selectedId === first.id ? second.id : first.id,
-    );
-    expect(((await me()).body as Profile).isOnboarded).toBe(true);
-    await removeMeasurement(selectedId === first.id ? second.id : first.id);
-    expect(((await me()).body as Profile).currentFitness?.id).toBe(earlier.id);
+  it('does not expose discarded profile fields or fitness goal routes', async () => {
+    const response = await me().expect(200);
+    for (const field of [
+      'preferredExercises',
+      'exerciseGoals',
+      'currentFitness',
+      'fitnessGoals',
+    ])
+      expect(response.body).not.toHaveProperty(field);
+    for (const [method, path] of [
+      ['get', '/users/me/fitness-goals'],
+      ['post', '/users/me/fitness-goals'],
+      ['get', `/users/me/fitness-goals/${randomUUID()}`],
+      ['patch', `/users/me/fitness-goals/${randomUUID()}`],
+      ['delete', `/users/me/fitness-goals/${randomUUID()}`],
+    ] as const)
+      await request(app.getHttpServer())
+        [method](`/api/v1${path}`)
+        .set('Authorization', `Bearer ${owner.access_token}`)
+        .set('X-CSRF-Protection', '1')
+        .expect(404);
   });
 
   it('distinguishes deleting some records from deleting the last record and reads one concurrent snapshot', async () => {
+    expect(((await me()).body as Profile).isOnboarded).toBe(false);
     const first = await measurement();
+    expect(((await me()).body as Profile).isOnboarded).toBe(true);
     const second = await measurement(owner, '2026-09-18');
+    expect(((await me()).body as Profile).isOnboarded).toBe(true);
     await removeMeasurement(first.id);
     expect(((await me()).body as Profile).isOnboarded).toBe(true);
     afterMeasurementRead = () => removeMeasurement(second.id);
     const overlapping = (await me().expect(200)).body as Profile;
     expect(overlapping.isOnboarded).toBe(true);
-    expect(overlapping.currentFitness).toMatchObject(second);
+    expect(overlapping).not.toHaveProperty('currentFitness');
     expect((await me().expect(200)).body).toMatchObject({
       isOnboarded: false,
-      currentFitness: null,
     });
   });
 
@@ -461,19 +361,9 @@ describe('User profile and permanent deletion against PostgreSQL', () => {
 
   it('atomically deletes all owned data, preserves shared definitions, and invalidates every session/token', async () => {
     const account = await register();
-    await patch({ preferredExercises: ['수영'] }, account).expect(200);
     const record = await measurement(account);
     const deletedRecord = await measurement(account);
     await database.measurement.delete({ where: { id: deletedRecord.id } });
-    await database.userFitnessGoal.create({
-      data: {
-        userId: account.user.id,
-        catalogVersion: version,
-        code: 'height',
-        value: '170',
-        unit: 'cm',
-      },
-    });
     const definition = await database.workoutCurriculum.create({
       data: { name: '[TEST ONLY] One workout' },
     });
@@ -523,7 +413,6 @@ describe('User profile and permanent deletion against PostgreSQL', () => {
       database.measurementCreateRequest.count({
         where: { userId: account.user.id },
       }),
-      database.userFitnessGoal.count({ where: { userId: account.user.id } }),
       database.userCurrency.count({ where: { userId: account.user.id } }),
       database.userCurriculumAssignment.count({
         where: { userId: account.user.id },
