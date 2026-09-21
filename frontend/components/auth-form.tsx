@@ -20,6 +20,7 @@ function destination() {
     next === "/account" ||
     next === "/account/settings" ||
     next === "/workout" ||
+    ["/onboarding", "/onboarding/manual", "/onboarding/photo"].includes(next) ||
     next === "/"
     ? next
     : "/";

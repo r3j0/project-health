@@ -30,6 +30,98 @@ async function login(page: Page, email: string, secret = password) {
   await expect(page).not.toHaveURL(/\/login/);
 }
 
+test("온보딩 직접 입력은 기존 폼을 복원하고 실제 저장 후 상태를 갱신한다", async ({
+  page,
+}) => {
+  const account = await register(page);
+  await page.goto("/onboarding");
+  await page
+    .getByRole("link", { name: "결과 직접 입력", exact: false })
+    .click();
+  await page.getByLabel("측정일", { exact: true }).fill("2026-09-17");
+  await page.getByLabel("측정 당시 만 나이", { exact: true }).fill("25");
+  await page.reload();
+  await expect(
+    page.getByLabel("측정 당시 만 나이", { exact: true }),
+  ).toHaveValue("25");
+  await page.getByRole("button", { name: "측정값 입력하기" }).click();
+  await page
+    .getByRole("button", { name: "측정 항목 추가", exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByLabel("검사명 검색")
+    .fill("교차윗몸일으키기");
+  await page
+    .getByRole("dialog")
+    .getByRole("button")
+    .filter({ hasText: "교차윗몸일으키기" })
+    .click();
+  await page.getByLabel("교차윗몸일으키기", { exact: true }).fill("0");
+  await page.getByRole("button", { name: "1개 항목 저장하기" }).click();
+  await expect(page).toHaveURL(new URL("/", page.url()).href);
+  await page.goto("/onboarding");
+  await expect(
+    page.getByText("이미 등록한 기록이 있어요.", { exact: false }),
+  ).toBeVisible();
+  const result = await page.request.get(`${api}/auth/me`, {
+    headers: { Authorization: `Bearer ${account.access_token}` },
+  });
+  expect((await result.json()).isOnboarded).toBe(true);
+});
+
+test("사진을 로컬에서 확인하고 같은 측정 폼에서 입력하며 잘못된 사진은 거절한다", async ({
+  page,
+}) => {
+  await register(page);
+  const writes: string[] = [];
+  page.on("request", (request) => {
+    if (
+      request.url().startsWith(api) &&
+      request.method() === "POST" &&
+      !request.url().includes("/auth/")
+    )
+      writes.push(request.url());
+  });
+  await page.goto("/onboarding/photo");
+  await page.getByLabel("결과표 파일 선택").setInputFiles({
+    name: "report.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("not an image"),
+  });
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "JPG, PNG, WEBP",
+  );
+  await page.getByLabel("결과표 파일 선택").setInputFiles({
+    name: "broken.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("broken image"),
+  });
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "사진을 읽을 수 없어요",
+  );
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aK3sAAAAASUVORK5CYII=",
+    "base64",
+  );
+  await page
+    .getByLabel("결과표 파일 선택")
+    .setInputFiles({ name: "report.png", mimeType: "image/png", buffer: png });
+  await expect(
+    page.getByRole("img", { name: "선택한 국민체력100 결과표" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "이 사진을 보며 직접 입력" }).click();
+  await expect(page.getByLabel("측정일", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("img", { name: "선택한 국민체력100 결과표" }),
+  ).toBeVisible();
+  expect(writes).toEqual([]);
+  await page.reload();
+  await expect(
+    page.getByRole("img", { name: "선택한 국민체력100 결과표" }),
+  ).toHaveCount(0);
+});
+
 test("운동 체험은 일시정지·복원·항목 전환을 지원하고 서버 기록을 만들지 않는다", async ({
   page,
 }) => {

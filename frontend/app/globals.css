@@ -66,6 +66,57 @@
   font-size: 64px;
   line-height: 1.2;
 }
+.choice-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 0;
+  color: var(--navy);
+}
+.choice-card > div {
+  flex: 1;
+  min-width: 0;
+}
+.choice-card > svg {
+  flex: none;
+}
+.choice-card p {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 5px;
+}
+.choice-card:hover h3 {
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+.file-button {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+.file-button input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  cursor: pointer;
+}
+.file-button:focus-within {
+  outline: 3px solid var(--sky);
+  outline-offset: 3px;
+}
+.report-preview {
+  display: block;
+  max-width: 100%;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  margin-top: 16px;
+}
+.photo-name {
+  overflow-wrap: anywhere;
+  margin-top: 8px;
+}
 * {
   box-sizing: border-box;
 }

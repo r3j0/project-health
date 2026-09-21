@@ -35,9 +35,13 @@ import { useOperationScope } from "./use-operation-scope";
 export function RecordForm({
   initial,
   initialCatalog,
+  onboarding = false,
+  reference,
 }: {
   initial?: RecordResponse;
   initialCatalog?: Catalog;
+  onboarding?: boolean;
+  reference?: React.ReactNode;
 }) {
   const router = useRouter();
   const [owner] = useState(() => getSession().user!.id);
@@ -263,7 +267,9 @@ export function RecordForm({
       savedRef.current = true;
       setDirty(false);
       setUncertain(false);
-      router.replace(`/measurements/${result.data.id}?saved=1`);
+      router.replace(
+        onboarding ? "/" : `/measurements/${result.data.id}?saved=1`,
+      );
     } catch (e) {
       if (!isCurrent()) return;
       setMessage(errorMessage(e));
@@ -438,9 +444,16 @@ export function RecordForm({
         title={
           base ? "측정 기록 수정" : step === 1 ? "새 측정 기록" : "측정값 입력"
         }
-        back={base ? `/measurements/${base.data.id}` : "/measurements"}
+        back={
+          base
+            ? `/measurements/${base.data.id}`
+            : onboarding
+              ? "/onboarding"
+              : "/measurements"
+        }
       />
       <div className="content">
+        {reference}
         <div className="stepper" aria-label={`${step}단계 / 2단계`}>
           <span className={`step ${step === 1 ? "active" : ""}`}>
             <b>1</b>기본 정보
