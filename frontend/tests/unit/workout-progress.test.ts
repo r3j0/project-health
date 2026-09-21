@@ -46,3 +46,69 @@ test("workout progress validates expiry in memory and rejects writes from a prev
     setWorkoutOwner(null, true);
   }
 });
+
+test("a failed storage write cannot replace newer progress with an old snapshot", () => {
+  let raw: string | null = null;
+  let blockWrites = false;
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      sessionStorage: {
+        getItem: () => raw,
+        setItem: (_key: string, value: string) => {
+          if (blockWrites) throw new Error("QuotaExceededError");
+          raw = value;
+        },
+        removeItem: () => {
+          raw = null;
+        },
+      },
+    },
+  });
+  try {
+    setWorkoutOwner("storage-test", true);
+    saveWorkoutProgress("storage-test", initialWorkout());
+    blockWrites = true;
+    const active = advanceWorkout(demoWorkout, initialWorkout(), {
+      type: "start",
+      now: Date.now(),
+    });
+    saveWorkoutProgress("storage-test", active);
+    assert.equal(readWorkoutProgress("storage-test")?.phase, "active");
+  } finally {
+    setWorkoutOwner(null, true);
+    Reflect.deleteProperty(globalThis, "window");
+  }
+});
+
+test("logout cannot resurrect progress when storage deletion fails", () => {
+  let raw: string | null = null;
+  let blockRemoval = false;
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      sessionStorage: {
+        getItem: () => raw,
+        setItem: (_key: string, value: string) => {
+          raw = value;
+        },
+        removeItem: () => {
+          if (blockRemoval) throw new Error("SecurityError");
+          raw = null;
+        },
+      },
+    },
+  });
+  try {
+    setWorkoutOwner("storage-test", true);
+    saveWorkoutProgress("storage-test", initialWorkout());
+    blockRemoval = true;
+    setWorkoutOwner(null, true);
+    setWorkoutOwner("storage-test");
+    assert.equal(readWorkoutProgress("storage-test"), null);
+  } finally {
+    blockRemoval = false;
+    setWorkoutOwner(null, true);
+    Reflect.deleteProperty(globalThis, "window");
+  }
+});

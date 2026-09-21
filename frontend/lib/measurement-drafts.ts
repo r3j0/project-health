@@ -69,11 +69,16 @@ export function createDraftStore(
     }
   }
   function remove(key: string) {
-    memory.delete(key);
+    // Keep a tombstone so a failed removal cannot resurrect a discarded draft.
+    memory.set(key, "");
     try {
       persisted()?.removeItem(key);
     } catch {
-      /* memory fallback */
+      try {
+        persisted()?.setItem(key, "");
+      } catch {
+        /* This document remains cleared even if storage is entirely blocked. */
+      }
     }
   }
   function keys() {

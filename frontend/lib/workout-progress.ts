@@ -12,7 +12,8 @@ type Saved = {
   expiresAt: number;
   state: WorkoutState;
 };
-let memory: Saved | null = null;
+// Undefined means this document has not read storage yet; null is a cleared draft.
+let memory: Saved | null | undefined;
 let activeOwner: string | null = null;
 function storage() {
   try {
@@ -26,7 +27,12 @@ export function clearWorkoutProgress() {
   try {
     storage()?.removeItem(key);
   } catch {
-    /* Memory remains cleared. */
+    // A tombstone also prevents restoration on reload when removal alone fails.
+    try {
+      storage()?.setItem(key, "null");
+    } catch {
+      /* Keep this document cleared even if storage is entirely unavailable. */
+    }
   }
 }
 export function setWorkoutOwner(owner: string | null, erase = false) {
@@ -36,14 +42,18 @@ export function setWorkoutOwner(owner: string | null, erase = false) {
   if (owner) readWorkoutProgress(owner);
 }
 export function readWorkoutProgress(owner: string): WorkoutState | null {
+  if (activeOwner !== owner) return null;
   try {
-    let saved: Saved | null = memory;
-    try {
-      const raw = storage()?.getItem(key);
-      if (raw) saved = JSON.parse(raw);
-    } catch {
-      // Storage can be blocked or malformed. Validate the memory fallback below too.
+    if (memory === undefined) {
+      try {
+        const raw = storage()?.getItem(key);
+        memory = raw ? JSON.parse(raw) : null;
+      } catch {
+        memory = null;
+      }
     }
+    // Memory is authoritative after any write or deletion, including failed storage writes.
+    const saved = memory;
     if (!saved) return null;
     if (
       saved.owner !== owner ||
