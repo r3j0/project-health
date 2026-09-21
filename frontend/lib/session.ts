@@ -198,6 +198,17 @@ export function invalidateUserProfile(broadcast = true) {
     channel?.postMessage({ type: "profile-changed", userId: session.user?.id });
 }
 
+/** The server may have committed the change before its response was lost. */
+export class AccountChangeUncertainError extends ApiError {}
+
+/** Explicit recovery: discard local credentials/drafts without replaying a mutation. */
+export function resetAccountSession() {
+  const generation = session.generation;
+  return locked(async () => {
+    if (session.generation === generation) clear("logout");
+  });
+}
+
 /** Credential mutations are never replayed: a 401 can mean a wrong password. */
 export async function changeAccount(
   method: "PATCH" | "DELETE",
@@ -238,7 +249,7 @@ export async function changeAccount(
         error instanceof ApiError &&
         (error.status === 0 || error.status >= 500)
       )
-        throw new ApiError(
+        throw new AccountChangeUncertainError(
           error.status,
           "처리 결과를 확인하지 못했어요. 계정이 변경되었을 수 있으니 다시 로그인해 확인해 주세요.",
         );

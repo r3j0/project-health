@@ -1,7 +1,11 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { changeAccount } from "@/lib/session";
+import {
+  AccountChangeUncertainError,
+  changeAccount,
+  resetAccountSession,
+} from "@/lib/session";
 import { ApiError, errorMessage } from "@/lib/http";
 import { Dialog, FieldError, Header, Notice, Shell, SubmitLabel } from "./ui";
 import { useOperationScope } from "./use-operation-scope";
@@ -20,6 +24,8 @@ export function AccountSettings() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [error, setError] = useState("");
+  const [uncertain, setUncertain] = useState(false);
+  const [canReauthenticate, setCanReauthenticate] = useState(false);
   const [fieldError, setFieldError] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -38,6 +44,8 @@ export function AccountSettings() {
     return () => window.clearTimeout(timer);
   }, [remaining]);
   function select(next: Mode) {
+    if (uncertain || mode === next) return;
+    setCanReauthenticate(false);
     setMode(next);
     setCurrentPassword("");
     setEmail("");
@@ -47,7 +55,7 @@ export function AccountSettings() {
     setFieldError("");
   }
   async function perform() {
-    if (guard.current || remaining) return;
+    if (guard.current || remaining || uncertain) return;
     guard.current = true;
     setBusy(true);
     setError("");
@@ -67,6 +75,12 @@ export function AccountSettings() {
     } catch (e) {
       if (!isCurrent()) return;
       setError(errorMessage(e));
+      const outcomeUnknown = e instanceof AccountChangeUncertainError;
+      setUncertain(outcomeUnknown);
+      setCanReauthenticate(
+        outcomeUnknown || (e instanceof ApiError && e.status === 401),
+      );
+      if (outcomeUnknown) setCurrentPassword("");
       setConfirmDelete(false);
       if (e instanceof ApiError && e.status === 429)
         setRemaining(e.retryAfter ?? 60);
@@ -79,6 +93,7 @@ export function AccountSettings() {
   }
   function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (guard.current || remaining || uncertain) return;
     setFieldError("");
     if (mode === "password" && newPassword !== confirmation) {
       setFieldError("새 비밀번호가 일치하지 않아요.");
@@ -97,7 +112,7 @@ export function AccountSettings() {
               key={item}
               type="button"
               aria-pressed={mode === item}
-              disabled={busy}
+              disabled={busy || uncertain}
               onClick={() => select(item)}
             >
               {titles[item]}
@@ -125,7 +140,7 @@ export function AccountSettings() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 maxLength={254}
-                disabled={busy}
+                disabled={busy || uncertain}
               />
             </div>
           )}
@@ -142,7 +157,7 @@ export function AccountSettings() {
                   required
                   minLength={15}
                   maxLength={128}
-                  disabled={busy}
+                  disabled={busy || uncertain}
                   aria-describedby="new-password-hint"
                 />
                 <p id="new-password-hint" className="caption">
@@ -159,7 +174,7 @@ export function AccountSettings() {
                   onChange={(e) => setConfirmation(e.target.value)}
                   required
                   maxLength={128}
-                  disabled={busy}
+                  disabled={busy || uncertain}
                   aria-invalid={!!fieldError}
                   aria-describedby="confirm-error"
                 />
@@ -177,13 +192,26 @@ export function AccountSettings() {
               onChange={(e) => setCurrentPassword(e.target.value)}
               required
               maxLength={128}
-              disabled={busy}
+              disabled={busy || uncertain}
             />
           </div>
           {error && <Notice>{error}</Notice>}
+          {canReauthenticate && (
+            <button
+              className="button secondary"
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                savedRef.current = true;
+                void resetAccountSession();
+              }}
+            >
+              다시 로그인하기
+            </button>
+          )}
           <button
             className={`button ${mode === "delete" ? "danger" : "primary"}`}
-            disabled={busy || remaining > 0}
+            disabled={busy || remaining > 0 || uncertain}
           >
             <SubmitLabel busy={busy}>
               {remaining
@@ -211,14 +239,14 @@ export function AccountSettings() {
             <div className="button-row">
               <button
                 className="button secondary"
-                disabled={busy}
+                disabled={busy || uncertain}
                 onClick={() => setConfirmDelete(false)}
               >
                 취소
               </button>
               <button
                 className="button danger"
-                disabled={busy}
+                disabled={busy || uncertain}
                 onClick={() => void perform()}
               >
                 {busy ? "탈퇴 처리 중" : "영구 탈퇴하기"}
