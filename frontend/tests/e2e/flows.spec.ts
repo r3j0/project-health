@@ -331,6 +331,7 @@ test("API 인증 만료 응답을 받으면 갱신 후 본인 계정을 다시 �
     } else await route.continue();
   });
   await page.getByRole("link", { name: "내 프로필", exact: true }).click();
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await expect(page.getByText(email, { exact: true })).toBeVisible();
   expect(refreshes).toBe(1);
 });
@@ -739,6 +740,7 @@ for (const status of [503, 0]) {
       status ? failApi(route, status) : route.abort(),
     );
     await page.getByRole("link", { name: "내 프로필", exact: true }).click();
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
     await expect(
       page.getByRole("button", { name: "다시 불러오기" }),
     ).toBeVisible();
@@ -776,6 +778,7 @@ test("계정 조회 응답을 기다리는 동안에도 로그아웃할 수 있�
   const pending = Promise.withResolvers<Route>();
   await page.route("**/api/v1/auth/me", (route) => pending.resolve(route));
   await page.getByRole("link", { name: "내 프로필", exact: true }).click();
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   const route = await pending.promise;
   await expect(
     page.getByRole("button", { name: "로그아웃", exact: true }),
@@ -871,7 +874,7 @@ test("로그아웃 401에서도 모든 탭의 인증과 임시 입력을 정리�
   expect(await draftKeys(page)).toEqual([]);
 });
 
-test("빈 메인과 내 프로필 탭을 오가며 기록을 관리하고 입력 이탈을 확인한다", async ({
+test("메인과 내 프로필 탭을 오가며 기록을 관리하고 입력 이탈을 확인한다", async ({
   page,
 }) => {
   const email = await signup(page, "main");
@@ -880,9 +883,12 @@ test("빈 메인과 내 프로필 탭을 오가며 기록을 관리하고 입력
   const profileTab = nav.getByRole("link", { name: "내 프로필", exact: true });
   await expect(nav.getByRole("link")).toHaveText(["메인", "내 프로필"]);
   await expect(mainTab).toHaveAttribute("aria-current", "page");
-  // The only main-page element is an accessible, visually hidden heading.
-  await expect(page.getByRole("main").locator(":scope > *")).toHaveCount(1);
-  await expect(page.getByRole("main").locator("h1")).toHaveClass("sr-only");
+  await expect(
+    page.getByRole("heading", { name: "내 체력 기록부터 시작해요" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "체력 기록 등록하기" }),
+  ).toBeVisible();
   await page.reload();
   await expect(mainTab).toHaveAttribute("aria-current", "page");
 

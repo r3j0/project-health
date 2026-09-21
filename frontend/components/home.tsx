@@ -1,0 +1,117 @@
+"use client";
+import Link from "next/link";
+import { ArrowRight, ClipboardList, Timer } from "lucide-react";
+import { Header, Loading, Notice, Shell } from "./ui";
+import { useUserProfile } from "./user-profile-provider";
+
+export function Home() {
+  const profile = useUserProfile();
+  const user = profile.data;
+  const assignment = user?.currentCurriculum;
+  return (
+    <Shell>
+      <Header title="메인" />
+      <div className="content stack home-content">
+        {profile.status === "loading" && (
+          <Loading label="나의 기록을 확인하고 있어요" />
+        )}
+        {profile.status === "error" && (
+          <div className="stack">
+            <Notice>{profile.error}</Notice>
+            <button className="button secondary" onClick={profile.reload}>
+              다시 불러오기
+            </button>
+          </div>
+        )}
+        {user && (
+          <>
+            <section className="feature-card home-intro stack">
+              <span className="eyebrow">오늘도 나의 속도로</span>
+              <h2>
+                {user.isOnboarded
+                  ? "나의 기록을 이어가요"
+                  : "내 체력 기록부터 시작해요"}
+              </h2>
+              <p className="muted">
+                {user.isOnboarded
+                  ? "저장한 측정 결과를 확인하고 새로운 기록을 차근차근 쌓아 보세요."
+                  : "국민체력100 결과표가 있다면 측정한 항목부터 등록해 보세요."}
+              </p>
+              <Link
+                className="button primary"
+                href={user.isOnboarded ? "/measurements" : "/onboarding"}
+              >
+                {user.isOnboarded ? "내 측정 기록 보기" : "체력 기록 등록하기"}
+                <ArrowRight size={18} />
+              </Link>
+            </section>
+            <section className="stack" aria-labelledby="today-title">
+              <div className="section-heading">
+                <ClipboardList size={22} />
+                <h2 id="today-title">오늘의 운동</h2>
+              </div>
+              {assignment ? (
+                <div className="curriculum-card stack">
+                  <span className="status-badge">
+                    {assignment.status === "completed" ? "완료" : "배정됨"}
+                  </span>
+                  <h3>{assignment.curriculum.name}</h3>
+                  {assignment.status === "completed" ? (
+                    <p className="muted">
+                      배정된 운동을 완료했어요. 다음 운동은 아직 배정되지
+                      않았어요.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="muted" id="curriculum-pending">
+                        배정된 운동의 상세 안내를 준비하고 있어요.
+                      </p>
+                      <button
+                        className="button secondary"
+                        disabled
+                        aria-describedby="curriculum-pending"
+                      >
+                        운동 시작 준비 중
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="curriculum-card stack">
+                  <h3>아직 배정된 운동이 없어요</h3>
+                  <p className="muted">
+                    운동이 배정되면 이곳에서 확인할 수 있어요.
+                  </p>
+                </div>
+              )}
+            </section>
+          </>
+        )}
+        <section className="feature-card stack">
+          <div className="section-heading">
+            <Timer size={22} />
+            <h2>간이측정, 먼저 체험해 볼까요?</h2>
+          </div>
+          <p className="muted">
+            안내를 따라 타이머와 입력 방법을 확인해요. 중간에 멈췄다면 이어서
+            진행할 수 있어요.
+          </p>
+          <Link className="button secondary" href="/workout">
+            간이측정 체험 시작·이어하기
+          </Link>
+          <p className="caption">
+            체험 결과는 실제 측정 기록으로 저장되지 않아요.
+          </p>
+        </section>
+        <div className="home-links">
+          <Link className="text-link" href="/onboarding">
+            측정 결과 등록 방법
+          </Link>
+          <Link className="text-link" href="/account/settings">
+            계정 설정
+          </Link>
+        </div>
+      </div>
+    </Shell>
+  );
+}

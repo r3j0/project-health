@@ -117,6 +117,53 @@
   overflow-wrap: anywhere;
   margin-top: 8px;
 }
+.home-content {
+  gap: 32px;
+}
+.home-intro {
+  background: var(--navy);
+  color: white;
+}
+.home-intro h2 {
+  color: white;
+  font-size: 26px;
+}
+.home-intro .eyebrow {
+  color: #a9e5f7;
+}
+.home-intro .muted {
+  color: #d9e4f4;
+}
+.home-intro .button.primary {
+  background: white;
+  color: var(--navy);
+}
+.section-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--navy);
+}
+.section-heading h2 {
+  font-size: 18px;
+}
+.curriculum-card {
+  padding: 20px 0;
+}
+.status-badge {
+  align-self: flex-start;
+  padding: 4px 12px;
+  background: var(--tint);
+  color: var(--navy);
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.home-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+}
 * {
   box-sizing: border-box;
 }

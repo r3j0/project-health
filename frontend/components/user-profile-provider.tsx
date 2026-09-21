@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { api, invalidateUserProfile } from "@/lib/session";
 import { errorMessage } from "@/lib/http";
+import { isUserProfile } from "@/lib/user-profile";
 import type { UserProfile } from "@/lib/types";
 import { useSession } from "./session-provider";
 
@@ -27,6 +28,10 @@ export function UserProfileProvider({
     const abort = new AbortController();
     api<UserProfile>("/auth/me", { signal: abort.signal })
       .then(({ data }) => {
+        if (!isUserProfile(data))
+          throw new Error(
+            "사용자 정보를 확인할 수 없어요. 다시 불러와 주세요.",
+          );
         if (!abort.signal.aborted)
           setSnapshot({
             version,

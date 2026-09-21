@@ -30,6 +30,113 @@ async function login(page: Page, email: string, secret = password) {
   await expect(page).not.toHaveURL(/\/login/);
 }
 
+test("메인은 미배정·배정·완료를 구분하고 운동 내용을 임의로 생성하지 않는다", async ({
+  page,
+}) => {
+  await register(page);
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "아직 배정된 운동이 없어요" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "체력 기록 등록하기" }),
+  ).toBeVisible();
+  let completed = false;
+  await page.route(`${api}/auth/me`, async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    const response = await route.fetch();
+    await route.fulfill({
+      response,
+      json: {
+        ...(await response.json()),
+        currentCurriculum: {
+          id: "test-assignment",
+          status: completed ? "completed" : "assigned",
+          assignedAt: new Date().toISOString(),
+          completedAt: completed ? new Date().toISOString() : null,
+          curriculum: {
+            id: "test-definition",
+            name: "테스트에 배정한 커리큘럼",
+          },
+        },
+      },
+    });
+  });
+  await page.reload();
+  await expect(
+    page.getByText("테스트에 배정한 커리큘럼", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "운동 시작 준비 중" }),
+  ).toBeDisabled();
+  completed = true;
+  await page.reload();
+  await expect(
+    page.getByText("배정된 운동을 완료했어요.", { exact: false }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "운동 시작 준비 중" }),
+  ).toHaveCount(0);
+});
+
+test("구형 사용자 응답은 임의의 초기 상태로 표시하지 않고 재시도를 제공한다", async ({
+  page,
+}) => {
+  const account = await register(page);
+  await page.route(`${api}/auth/me`, (route) =>
+    route.request().method() === "GET"
+      ? route.fulfill({
+          json: account.user,
+          headers: {
+            "Access-Control-Allow-Origin": route.request().headers().origin,
+            "Access-Control-Allow-Credentials": "true",
+          },
+        })
+      : route.continue(),
+  );
+  await page.goto("/");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "사용자 정보를 확인할 수 없어요",
+  );
+  await expect(
+    page.getByRole("button", { name: "다시 불러오기" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "아직 배정된 운동이 없어요" }),
+  ).toHaveCount(0);
+});
+
+test("주요 화면은 좁은 모바일 너비에서 가로 넘침 없이 사용할 수 있다", async ({
+  page,
+}, testInfo) => {
+  await register(page);
+  await page.setViewportSize({ width: 320, height: 760 });
+  for (const path of [
+    "/",
+    "/account",
+    "/account/settings",
+    "/onboarding",
+    "/onboarding/photo",
+    "/workout",
+  ]) {
+    await page.goto(path);
+    await expect(page.getByRole("main")).toBeVisible();
+    if (path === "/")
+      await expect(
+        page.getByRole("heading", { name: "내 체력 기록부터 시작해요" }),
+      ).toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path: testInfo.outputPath(`${path.replaceAll("/", "-") || "home"}.png`),
+      fullPage: true,
+    });
+  }
+});
+
 test("온보딩 직접 입력은 기존 폼을 복원하고 실제 저장 후 상태를 갱신한다", async ({
   page,
 }) => {
@@ -68,6 +175,25 @@ test("온보딩 직접 입력은 기존 폼을 복원하고 실제 저장 후 �
     headers: { Authorization: `Bearer ${account.access_token}` },
   });
   expect((await result.json()).isOnboarded).toBe(true);
+  const other = await page.context().newPage();
+  await other.goto("/");
+  await expect(
+    other.getByRole("heading", { name: "나의 기록을 이어가요" }),
+  ).toBeVisible();
+  const records = await page.request.get(`${api}/measurements`, {
+    headers: { Authorization: `Bearer ${account.access_token}` },
+  });
+  const record = (await records.json()).items[0];
+  await page.goto(`/measurements/${record.id}`);
+  await page.getByRole("button", { name: "기록 삭제", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "기록 삭제", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/measurements$/);
+  await expect(
+    other.getByRole("heading", { name: "내 체력 기록부터 시작해요" }),
+  ).toBeVisible();
 });
 
 test("사진을 로컬에서 확인하고 같은 측정 폼에서 입력하며 잘못된 사진은 거절한다", async ({
@@ -310,9 +436,10 @@ test("중복 이메일과 요청 제한은 입력을 보존하고 재시도할 �
   await expect(page.getByLabel("새 이메일", { exact: true })).toHaveValue(
     owner.email,
   );
-  await expect(
-    page.getByRole("button", { name: "이메일 변경", exact: true }).last(),
-  ).toBeEnabled();
+  await expect(page.locator("form").getByRole("button")).toHaveText(
+    "이메일 변경",
+  );
+  await expect(page.locator("form").getByRole("button")).toBeEnabled();
 });
 
 test("공통 사용자 상태를 화면 이동에서 공유하고 새로고침 후 복원한다", async ({
