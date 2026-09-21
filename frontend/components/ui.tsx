@@ -61,7 +61,9 @@ export function Header({
           모두<span>채력</span>
         </Link>
       )}
-      <h1>{title}</h1>
+      <h1 key={title} className="page-title-enter">
+        {title}
+      </h1>
       <div className="header-right">{right}</div>
     </header>
   );

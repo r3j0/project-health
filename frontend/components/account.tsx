@@ -36,7 +36,7 @@ export function Account() {
             <div className="profile-card">
               <ArtworkSlot small />
               <div className="profile-copy">
-                <h2>나의 건강한 일상</h2>
+                <h2 className="page-title-enter">나의 건강한 일상</h2>
                 <p className="muted" style={{ fontSize: 14, marginTop: 6 }}>
                   {user.email}
                 </p>

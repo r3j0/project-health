@@ -26,7 +26,7 @@ export function Home() {
         {user && (
           <>
             <section className="feature-card home-intro stack">
-              <h2>
+              <h2 className="page-title-enter">
                 {user.isOnboarded
                   ? "나의 기록을 이어가요"
                   : "내 체력 기록부터 시작해요"}
