@@ -69,7 +69,8 @@ export interface MeasurementSummary extends MeasurementMetadata {
 export interface Measurement extends Omit<MeasurementSummary, "itemCount"> {
   items: MeasurementItem[];
   missingMeasurementCodes: string[];
-  evaluation: { status: "not_evaluated"; reason: string };
+  /** Validated at the evaluation adapter boundary; raw records remain readable. */
+  evaluation: unknown;
 }
 export interface MeasurementPage {
   items: MeasurementSummary[];

@@ -8,6 +8,7 @@ import { api } from "@/lib/session";
 import { ApiError, errorMessage } from "@/lib/http";
 import type { Catalog, RecordResponse } from "@/lib/types";
 import { RecordForm } from "./record-form";
+import { FitnessReport } from "./fitness-report";
 import { RecordValues } from "./record-values";
 import { useOperationScope } from "./use-operation-scope";
 import { Dialog, Header, Loading, Notice, Shell } from "./ui";
@@ -156,6 +157,7 @@ function RecordDetail({
             {r.centerName && <span>{r.centerName}</span>}
           </div>
         </section>
+        <FitnessReport record={r} catalog={catalog} />
         <RecordValues record={r} catalog={catalog} />
         <details className="accordion">
           <summary>
@@ -224,8 +226,6 @@ function RecordDetail({
           {r.entryMethod === "self_assessment"
             ? "직접 측정한 값을 보관했어요."
             : "결과표에 적힌 값을 그대로 보관했어요."}
-          <br />
-          점수와 등급은 자동으로 계산하지 않아요.
         </p>
         {error && <Notice>{error}</Notice>}
         {stale && (

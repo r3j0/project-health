@@ -1427,3 +1427,73 @@ fieldset:disabled select {
     min-height: 44px;
   }
 }
+
+/* Shared evaluation views use the existing Figma foundation tokens. */
+.fitness-radar {
+  margin: 0;
+}
+.fitness-radar svg {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  overflow: visible;
+}
+.radar-grid {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.radar-shape {
+  fill: color-mix(in srgb, var(--sky) 14%, transparent);
+  stroke: var(--navy);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.radar-point {
+  fill: var(--navy);
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+.radar-label {
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--text-secondary);
+}
+.radar-legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+  margin-top: 20px;
+}
+.radar-legend > div {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+}
+.radar-legend dt {
+  font-size: 14px;
+  font-weight: 600;
+}
+.radar-legend dd {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+.evaluation-item {
+  padding: 16px 0 8px;
+  border-top: 1px solid var(--border);
+}
+.evaluation-item:first-child {
+  border-top: 0;
+}
+.evaluation-item h3 {
+  font-size: 16px;
+}
+.evaluation-criteria {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.evaluation-version {
+  overflow-wrap: anywhere;
+}
