@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { MeasurementCatalogService } from '../measurement-catalog.service.js';
 import { ExtractionConfig } from './extraction.config.js';
 import { extractionError, withinDeadline } from './extraction-error.js';
+import type { ExtractionImageView } from './extraction-views.js';
 import { catalogPrompt, EXTRACTION_INSTRUCTIONS } from './extraction.prompt.js';
 import {
   extractionJsonSchema,
@@ -38,7 +39,7 @@ export class OpenAIExtractionClient {
   ) {}
 
   async extract(
-    image: Buffer,
+    images: readonly ExtractionImageView[],
     catalog: Awaited<ReturnType<MeasurementCatalogService['get']>>,
     requestSignal: AbortSignal,
   ) {
@@ -71,11 +72,14 @@ export class OpenAIExtractionClient {
                 role: 'user',
                 content: [
                   { type: 'input_text', text: catalogPrompt(catalog) },
-                  {
-                    type: 'input_image',
-                    image_url: `data:image/png;base64,${image.toString('base64')}`,
-                    detail: options.imageDetail,
-                  },
+                  ...images.flatMap(({ image, label }) => [
+                    { type: 'input_text', text: label },
+                    {
+                      type: 'input_image',
+                      image_url: `data:image/png;base64,${image.toString('base64')}`,
+                      detail: options.imageDetail,
+                    },
+                  ]),
                 ],
               },
             ],

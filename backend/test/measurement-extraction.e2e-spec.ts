@@ -194,6 +194,54 @@ describe('Authenticated photo extraction with PostgreSQL and isolated OpenAI tra
     expect(fetcher).not.toHaveBeenCalled();
   });
 
+  it('returns all six readable fitness factors even when age is hidden', async () => {
+    // Synthetic provider output verifies the complete HTTP/catalog path;
+    // actual photo reading accuracy is covered separately by live verification.
+    const rows = [
+      ['relative_grip_strength', '41.1', '%'],
+      ['cross_sit_up', '21', '회'],
+      ['step_test_vo2max', '35.2', 'ml/kg/min'],
+      ['sit_and_reach', '-2.5', 'cm'],
+      ['reaction_time', '0.287', '초'],
+      ['standing_long_jump', '181', 'cm'],
+    ];
+    fetcher.mockResolvedValue(
+      Response.json(
+        responseBody(
+          modelResult({
+            metadata: { ...modelResult().metadata, ageAtMeasurement: null },
+            candidates: rows.map(([measurementCode, value, unit]) =>
+              candidate({
+                measurementCode,
+                value,
+                unit,
+                evidence: { label: measurementCode, value, unit },
+              }),
+            ),
+          }),
+        ),
+      ),
+    );
+    const result = (await extract().expect(200)).body as ExtractionDraft;
+    expect(result.status).toBe('partial');
+    expect(
+      result.items.map(({ measurementCode, value, unit }) => [
+        measurementCode,
+        value,
+        unit,
+      ]),
+    ).toEqual(rows);
+    expect(result.reviewItems).toEqual([]);
+    expect(result.issues).toContainEqual({
+      code: 'AGE_VALIDATION_PENDING',
+      field: 'items',
+      requiresInput: false,
+    });
+    expect(
+      await database.measurement.count({ where: { userId: owner.user.id } }),
+    ).toBe(0);
+  });
+
   it('requires live authentication before upload/paid calls', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/measurements/extract')
