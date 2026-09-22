@@ -1,7 +1,7 @@
 # 프론트엔드 연동 계약과 남은 확인
 
 확인일: 2026-09-22. 프론트 브랜치 `codex/frontend-phase-two`.
-백엔드 PR [#6](https://github.com/r3j0/project-health/pull/6)은 확인 시점에 OPEN, head `815d15b91eed5551619715325873fea271ec1562`다.
+백엔드 PR [#6](https://github.com/r3j0/project-health/pull/6)은 확인 시점에 OPEN, head `61d46b75a483655fb6618de6478412e4a43b9502`다.
 
 **사진 추출은 PR에 공개된 계약으로 구현했다. 아래 평가·대표 프로필의 URL/필드명은 프론트 연동 준비용 제안이며, 백엔드와 확정된 계약으로 간주하면 안 된다.** 실제 백엔드 응답이 공개되면 `lib/fitness-evaluation.ts`에서 맞춘 뒤 실제 통합 검증한다. 운영 UI에 예시 측정값이나 가짜 평가 결과를 주입하지 않는다.
 
@@ -22,9 +22,9 @@
 
 ## 사진 추출
 
-[PR의 사진 추출 명세](https://github.com/r3j0/project-health/blob/815d15b91eed5551619715325873fea271ec1562/backend/docs/measurement-extraction-api.md)를 따른다.
+[PR의 사진 추출 명세](https://github.com/r3j0/project-health/blob/61d46b75a483655fb6618de6478412e4a43b9502/backend/docs/measurement-extraction-api.md)를 따른다.
 
-- Bearer 인증, `FormData` 파일 필드 `image` 1장, JPEG/PNG/WebP, 최대 10 MiB. boundary는 브라우저가 작성한다. 클라이언트 제한은 50초(서버 요청 제한 45초).
+- Bearer 인증, `FormData` 파일 필드 `image` 1장, JPEG/PNG/WebP, 최대 10 MiB. boundary는 브라우저가 작성한다. 클라이언트 제한은 90초(서버 요청 제한 75초, 업로드·전송 여유 15초).
 - 업로드 전에 OpenAI에 사진을 전송한다는 사실을 표시한다. API 키·모델 선택은 백엔드에서 관리한다. 사진 바이트는 브라우저 저장소에 보관하지 않는다.
 - `items`, 메타데이터, 확인 대상 원문을 보여 주고 사용자가 확인·수정한 뒤 기존 저장 API를 호출한다. 추출만으로 기록·온보딩·커리큘럼·대표 프로필을 변경하지 않는다.
 - 혼합 회차·여러 사람·지원 연령 밖 결과는 자동 입력하지 않는다. 미탐지 항목을 실제 미측정으로 단정하지 않는다. 성별·날짜·나이를 계정이나 현재 날짜로 추정하지 않는다.

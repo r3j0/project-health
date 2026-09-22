@@ -119,7 +119,8 @@ export function ReportPhoto() {
         method: "POST",
         body: form,
         signal: abort.signal,
-        timeoutMs: 50000,
+        // Backend processing may take 75s; allow time for upload and transit.
+        timeoutMs: 90000,
       });
       if (isCurrent()) setDraft(parseExtraction(response.data));
     } catch (cause) {

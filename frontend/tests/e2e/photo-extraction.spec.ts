@@ -225,3 +225,22 @@ test("사진 초안을 지우고 다시 선택해도 직접 입력 초안은 유
     page.getByLabel("측정 당시 만 나이", { exact: true }),
   ).toHaveValue("30");
 });
+
+test("서버 처리 제한 안의 느린 사진 분석도 조기 취소하지 않는다", async ({
+  page,
+}) => {
+  await installApi(page);
+  await page.route("**/measurements/extract", async (route) => {
+    // Native AbortSignal.timeout uses real time. Exceed the old 50s client
+    // deadline while remaining inside the backend's 75s processing budget.
+    await new Promise((resolve) => setTimeout(resolve, 55000));
+    await route.fulfill({ json: extraction }).catch(() => {});
+  });
+  await page.goto("/onboarding/photo");
+  await page.getByLabel("결과표 파일 선택").setInputFiles(png);
+  await page.getByRole("button", { name: "사진에서 측정값 읽기" }).click();
+  await expect(
+    page.getByRole("button", { name: "추출값 확인·수정" }),
+  ).toBeVisible({ timeout: 65000 });
+  await expect(page.locator(".notice[role=alert]")).toHaveCount(0);
+});
