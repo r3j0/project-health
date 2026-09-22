@@ -1,35 +1,46 @@
 export class ApiError extends Error {
+  status: number;
+  fields: Record<string, string>;
+  retryAfter?: number;
+  code?: string;
   constructor(
-    public status: number,
+    status: number,
     message: string,
-    public fields: Record<string, string> = {},
-    public retryAfter?: number,
+    fields: Record<string, string> = {},
+    retryAfter?: number,
+    code?: string,
   ) {
     super(message);
     this.name = "ApiError";
+    this.status = status;
+    this.fields = fields;
+    this.retryAfter = retryAfter;
+    this.code = code;
   }
 }
+export type ApiRequestOptions = RequestInit & { timeoutMs?: number };
 export async function request<T>(
   path: string,
-  options: RequestInit = {},
+  options: ApiRequestOptions = {},
 ): Promise<{ data: T; headers: Headers }> {
   let response: Response;
+  const { timeoutMs = 20000, ...init } = options;
+  const headers = new Headers(options.headers);
+  if (typeof options.body === "string" && !headers.has("Content-Type"))
+    headers.set("Content-Type", "application/json");
   try {
     // Direct browser requests keep each client's IP visible to the backend.
     const base = (
       process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001/api/v1"
     ).replace(/\/$/, "");
     response = await fetch(`${base}${path}`, {
-      ...options,
+      ...init,
       credentials: "include",
       cache: "no-store",
       signal: options.signal
-        ? AbortSignal.any([options.signal, AbortSignal.timeout(20000)])
-        : AbortSignal.timeout(20000),
-      headers: {
-        ...(options.body ? { "Content-Type": "application/json" } : {}),
-        ...options.headers,
-      },
+        ? AbortSignal.any([options.signal, AbortSignal.timeout(timeoutMs)])
+        : AbortSignal.timeout(timeoutMs),
+      headers,
     });
   } catch (error) {
     if (options.signal?.aborted) throw error;
@@ -69,7 +80,13 @@ export async function request<T>(
           (typeof body?.message === "string"
             ? body.message
             : "입력 내용을 확인해 주세요."));
-    throw new ApiError(response.status, message, fields, retryAfter);
+    throw new ApiError(
+      response.status,
+      message,
+      fields,
+      retryAfter,
+      typeof body?.code === "string" ? body.code : undefined,
+    );
   }
   if (response.status !== 204 && body === null)
     throw new ApiError(0, "서버 응답을 확인하지 못했어요. 다시 시도해 주세요.");

@@ -24,8 +24,7 @@ export function Onboarding() {
           <Camera size={24} />
           <div>
             <h3>결과표 사진 선택</h3>
-            <p>사진을 보면서 직접 입력할 수 있어요.</p>
-            <span className="caption">자동 입력은 준비 중이에요</span>
+            <p>사진에서 측정값을 읽고 확인한 뒤 등록해요.</p>
           </div>
           <ChevronRight size={20} />
         </Link>

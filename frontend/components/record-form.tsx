@@ -38,11 +38,20 @@ export function RecordForm({
   initialCatalog,
   onboarding = false,
   reference,
+  draftKey = "new",
+  seed,
 }: {
   initial?: RecordResponse;
   initialCatalog?: Catalog;
   onboarding?: boolean;
   reference?: React.ReactNode;
+  draftKey?: string;
+  seed?: {
+    meta: FormMetadata;
+    items: FormItem[];
+    catalogVersion: string;
+    extractionNotes: string[];
+  };
 }) {
   const selfAssessment = initial?.data.entryMethod === "self_assessment";
   const selfCodes = [
@@ -58,7 +67,7 @@ export function RecordForm({
   const router = useRouter();
   const [owner] = useState(() => getSession().user!.id);
   const [sessionGeneration] = useState(() => getSession().generation);
-  const draftId = initial?.data.id ?? "new";
+  const draftId = initial?.data.id ?? draftKey;
   const beginOperation = useOperationScope();
   const draftVersion = useRef<symbol | undefined>(undefined);
   useEffect(() => {
@@ -100,7 +109,9 @@ export function RecordForm({
     ),
     [meta, setMeta] = useState<FormMetadata>(
       restored?.meta ??
-        (initial ? metadataFrom(initial.data) : { ...emptyMetadata }),
+        (initial
+          ? metadataFrom(initial.data)
+          : (seed?.meta ?? { ...emptyMetadata })),
     );
   const [items, setItems] = useState<FormItem[]>(
     restored?.items ??
@@ -110,7 +121,7 @@ export function RecordForm({
             value: i.value,
             grade: i.reportedGrade ?? "",
           }))
-        : []),
+        : (seed?.items ?? [])),
   );
   const [catalog, setCatalog] = useState(initialCatalog),
     [step, setStep] = useState(restored?.step ?? (initial ? 2 : 1)),
@@ -119,11 +130,12 @@ export function RecordForm({
   const [errors, setErrors] = useState<Record<string, string>>({}),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
-    [dirty, setDirty] = useState(restored?.dirty ?? false);
+    [dirty, setDirty] = useState(restored?.dirty ?? !!seed);
   const [uncertain, setUncertain] = useState(restored?.uncertain ?? false),
     [gone, setGone] = useState(restored?.gone ?? false),
     [latest, setLatest] = useState<RecordResponse | null>(null),
     [conflict, setConflict] = useState(false);
+  const extractionNotes = restored?.extractionNotes ?? seed?.extractionNotes;
   const pending = useRef<{ body: string; key: string } | null>(
       restored?.pending ?? null,
     ),
@@ -136,14 +148,28 @@ export function RecordForm({
       meta,
       items,
       step,
-      catalogVersion: catalog?.version ?? restored?.catalogVersion,
+      catalogVersion:
+        catalog?.version ?? restored?.catalogVersion ?? seed?.catalogVersion,
       etag: base?.etag,
       pending: pending.current,
       uncertain: uncertain || saving || saveInFlight.current,
       gone,
       dirty: dirty || saving,
+      extractionNotes,
     }),
-    [meta, items, step, catalog, restored, base, uncertain, gone, dirty],
+    [
+      meta,
+      items,
+      step,
+      catalog,
+      restored,
+      base,
+      uncertain,
+      gone,
+      dirty,
+      seed,
+      extractionNotes,
+    ],
   );
   useEffect(() => {
     if (!savedRef.current && (dirty || uncertain || saveInFlight.current))
@@ -205,7 +231,9 @@ export function RecordForm({
     try {
       if (!catalog) {
         const value = await getCatalog(
-          base?.data.catalogVersion ?? restored?.catalogVersion,
+          base?.data.catalogVersion ??
+            restored?.catalogVersion ??
+            seed?.catalogVersion,
         );
         if (!isCurrent()) return;
         setCatalog(value);
@@ -409,7 +437,11 @@ export function RecordForm({
     pending.current = null;
     setRestored(undefined);
     setBase(initial);
-    setMeta(initial ? metadataFrom(initial.data) : { ...emptyMetadata });
+    setMeta(
+      initial
+        ? metadataFrom(initial.data)
+        : (seed?.meta ?? { ...emptyMetadata }),
+    );
     setItems(
       initial
         ? initial.data.items.map((item) => ({
@@ -485,6 +517,18 @@ export function RecordForm({
       />
       <div className="content">
         {reference}
+        {!!extractionNotes?.length && (
+          <details className="accordion" open>
+            <summary>
+              사진에서 확인이 필요한 항목 ({extractionNotes.length})
+            </summary>
+            <ul>
+              {extractionNotes.map((note, index) => (
+                <li key={index}>{note}</li>
+              ))}
+            </ul>
+          </details>
+        )}
         <div className="stepper" aria-label={`${step}단계 / 2단계`}>
           <span className={`step ${step === 1 ? "active" : ""}`}>
             <b>1</b>기본 정보

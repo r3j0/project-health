@@ -1,4 +1,9 @@
-import { ApiError, errorMessage, request } from "./http";
+import {
+  ApiError,
+  errorMessage,
+  request,
+  type ApiRequestOptions,
+} from "./http";
 import type { AuthResponse, User } from "./types";
 import { measurementDrafts } from "./measurement-drafts";
 import { setWorkoutOwner } from "./workout-progress";
@@ -160,20 +165,22 @@ export async function logout() {
     clear("logout");
   });
 }
-export async function api<T>(path: string, options: RequestInit = {}) {
+export async function api<T>(path: string, options: ApiRequestOptions = {}) {
   const generation = session.generation,
     userId = session.user?.id,
     token = accessToken;
   if (!token) throw new ApiError(401, "로그인이 필요해요.");
   const changesProfile =
-    !!options.method &&
-    /^(POST|PATCH|DELETE)$/i.test(options.method) &&
-    /^\/measurements(?:\/|$)/.test(path);
+    (options.method?.toUpperCase() === "POST" && path === "/measurements") ||
+    (/^(PATCH|DELETE)$/i.test(options.method ?? "") &&
+      /^\/measurements\/[^/]+$/.test(path));
   const send = async () => {
     try {
+      const headers = new Headers(options.headers);
+      headers.set("Authorization", `Bearer ${accessToken}`);
       return await request<T>(path, {
         ...options,
-        headers: { ...options.headers, Authorization: `Bearer ${accessToken}` },
+        headers,
       });
     } catch (error) {
       // A lost response does not prove the server rejected the write. Re-read
