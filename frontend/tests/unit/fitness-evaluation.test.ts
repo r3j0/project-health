@@ -153,3 +153,15 @@ test("판정 근거의 실행 URL과 잘못된 임계값은 거부한다", () =>
   );
   assert.throws(() => parseEvaluation(duplicate, recordIdentity));
 });
+
+test("대표 API는 상세 종목 없이 최신 회차의 여섯 축만 반환할 수 있다", () => {
+  const full = evaluatedFixture();
+  const { items, ...summary } = full;
+  assert.equal(items.length, 1);
+  assert.equal(
+    parseLatestFitness({ measurement: recordIdentity, evaluation: summary })
+      ?.evaluation?.axes.length,
+    6,
+  );
+  assert.throws(() => parseEvaluation(summary, recordIdentity));
+});

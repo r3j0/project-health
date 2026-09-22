@@ -46,7 +46,7 @@ export type ItemEvaluation = GradeResult & {
   evaluatedValue: { value: string; unit: string } | null;
   criteria: EvaluationCriteria | null;
 };
-export interface FitnessEvaluation {
+export interface FitnessEvaluationSummary {
   schemaVersion: 1;
   status: "evaluated";
   measurementId: string;
@@ -54,6 +54,8 @@ export interface FitnessEvaluation {
   ruleVersion: string;
   evaluatedAt: string;
   axes: FitnessAxis[];
+}
+export interface FitnessEvaluation extends FitnessEvaluationSummary {
   items: ItemEvaluation[];
 }
 export interface FitnessRecordIdentity {
@@ -63,7 +65,7 @@ export interface FitnessRecordIdentity {
 }
 export interface LatestFitnessProfile {
   measurement: FitnessRecordIdentity;
-  evaluation: FitnessEvaluation | null;
+  evaluation: FitnessEvaluationSummary | null;
 }
 export const latestFitnessPath = "/users/me/fitness-profile";
 
@@ -153,15 +155,11 @@ function invalid(): never {
     "평가 응답을 확인하지 못했어요. 저장한 측정값은 기록에서 확인할 수 있어요.",
   );
 }
-/** Legacy responses stay readable; malformed or stale evaluations never become grades. */
-export function parseEvaluation(
+/** Summary responses need no item details; record detail validates item provenance below. */
+export function parseEvaluationSummary(
   value: unknown,
-  record: {
-    id: string;
-    revision: number;
-    items?: { measurementCode: string; value: string; unit: string }[];
-  },
-): FitnessEvaluation | null {
+  record: { id: string; revision: number },
+): FitnessEvaluationSummary | null {
   if (object(value) && value.status === "not_evaluated" && text(value.reason))
     return null;
   if (
@@ -187,7 +185,35 @@ export function parseEvaluation(
         a.sourceMeasurementCodes.every(text) &&
         unique(a.sourceMeasurementCodes, (s) => s),
     ) ||
-    !unique(value.axes, (a) => a.factor) ||
+    !unique(value.axes, (a) => a.factor)
+  )
+    return invalid();
+  const parsed = value as unknown as FitnessEvaluationSummary;
+  for (const axis of parsed.axes) {
+    const hasGrade =
+      axis.status === "evaluated" || axis.status === "below_standard";
+    if (hasGrade !== axis.sourceMeasurementCodes.length > 0) return invalid();
+  }
+  return {
+    ...parsed,
+    axes: fitnessFactors.map((f) =>
+      parsed.axes.find((a) => a.factor === f.code)!,
+    ),
+  };
+}
+/** Legacy responses stay readable; malformed or stale evaluations never become grades. */
+export function parseEvaluation(
+  value: unknown,
+  record: {
+    id: string;
+    revision: number;
+    items?: { measurementCode: string; value: string; unit: string }[];
+  },
+): FitnessEvaluation | null {
+  const summary = parseEvaluationSummary(value, record);
+  if (!summary) return null;
+  if (
+    !object(value) ||
     !Array.isArray(value.items) ||
     value.items.length > 100 ||
     !value.items.every(
@@ -275,7 +301,7 @@ export function parseLatestFitness(
   };
   return {
     measurement,
-    evaluation: parseEvaluation(value.evaluation, measurement),
+    evaluation: parseEvaluationSummary(value.evaluation, measurement),
   };
 }
 export function gradeLabel(result: GradeResult) {

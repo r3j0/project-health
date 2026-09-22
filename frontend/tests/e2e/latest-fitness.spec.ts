@@ -19,12 +19,14 @@ test("대표 프로필은 최신 한 기록만 사용하고 수정·삭제 후 �
       e.measurementRevision = r.revision;
       e.items[0].value = r.items[0].value;
     }
+    const { items, ...summary } = e;
+    expect(items).toHaveLength(1);
     return route.fulfill({
       json: {
         measurement: r
           ? { id: r.id, revision: r.revision, measuredOn: r.measuredOn }
           : null,
-        evaluation: r ? e : null,
+        evaluation: r ? summary : null,
       },
     });
   });
