@@ -26,7 +26,7 @@ test("성인 범위, 준비 화면, 잘못된 커리큘럼을 처리한다", asy
   await register(page);
   await page.goto("/onboarding");
   await page.getByRole("link", { name: "간이측정 시작하기" }).click();
-  await expect(page).toHaveURL(/curriculum=adult-self-assessment-v1/);
+  await expect(page).toHaveURL(/mode=assessment/);
   await page.getByLabel("만 나이", { exact: true }).fill("18");
   await page.getByRole("button", { name: "측정 준비 완료" }).click();
   await expect(page.getByRole("main").getByRole("alert")).toContainText(
@@ -46,7 +46,7 @@ test("교차 윗몸일으키기와 YMCA의 실제 시간·맥박 환산·저장�
   page,
 }, info) => {
   const account = await register(page);
-  await page.goto("/workout");
+  await page.goto("/workout?mode=assessment");
   await prepareAssessment(page);
   await page.clock.install();
   await page.getByRole("button", { name: "측정 시작", exact: true }).click();
@@ -142,7 +142,7 @@ test("건너뛰기는 0을 만들지 않고, 응답 유실 후 같은 요청으�
   page,
 }) => {
   const account = await register(page);
-  await page.goto("/workout");
+  await page.goto("/workout?mode=assessment");
   await prepareAssessment(page);
   await skipToFlexibility(page);
   await page.getByLabel("기준선에서 도달한 거리 (cm)").fill("-3");
@@ -186,7 +186,7 @@ test("빈 측정은 저장하지 않으며 결과 재측정과 신체정보 수�
   page,
 }) => {
   await register(page);
-  await page.goto("/workout");
+  await page.goto("/workout?mode=assessment");
   await prepareAssessment(page);
   for (let i = 0; i < 3; i++)
     await page.getByRole("button", { name: "이 항목 건너뛰기" }).click();
@@ -219,7 +219,7 @@ test("윗몸말아올리기 박자와 중단·새로고침 복원을 지원한�
   page,
 }) => {
   await register(page);
-  await page.goto("/workout");
+  await page.goto("/workout?mode=assessment");
   await prepareAssessment(page, "curl");
   await page.clock.install();
   await page.getByRole("button", { name: "측정 시작", exact: true }).click();
@@ -250,7 +250,7 @@ test("재로그인 후 간이측정 저장 요청의 키와 본문을 복구한�
   page,
 }) => {
   const account = await register(page);
-  await page.goto("/workout");
+  await page.goto("/workout?mode=assessment");
   await prepareAssessment(page);
   await skipToFlexibility(page);
   await page.getByLabel("기준선에서 도달한 거리 (cm)").fill("2");
@@ -307,7 +307,7 @@ test("신체정보만 저장한 뒤 수정하면 BMI도 현재 값으로 계산�
   page,
 }) => {
   await register(page);
-  await page.goto("/workout");
+  await page.goto("/workout?mode=assessment");
   await page.getByLabel("신장 (cm)").fill("170");
   await page.getByLabel("체중 (kg)").fill("65");
   await prepareAssessment(page);
@@ -331,7 +331,7 @@ test("320px 측정 화면의 조작 버튼이 보이고 카탈로그 장애에�
 }, info) => {
   await register(page);
   await page.setViewportSize({ width: 320, height: 760 });
-  await page.goto("/workout");
+  await page.goto("/workout?mode=assessment");
   await page.getByLabel("만 나이", { exact: true }).fill("25");
   await page.route(`${api}/measurement-catalog*`, async (route) =>
     route.fulfill({
@@ -381,7 +381,7 @@ test("서버에서 삭제된 저장 요청은 재전송을 멈추고 새 측정�
   page,
 }) => {
   await register(page);
-  await page.goto("/workout");
+  await page.goto("/workout?mode=assessment");
   await prepareAssessment(page);
   await skipToFlexibility(page);
   await page.getByLabel("기준선에서 도달한 거리 (cm)").fill("1");

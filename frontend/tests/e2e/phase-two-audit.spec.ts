@@ -31,7 +31,7 @@ test("진행 중인 측정에서 나갔다가 돌아오면 해당 항목을 다�
   page,
 }) => {
   await register(page);
-  await page.goto("/workout");
+  await page.goto("/workout?mode=assessment");
   await prepareAssessment(page);
   await page.getByRole("button", { name: "측정 시작", exact: true }).click();
   await page.getByRole("link", { name: "이전 화면", exact: true }).click();
@@ -156,7 +156,7 @@ for (const committed of [false, true]) {
     context,
   }) => {
     const account = await register(page);
-    await page.goto("/workout");
+    await page.goto("/workout?mode=assessment");
     await prepareAssessment(page);
     await page.getByRole("button", { name: "이 항목 건너뛰기" }).click();
     await page.goto("/account/settings");

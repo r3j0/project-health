@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Activity, ArrowRight, CheckCircle2 } from "lucide-react";
 import {
   adultAssessment,
-  assessmentId,
   assessmentInput,
   assessmentSource,
   bmiFrom,
@@ -52,7 +51,8 @@ const freshDraft = (): WorkoutDraft => ({
   state: initialWorkout(),
   pending: null,
 });
-export function AssessmentWorkout({ curriculum }: { curriculum?: string }) {
+/** Registration adapter: never assigns or completes a user curriculum. */
+export function AssessmentWorkout() {
   const [owner] = useState(() => getSession().user!.id);
   const [generation] = useState(() => getSession().generation);
   const [draft, setDraft] = useState(
@@ -365,17 +365,7 @@ export function AssessmentWorkout({ curriculum }: { curriculum?: string }) {
     >
       <Header title="간이측정" back="/onboarding" />
       <div className="content stack">
-        {curriculum && curriculum !== assessmentId ? (
-          <>
-            <Notice>지원하지 않는 운동 커리큘럼이에요.</Notice>
-            <Link
-              className="button primary"
-              href={`/workout?curriculum=${assessmentId}`}
-            >
-              성인 간이측정 열기
-            </Link>
-          </>
-        ) : complete ? (
+        {complete ? (
           <section className="feature-card stack assessment-complete">
             <CheckCircle2 size={44} />
             <h2>나의 체력을 기록했어요</h2>

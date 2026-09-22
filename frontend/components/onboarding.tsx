@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { assessmentHref } from "@/lib/workout-mode";
 import { Camera, ClipboardPen, ChevronRight, Timer } from "lucide-react";
 import { Header, Notice, Shell } from "./ui";
 import { useUserProfile } from "./user-profile-provider";
@@ -42,10 +43,7 @@ export function Onboarding() {
           <p className="muted">
             안내를 따라 직접 측정하고, 측정한 항목만 기록해 보세요.
           </p>
-          <Link
-            href="/workout?curriculum=adult-self-assessment-v1"
-            className="button secondary"
-          >
+          <Link href={assessmentHref} className="button secondary">
             간이측정 시작하기
           </Link>
           <p className="caption">

@@ -1,10 +1,20 @@
 import { AssessmentWorkout } from "@/components/assessment-workout";
-export const metadata = { title: "간이측정" };
+import { WorkoutOverview } from "@/components/workout-overview";
+import { resolveWorkoutMode } from "@/lib/workout-mode";
+export const metadata = { title: "운동" };
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ curriculum?: string }>;
+  searchParams: Promise<{
+    mode?: string | string[];
+    curriculum?: string | string[];
+  }>;
 }) {
-  const { curriculum } = await searchParams;
-  return <AssessmentWorkout curriculum={curriculum} />;
+  const { mode, curriculum } = await searchParams;
+  const selected = resolveWorkoutMode(mode, curriculum);
+  return selected === "assessment" ? (
+    <AssessmentWorkout />
+  ) : (
+    <WorkoutOverview unsupported={selected === "unsupported"} />
+  );
 }

@@ -127,7 +127,7 @@ test("주요 화면은 좁은 모바일 너비에서 가로 넘침 없이 사용
     "/account/settings",
     "/onboarding",
     "/onboarding/photo",
-    "/workout",
+    "/workout?mode=assessment",
   ]) {
     await page.goto(path);
     await expect(page.getByRole("main")).toBeVisible();
@@ -144,7 +144,7 @@ test("주요 화면은 좁은 모바일 너비에서 가로 넘침 없이 사용
       path: testInfo.outputPath(`${path.replaceAll("/", "-") || "home"}.png`),
       fullPage: true,
     });
-    if (path === "/workout") {
+    if (path === "/workout?mode=assessment") {
       await prepareAssessment(page);
       // Fixed bottom navigation must not block actions after scrolling at 320px.
       await page.getByRole("button", { name: "처음부터", exact: true }).click();
@@ -275,7 +275,7 @@ test("간이측정은 제출 전까지 기록을 만들지 않고 입력을 복�
   page,
 }) => {
   const account = await register(page);
-  await page.goto("/workout");
+  await page.goto("/workout?mode=assessment");
   await prepareAssessment(page);
   await skipToFlexibility(page);
   await page.getByRole("button", { name: "결과 확인", exact: true }).click();
@@ -299,7 +299,7 @@ test("간이측정은 제출 전까지 기록을 만들지 않고 입력을 복�
 
 test("로그아웃하면 간이측정 진행도 함께 지워진다", async ({ page }) => {
   const { email } = await register(page);
-  await page.goto("/workout");
+  await page.goto("/workout?mode=assessment");
   await prepareAssessment(page);
   await page.getByRole("button", { name: "이 항목 건너뛰기" }).click();
   await page.getByRole("link", { name: "내 프로필", exact: true }).click();
@@ -310,7 +310,7 @@ test("로그아웃하면 간이측정 진행도 함께 지워진다", async ({ p
     .click();
   await expect(page).toHaveURL(/\/login/);
   await login(page, email);
-  await page.goto("/workout");
+  await page.goto("/workout?mode=assessment");
   await expect(page.getByLabel("만 나이", { exact: true })).toHaveValue("");
 });
 
