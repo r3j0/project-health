@@ -1,4 +1,14 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
+// Keep actual authentication limits enabled. This large file can otherwise
+// exhaust the shared IP window halfway through a successful scenario.
+let authGroup = 0;
+test.beforeEach(async () => {
+  if (authGroup++ % 15 !== 0) return;
+  test.setTimeout(test.info().timeout + 65000);
+  await new Promise((resolve) =>
+    setTimeout(resolve, 60000 - (Date.now() % 60000) + 250),
+  );
+});
 const password = "frontend-test-password-2026!";
 const apiOrigin = new URL(
   process.env.E2E_API_BASE_URL ?? "http://localhost:3001/api/v1",
