@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
+import { authDestination } from "@/lib/auth-destination";
 import { authenticate } from "@/lib/session";
 import { ApiError, errorMessage } from "@/lib/http";
 import {
@@ -16,14 +17,7 @@ import {
 import { useSession } from "./session-provider";
 function destination() {
   const next = new URLSearchParams(window.location.search).get("next") ?? "";
-  return /^\/measurements(?:\/new|\/[a-f0-9-]+(?:\/edit)?)?$/.test(next) ||
-    next === "/account" ||
-    next === "/account/settings" ||
-    next === "/workout" ||
-    ["/onboarding", "/onboarding/manual", "/onboarding/photo"].includes(next) ||
-    next === "/"
-    ? next
-    : "/";
+  return authDestination(next);
 }
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const register = mode === "register",
