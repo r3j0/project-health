@@ -28,6 +28,10 @@ const extractionErrors: Record<string, string> = {
     "사진 해상도가 너무 높아요. 크기를 줄인 사진을 선택해 주세요.",
   INVALID_IMAGE: "손상된 사진이에요. 다른 사진을 선택해 주세요.",
   UNSUPPORTED_IMAGE: "JPG, PNG, WEBP 사진을 선택해 주세요.",
+  MULTI_FRAME_IMAGE:
+    "여러 프레임이 있는 이미지예요. 정지 사진 한 장을 선택해 주세요.",
+  IMAGE_TYPE_MISMATCH:
+    "파일 형식과 실제 사진이 달라요. 다른 사진을 선택해 주세요.",
   OPENAI_REFUSAL:
     "이 사진을 분석할 수 없어요. 다른 사진을 선택하거나 직접 입력해 주세요.",
 };
@@ -145,7 +149,7 @@ export function ReportPhoto() {
     setError("사진 분석을 취소했어요.");
   }
   const preview = photo ? (
-    <details className="accordion">
+    <details className="accordion" open>
       <summary>선택한 결과표 보기</summary>
       <Image
         className="report-preview"
@@ -163,6 +167,12 @@ export function ReportPhoto() {
       <RecordForm
         onboarding
         draftKey="photo"
+        onDiscard={() => {
+          setDraft(null);
+          setPhoto(null);
+          setError("");
+          setEntering(false);
+        }}
         seed={
           draft && canReviewExtraction(draft)
             ? extractionSeed(draft)

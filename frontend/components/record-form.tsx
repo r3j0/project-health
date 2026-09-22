@@ -40,12 +40,14 @@ export function RecordForm({
   reference,
   draftKey = "new",
   seed,
+  onDiscard,
 }: {
   initial?: RecordResponse;
   initialCatalog?: Catalog;
   onboarding?: boolean;
   reference?: React.ReactNode;
   draftKey?: string;
+  onDiscard?: () => void;
   seed?: {
     meta: FormMetadata;
     items: FormItem[];
@@ -433,7 +435,7 @@ export function RecordForm({
       )
     )
       return;
-    removeDraft();
+    if (!removeDraft()) return;
     pending.current = null;
     setRestored(undefined);
     setBase(initial);
@@ -457,6 +459,7 @@ export function RecordForm({
     setGone(false);
     setMessage("");
     setErrors({});
+    onDiscard?.();
   }
   const textField = (
     id: string,
@@ -547,13 +550,13 @@ export function RecordForm({
           {restored && (
             <Notice tone="info">이전에 작성하던 입력을 복원했어요.</Notice>
           )}
-          {(restored || gone) && !uncertain && !busy && (
+          {(restored || gone || onDiscard) && !uncertain && !busy && (
             <button
               type="button"
               className="text-button"
               onClick={discardDraft}
             >
-              임시 입력 지우기
+              {onDiscard ? "입력 지우고 다른 사진 선택" : "임시 입력 지우기"}
             </button>
           )}
           {message && <Notice>{message}</Notice>}

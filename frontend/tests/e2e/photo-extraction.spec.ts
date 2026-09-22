@@ -166,3 +166,62 @@ test("분석 취소 후 늦은 응답으로 입력 화면이 바뀌지 않는다
     page.getByRole("button", { name: "사진에서 측정값 읽기" }),
   ).toBeEnabled();
 });
+
+test("사진을 다시 선택해도 서버의 재요청 제한을 유지한다", async ({ page }) => {
+  await installApi(page);
+  await page.clock.install();
+  let requests = 0;
+  await page.route("**/measurements/extract", (route) => {
+    requests++;
+    return route.fulfill({
+      status: 429,
+      json: { code: "EXTRACTION_RATE_LIMITED", retry_after: 10 },
+    });
+  });
+  await page.goto("/onboarding/photo");
+  await page.getByLabel("결과표 파일 선택").setInputFiles(png);
+  const analyze = page.getByRole("button", { name: "사진에서 측정값 읽기" });
+  await analyze.click();
+  await expect(page.locator(".notice[role=alert]")).toContainText(
+    "요청이 많아요",
+  );
+  await expect(analyze).toBeDisabled();
+  await page
+    .getByLabel("결과표 파일 선택")
+    .setInputFiles({ ...png, name: "another.png" });
+  await expect(analyze).toBeDisabled();
+  expect(requests).toBe(1);
+  await page.clock.fastForward(10050);
+  await expect(analyze).toBeEnabled();
+});
+
+test("사진 초안을 지우고 다시 선택해도 직접 입력 초안은 유지한다", async ({
+  page,
+}) => {
+  await installApi(page);
+  await page.goto("/onboarding/manual");
+  await page.getByLabel("측정 당시 만 나이", { exact: true }).fill("30");
+  page.on("dialog", (dialog) => dialog.accept());
+  await page.getByRole("link", { name: "이전 화면", exact: true }).click();
+  await page.getByRole("link", { name: "결과표 사진 선택" }).click();
+  await page.getByLabel("결과표 파일 선택").setInputFiles(png);
+  await page.getByRole("button", { name: "이 사진을 보며 직접 입력" }).click();
+  await page.getByLabel("측정 당시 만 나이", { exact: true }).fill("25");
+  await page
+    .getByRole("button", { name: "입력 지우고 다른 사진 선택" })
+    .click();
+  await expect(page.getByLabel("결과표 파일 선택")).toBeAttached();
+  await expect(
+    page.getByRole("img", { name: "선택한 국민체력100 결과표" }),
+  ).toHaveCount(0);
+  await page.getByLabel("결과표 파일 선택").setInputFiles(png);
+  await page.getByRole("button", { name: "이 사진을 보며 직접 입력" }).click();
+  await expect(
+    page.getByLabel("측정 당시 만 나이", { exact: true }),
+  ).toHaveValue("");
+  await page.getByRole("link", { name: "이전 화면", exact: true }).click();
+  await page.getByRole("link", { name: "결과 직접 입력" }).click();
+  await expect(
+    page.getByLabel("측정 당시 만 나이", { exact: true }),
+  ).toHaveValue("30");
+});

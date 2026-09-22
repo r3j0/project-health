@@ -60,7 +60,7 @@ test("사진은 이탈 시 지우고 입력 초안은 사진 없이 이어갈 �
   await expect(page).toHaveURL(/\/account$/);
   await page.goBack();
   await expect(preview).toHaveCount(0);
-  await page.getByRole("link", { name: "사진 없이 직접 입력하기" }).click();
+  // The photo draft now resumes directly in its own form namespace.
   await expect(
     page.getByLabel("측정 당시 만 나이", { exact: true }),
   ).toHaveValue("25");
