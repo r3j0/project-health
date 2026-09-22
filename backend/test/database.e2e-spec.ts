@@ -53,7 +53,7 @@ describe('PostgreSQL measurement storage', () => {
     const definitions = await database.measurementDefinition.findMany({
       where: { catalogVersion },
     });
-    expect(definitions).toHaveLength(21);
+    expect(definitions).toHaveLength(19);
     for (const [age, factorCount] of [
       [13, 8],
       [18, 8],
@@ -63,7 +63,7 @@ describe('PostgreSQL measurement storage', () => {
       const applicable = definitions.filter(
         (item) => age >= item.minAge && age <= item.maxAge,
       );
-      expect(applicable).toHaveLength(age <= 18 ? 15 : 17);
+      expect(applicable).toHaveLength(15);
       expect(new Set(applicable.map((item) => item.factor)).size).toBe(
         factorCount,
       );

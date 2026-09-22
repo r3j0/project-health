@@ -48,7 +48,6 @@ enum MeasurementSource {
 
 enum MeasurementEntryMethod {
   manual
-  self_assessment
 }
 
 // User-selected account columns. OAuth/session state is a separate feature.

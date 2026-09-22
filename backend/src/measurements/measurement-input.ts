@@ -87,10 +87,6 @@ const mutableFields = {
 const createSchema = z.strictObject({
   ...mutableFields,
   catalogVersion: version,
-  entryMethod: z
-    .enum(['manual', 'self_assessment'])
-    .optional()
-    .default('manual'),
   sexAtMeasurement: mutableFields.sexAtMeasurement.optional().default(null),
   reportKind: mutableFields.reportKind.optional().default('unknown'),
   centerName: mutableFields.centerName.optional().default(null),

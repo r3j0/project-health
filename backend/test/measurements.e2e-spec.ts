@@ -206,7 +206,7 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
         .expect(200);
       const catalog = response.body as Catalog;
       expect(catalog.version).toBe(version);
-      expect(catalog.definitions).toHaveLength(age <= 18 ? 15 : 17);
+      expect(catalog.definitions).toHaveLength(15);
       expect(new Set(catalog.definitions.map((def) => def.factor)).size).toBe(
         factorCount,
       );
@@ -220,7 +220,7 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
     const all = await request(app.getHttpServer())
       .get('/api/v1/measurement-catalog')
       .expect(200);
-    expect((all.body as Catalog).definitions).toHaveLength(21);
+    expect((all.body as Catalog).definitions).toHaveLength(19);
     await request(app.getHttpServer())
       .get('/api/v1/measurement-catalog?age=65')
       .expect(400);
@@ -243,7 +243,7 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
         reportedGrade: null,
       },
     ]);
-    expect(record.missingMeasurementCodes).toHaveLength(16);
+    expect(record.missingMeasurementCodes).toHaveLength(14);
     expect(record.missingMeasurementCodes).toContain('height');
     expect(record.missingMeasurementCodes).not.toContain('t_wall_coordination');
     expect(record.sexAtMeasurement).toBeNull();
@@ -836,63 +836,5 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
       .expect(204);
     await list({}, account).expect(401);
     await create(payload(), randomUUID(), account).expect(401);
-  });
-  it('persists self-assessment BPM separately from VO2 and retains provenance on edits/replays', async () => {
-    const key = randomUUID();
-    const body = payload({
-      entryMethod: 'self_assessment',
-      reportKind: 'simple',
-      items: [
-        {
-          measurementCode: 'ymca_recovery_heart_rate',
-          value: '78',
-          unit: 'bpm',
-        },
-        { measurementCode: 'self_curl_up', value: '12', unit: '회' },
-        { measurementCode: 'sit_and_reach', value: '-2.5', unit: 'cm' },
-      ],
-    });
-    const created = await create(body, key).expect(201);
-    const record = created.body as RecordBody;
-    expect(record.entryMethod).toBe('self_assessment');
-    expect(
-      record.items.find(
-        (item) => item.measurementCode === 'ymca_recovery_heart_rate',
-      )?.value,
-    ).toBe('78');
-    expect(record.missingMeasurementCodes).not.toContain('step_test_vo2max');
-    expect(record.missingMeasurementCodes).not.toContain('cross_sit_up');
-    expect(record.evaluation.status).toBe('not_evaluated');
-    const replay = await create(body, key).expect(200);
-    expect((replay.body as RecordBody).id).toBe(record.id);
-    await patch(record.id, { reportedOverallGrade: '1등급' }).expect(400);
-    await patch(record.id, { ageAtMeasurement: 18 }).expect(400);
-    const edited = await patch(record.id, {
-      items: [{ measurementCode: 'sit_and_reach', value: '-1', unit: 'cm' }],
-    }).expect(200);
-    expect((edited.body as RecordBody).entryMethod).toBe('self_assessment');
-    await create(
-      payload({
-        ...body,
-        items: [
-          {
-            measurementCode: 'step_test_vo2max',
-            value: '78',
-            unit: 'ml/kg/min',
-          },
-        ],
-      }),
-    ).expect(400);
-  });
-
-  it('treats omitted and explicit manual provenance as the same legacy request', async () => {
-    const key = randomUUID();
-    const created = await create(payload(), key).expect(201);
-    const replay = await create(payload({ entryMethod: 'manual' }), key).expect(
-      200,
-    );
-    expect((replay.body as RecordBody).id).toBe(
-      (created.body as RecordBody).id,
-    );
   });
 });
