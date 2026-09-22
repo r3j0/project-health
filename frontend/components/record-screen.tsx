@@ -12,7 +12,11 @@ import { FitnessReport } from "./fitness-report";
 import { RecordValues } from "./record-values";
 import { useOperationScope } from "./use-operation-scope";
 import { Dialog, Header, Loading, Notice, Shell } from "./ui";
-export function RecordScreen({
+type RecordScreenProps = { id: string; edit?: boolean; saved?: boolean };
+export function RecordScreen(props: RecordScreenProps) {
+  return <RecordLoader key={`${props.id}:${!!props.edit}`} {...props} />;
+}
+function RecordLoader({
   id,
   edit = false,
   saved = false,

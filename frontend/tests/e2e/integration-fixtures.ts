@@ -129,7 +129,13 @@ export async function installApi(
       ["POST", "PATCH", "DELETE"].includes(method) &&
       !path.startsWith("/auth")
     )
-      mutations.push({ path, method, body: request.postDataJSON() });
+      mutations.push({
+        path,
+        method,
+        body: request.headers()["content-type"]?.includes("application/json")
+          ? request.postDataJSON()
+          : null,
+      });
     const send = (json: unknown, status = 200) =>
       route.fulfill({
         status,
@@ -160,11 +166,26 @@ export async function installApi(
         items: record ? [{ ...record, itemCount: record.items.length }] : [],
         nextCursor: null,
       });
-    if (record && path === `/measurements/${record.id}`) return send(record);
+    if (record && path === `/measurements/${record.id}`) {
+      if (method === "DELETE") {
+        record = undefined;
+        return route.fulfill({ status: 204 });
+      }
+      if (method === "PATCH")
+        record = testRecord({
+          ...record,
+          ...request.postDataJSON(),
+          revision: record.revision + 1,
+        });
+      return send(record);
+    }
     return send({ message: "API not implemented" }, 404);
   });
   return {
     mutations,
+    setRecord(next: ReturnType<typeof testRecord> | undefined) {
+      record = next;
+    },
     get record() {
       return record;
     },

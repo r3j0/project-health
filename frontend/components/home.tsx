@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { LatestFitness } from "./latest-fitness";
 import { ArrowRight, ClipboardList } from "lucide-react";
 import { Loading, Notice, Shell } from "./ui";
 import { useUserProfile } from "./user-profile-provider";
@@ -41,6 +42,7 @@ export function Home() {
                 내 측정 기록 보기
               </Link>
             )}
+            {user.isOnboarded && <LatestFitness />}
             <section className="stack" aria-labelledby="today-title">
               <div className="section-heading">
                 <ClipboardList size={22} />

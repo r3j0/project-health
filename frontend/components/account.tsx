@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { LatestFitness } from "./latest-fitness";
 import { useRouter } from "next/navigation";
 import { ChevronRight, LogOut } from "lucide-react";
 import { logout } from "@/lib/session";
@@ -53,6 +54,7 @@ export function Account() {
         ) : (
           <Loading />
         )}
+        {user?.isOnboarded && <LatestFitness />}
         <div className="menu-card">
           {user && (
             <div className="menu-row">
