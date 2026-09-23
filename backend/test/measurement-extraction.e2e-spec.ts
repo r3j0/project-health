@@ -25,6 +25,7 @@ import {
 import { OPENAI_FETCH } from '../src/measurements/extraction/openai-extraction.client.js';
 import type { ExtractionDraft } from '../src/measurements/extraction/extraction-validation.js';
 import { candidate, modelResult, responseBody } from './fixtures/extraction.js';
+import { twoFramePng } from './fixtures/png.js';
 
 type Account = { user: { id: string }; access_token: string };
 
@@ -289,6 +290,7 @@ describe('Authenticated photo extraction with PostgreSQL and isolated OpenAI tra
   );
 
   it.each([
+    [twoFramePng(), 'image/png', 400],
     [Buffer.from('<html>fake image</html>'), 'image/png', 415],
     [Buffer.from('GIF89a'), 'image/gif', 415],
     [Buffer.from([0xff, 0xd8, 0xff, 0x01]), 'image/jpeg', 400],

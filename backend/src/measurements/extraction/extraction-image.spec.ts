@@ -1,9 +1,52 @@
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
+import { pngChunk, twoFramePng } from '../../../test/fixtures/png.js';
 import { prepareImage } from './extraction-image.js';
 import { EXTRACTION_POLICY } from './extraction.config.js';
 
 describe('Real image decoding', () => {
+  it('rejects a two-frame APNG even when Sharp only decodes its default image', async () => {
+    const buffer = twoFramePng();
+    await expect(
+      prepareImage({ buffer, mimetype: 'image/png' }),
+    ).rejects.toMatchObject({ response: { code: 'MULTI_FRAME_IMAGE' } });
+  });
+
+  it('does not mistake text or trailing payloads containing acTL for animation', async () => {
+    const png = await sharp({
+      create: { width: 2, height: 2, channels: 3, background: 'white' },
+    })
+      .png()
+      .toBuffer();
+    const buffer = Buffer.concat([
+      png.subarray(0, 33),
+      pngChunk('tEXt', Buffer.from('Comment\0acTL')),
+      png.subarray(33),
+      pngChunk('acTL', Buffer.from([0, 0, 0, 2, 0, 0, 0, 0])),
+    ]);
+    const prepared = await prepareImage({ buffer, mimetype: 'image/png' });
+    expect(await sharp(prepared).metadata()).toMatchObject({
+      format: 'png',
+      width: 2,
+      height: 2,
+    });
+    expect(prepared.includes(Buffer.from('acTL'))).toBe(false);
+  });
+
+  it.each(['truncated', 'oversize-chunk', 'short-control', 'zero-frames'])(
+    'rejects malformed PNG animation headers (%s)',
+    async (kind) => {
+      let buffer = twoFramePng();
+      if (kind === 'truncated') buffer = buffer.subarray(0, 45);
+      if (kind === 'oversize-chunk') buffer.writeUInt32BE(0xffffffff, 33);
+      if (kind === 'short-control') buffer.writeUInt32BE(3, 33);
+      if (kind === 'zero-frames') buffer.writeUInt32BE(0, 41);
+      await expect(
+        prepareImage({ buffer, mimetype: 'image/png' }),
+      ).rejects.toMatchObject({ response: { code: 'INVALID_IMAGE' } });
+    },
+  );
+
   it.each(['jpeg', 'png', 'webp'] as const)(
     'decodes %s and removes metadata and trailing payloads',
     async (format) => {

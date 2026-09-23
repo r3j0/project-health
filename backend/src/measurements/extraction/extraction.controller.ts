@@ -114,9 +114,11 @@ export class ExtractionUploadInterceptor implements NestInterceptor {
         fieldNameSize: 100,
       },
     }).single('image');
-    try {
-      await withinDeadline(
-        new Promise<void>((resolve, reject) => {
+    // Own the slot and upload buffer until the actual work settles. A deadline
+    // only stops waiting; Sharp may still be decoding or producing a crop.
+    const work = (async () => {
+      try {
+        await new Promise<void>((resolve, reject) => {
           upload(request, response, (error: unknown) => {
             if (!error) return resolve();
             reject(
@@ -126,25 +128,42 @@ export class ExtractionUploadInterceptor implements NestInterceptor {
                 : extractionError(400, 'INVALID_MULTIPART'),
             );
           });
-        }),
-        controller.signal,
-      );
-      return await withinDeadline(
-        lastValueFrom(next.handle()),
-        controller.signal,
-      );
+        });
+        if (controller.signal.aborted)
+          throw extractionError(504, 'EXTRACTION_TIMEOUT');
+        return await lastValueFrom(next.handle());
+      } finally {
+        // Multer removes buffer while cleaning up rejected multi-file uploads.
+        request.file?.buffer?.fill(0);
+        delete request.file;
+        this.active--;
+      }
+    })();
+    try {
+      return await withinDeadline(work, controller.signal);
     } finally {
       clearTimeout(timer);
       response.removeListener('close', disconnect);
-      if (controller.signal.aborted && !request.complete) {
-        request.unpipe();
-        request.resume();
+      if (
+        controller.signal.aborted &&
+        !request.complete &&
+        !request.destroyed
+      ) {
+        // Send the timeout response before terminating an unfinished upload.
+        // Destroying the request lets Multer finish its cleanup and settle work;
+        // unpiping alone leaves its parser waiting forever for the missing EOF.
+        const stopUpload = () => {
+          response.removeListener('finish', stopUpload);
+          response.removeListener('close', stopUpload);
+          request.destroy();
+        };
+        if (response.writableFinished || response.destroyed) stopUpload();
+        else {
+          response.once('finish', stopUpload);
+          response.once('close', stopUpload);
+        }
       }
       controller.abort();
-      // Multer removes buffer while cleaning up rejected multi-file uploads.
-      request.file?.buffer?.fill(0);
-      delete request.file;
-      this.active--;
     }
   }
 }

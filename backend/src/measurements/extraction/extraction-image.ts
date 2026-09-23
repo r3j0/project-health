@@ -18,6 +18,27 @@ function imageFormat(buffer: Buffer) {
   return null;
 }
 
+function assertSingleFramePng(buffer: Buffer) {
+  // Sharp 0.35.4 does not expose APNG frames in metadata.pages. Walk actual
+  // chunk boundaries so text/pixel data containing "acTL" is not misclassified.
+  // PNG Third Edition, 11.3.6.1: https://www.w3.org/TR/png-3/#acTL-chunk
+  for (let offset = 8; offset + 12 <= buffer.length;) {
+    const length = buffer.readUInt32BE(offset);
+    const end = offset + 12 + length;
+    if (end > buffer.length) throw extractionError(400, 'INVALID_IMAGE');
+    const type = buffer.toString('ascii', offset + 4, offset + 8);
+    if (type === 'acTL') {
+      if (length !== 8 || buffer.readUInt32BE(offset + 8) === 0)
+        throw extractionError(400, 'INVALID_IMAGE');
+      if (buffer.readUInt32BE(offset + 8) !== 1)
+        throw extractionError(400, 'MULTI_FRAME_IMAGE');
+    }
+    if (type === 'IEND') return;
+    offset = end;
+  }
+  throw extractionError(400, 'INVALID_IMAGE');
+}
+
 export async function prepareImage(
   file: Pick<Express.Multer.File, 'buffer' | 'mimetype'> | undefined,
 ) {
@@ -28,6 +49,7 @@ export async function prepareImage(
   if (!format) throw extractionError(415, 'UNSUPPORTED_IMAGE');
   if (file.mimetype !== `image/${format}`)
     throw extractionError(415, 'IMAGE_TYPE_MISMATCH');
+  if (format === 'png') assertSingleFramePng(file.buffer);
   const decoder = sharp(file.buffer, {
     failOn: 'warning',
     limitInputPixels: EXTRACTION_POLICY.maxPixels,
