@@ -1,59 +1,34 @@
 import type { Catalog, Measurement } from "@/lib/types";
+import { fitnessFactors, gradeLabel } from "@/lib/fitness-evaluation";
 import {
-  fitnessFactors,
-  gradeLabel,
-  parseEvaluation,
-  type EvaluationCriteria,
-} from "@/lib/fitness-evaluation";
+  itemGradeResult,
+  parseMeasurementEvaluation,
+  type ReportItem,
+} from "@/lib/fitness-contract";
 import { FitnessRadar } from "./fitness-radar";
+import { FitnessCriteria } from "./fitness-criteria";
 import { Notice } from "./ui";
-function Criteria({ criteria }: { criteria: EvaluationCriteria }) {
-  const { nextGrade, direction, unit } = criteria;
+
+function ItemReport({ item, label }: { item: ReportItem; label: string }) {
+  const evaluation = item.evaluation;
   return (
-    <div className="stack-sm evaluation-criteria">
-      <p className="caption">
-        만 {criteria.ageMin}~{criteria.ageMax}세 ·{" "}
-        {criteria.sex === "male" ? "남성" : "여성"} 기준 ·{" "}
-        {direction === "higher_is_better"
-          ? "높을수록 좋은 값"
-          : "낮을수록 좋은 값"}
+    <div className="evaluation-item stack-sm">
+      <h3>{label}</h3>
+      <p>
+        {item.value} {item.unit} · {gradeLabel(itemGradeResult(evaluation))}
       </p>
-      <dl className="value-list">
-        {[...criteria.thresholds]
-          .sort((a, b) => a.grade - b.grade)
-          .map((t) => (
-            <div className="value-row" key={t.grade}>
-              <dt>{t.grade}등급 기준</dt>
-              <dd>
-                {t.value} {unit}{" "}
-                {direction === "higher_is_better"
-                  ? t.inclusive
-                    ? "이상"
-                    : "초과"
-                  : t.inclusive
-                    ? "이하"
-                    : "미만"}
-              </dd>
-            </div>
-          ))}
-      </dl>
-      {nextGrade && (
-        <p>
-          다음 {nextGrade.grade}등급 기준값 {nextGrade.value} {unit} · 현재
-          값과의 차이 {nextGrade.gap} {unit}
+      <p className="muted">{evaluation.message}</p>
+      <FitnessCriteria evaluation={evaluation} />
+      {evaluation.evaluatedAt && (
+        <p className="caption evaluation-version">
+          평가 시각{" "}
+          {new Intl.DateTimeFormat("ko-KR", {
+            timeZone: "Asia/Seoul",
+            dateStyle: "medium",
+            timeStyle: "short",
+          }).format(new Date(evaluation.evaluatedAt))}
         </p>
       )}
-      {criteria.sources.map((s) => (
-        <a
-          key={s.url}
-          className="text-link"
-          href={s.url}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {s.title} (새 창)
-        </a>
-      ))}
     </div>
   );
 }
@@ -66,7 +41,7 @@ export function FitnessReport({
 }) {
   let evaluation;
   try {
-    evaluation = parseEvaluation(record.evaluation, record);
+    evaluation = parseMeasurementEvaluation(record, catalog);
   } catch {
     return (
       <Notice>
@@ -90,7 +65,7 @@ export function FitnessReport({
       <FitnessRadar axes={evaluation.axes} />
       <p className="caption">
         이 측정 기록에서 같은 체력 요인에 속한 종목 중 가장 높은 등급을
-        표시해요.
+        표시해요. 종합 인증등급과는 별개예요.
       </p>
       <div className="stack-sm">
         {evaluation.axes.map((axis) => (
@@ -110,32 +85,11 @@ export function FitnessReport({
               {evaluation.items
                 .filter((i) => i.factor === axis.factor)
                 .map((item) => (
-                  <div
-                    className="evaluation-item stack-sm"
+                  <ItemReport
                     key={item.measurementCode}
-                  >
-                    <h3>{label(item.measurementCode)}</h3>
-                    <p>
-                      {item.value === null
-                        ? "측정값 없음"
-                        : `${item.value} ${item.unit}`}{" "}
-                      · {gradeLabel(item)}
-                    </p>
-                    {item.reason && <p className="muted">{item.reason}</p>}
-                    {item.evaluatedValue && (
-                      <p className="caption">
-                        평가에 사용한 환산값: {item.evaluatedValue.value}{" "}
-                        {item.evaluatedValue.unit}
-                      </p>
-                    )}
-                    {item.criteria ? (
-                      <Criteria criteria={item.criteria} />
-                    ) : (
-                      <p className="caption">
-                        상세 판정 기준이 제공되지 않았어요.
-                      </p>
-                    )}
-                  </div>
+                    item={item}
+                    label={label(item.measurementCode)}
+                  />
                 ))}
             </div>
           </details>
@@ -146,24 +100,17 @@ export function FitnessReport({
             <div className="stack-sm">
               {evaluation.items
                 .filter((i) => i.factor === null)
-                .map((i) => (
-                  <p key={i.measurementCode}>
-                    {label(i.measurementCode)} · {gradeLabel(i)}
-                    {i.reason ? ` — ${i.reason}` : ""}
-                  </p>
+                .map((item) => (
+                  <ItemReport
+                    key={item.measurementCode}
+                    item={item}
+                    label={label(item.measurementCode)}
+                  />
                 ))}
             </div>
           </details>
         )}
       </div>
-      <p className="caption evaluation-version">
-        판정 기준 {evaluation.ruleVersion} · 평가 시각{" "}
-        {new Intl.DateTimeFormat("ko-KR", {
-          timeZone: "Asia/Seoul",
-          dateStyle: "medium",
-          timeStyle: "short",
-        }).format(new Date(evaluation.evaluatedAt))}
-      </p>
     </section>
   );
 }

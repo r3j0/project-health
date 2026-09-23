@@ -42,11 +42,15 @@ export interface Catalog {
   age: number | null;
   definitions: Definition[];
 }
-export interface MeasurementItem {
+export interface MeasurementItemInput {
   measurementCode: string;
   value: string;
   unit: string;
   reportedGrade: string | null;
+}
+/** Runtime-validated separately so malformed evaluations never hide raw values. */
+export interface MeasurementItem extends MeasurementItemInput {
+  evaluation?: unknown;
 }
 export interface MeasurementMetadata {
   measuredOn: string;
@@ -71,6 +75,7 @@ export interface Measurement extends Omit<MeasurementSummary, "itemCount"> {
   missingMeasurementCodes: string[];
   /** Validated at the evaluation adapter boundary; raw records remain readable. */
   evaluation: unknown;
+  axes?: unknown;
 }
 export interface MeasurementPage {
   items: MeasurementSummary[];
@@ -79,7 +84,7 @@ export interface MeasurementPage {
 export interface MeasurementInput extends MeasurementMetadata {
   entryMethod?: "manual" | "self_assessment";
   catalogVersion: string;
-  items: MeasurementItem[];
+  items: MeasurementItemInput[];
 }
 export interface RecordResponse {
   data: Measurement;

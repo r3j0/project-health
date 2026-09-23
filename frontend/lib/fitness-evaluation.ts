@@ -20,7 +20,9 @@ export type GradeResult =
         | "below_standard"
         | "missing_input"
         | "unsupported_rule"
-        | "not_measured";
+        | "not_measured"
+        | "unevaluable"
+        | "not_evaluated";
       grade: null;
       reason: string | null;
     };
@@ -314,6 +316,10 @@ export function gradeLabel(result: GradeResult) {
       return "평가 불가 · 정보 부족";
     case "unsupported_rule":
       return "평가 불가 · 기준 없음";
+    case "unevaluable":
+      return "평가 불가";
+    case "not_evaluated":
+      return "평가 미존재 · 미평가";
     case "not_measured":
       return "평가 미존재 · 미측정";
   }

@@ -1,3 +1,4 @@
+import type { Catalog, Measurement } from "../../lib/types";
 import type { Page } from "@playwright/test";
 export const testUser = {
   id: "00000000-0000-4000-8000-000000000001",
@@ -15,60 +16,62 @@ export const assignment = {
     name: "내 기존 운동",
   },
 };
-export const catalog = {
+export const catalog: Catalog = {
   version: "contract-test-v1",
   checkedOn: "2026-09-01",
   age: null,
-  definitions: [
-    ["height", "신장", "cm", "decimal", "physique", "body_composition", "0"],
-    ["weight", "체중", "kg", "decimal", "physique", "body_composition", "0"],
-    ["bmi", "BMI", "kg/m²", "decimal", "physique", "body_composition", "0"],
+  definitions: (
     [
-      "waist_circumference",
-      "허리둘레",
-      "cm",
-      "decimal",
-      "physique",
-      "body_composition",
-      "0",
-    ],
-    [
-      "cross_sit_up",
-      "교차 윗몸일으키기",
-      "회",
-      "integer",
-      "health_fitness",
-      "muscular_endurance",
-      "0",
-    ],
-    [
-      "self_curl_up",
-      "윗몸말아올리기",
-      "회",
-      "integer",
-      "health_fitness",
-      "muscular_endurance",
-      "0",
-    ],
-    [
-      "ymca_recovery_heart_rate",
-      "YMCA 스텝검사 회복 심박수",
-      "bpm",
-      "integer",
-      "health_fitness",
-      "cardiorespiratory_endurance",
-      "1",
-    ],
-    [
-      "sit_and_reach",
-      "앉아 윗몸 앞으로 굽히기",
-      "cm",
-      "decimal",
-      "health_fitness",
-      "flexibility",
-      null,
-    ],
-  ].map(([code, label, unit, valueType, category, factor, minValue]) => ({
+      ["height", "신장", "cm", "decimal", "physique", "body_composition", "0"],
+      ["weight", "체중", "kg", "decimal", "physique", "body_composition", "0"],
+      ["bmi", "BMI", "kg/m²", "decimal", "physique", "body_composition", "0"],
+      [
+        "waist_circumference",
+        "허리둘레",
+        "cm",
+        "decimal",
+        "physique",
+        "body_composition",
+        "0",
+      ],
+      [
+        "cross_sit_up",
+        "교차 윗몸일으키기",
+        "회",
+        "integer",
+        "health_fitness",
+        "muscular_endurance",
+        "0",
+      ],
+      [
+        "self_curl_up",
+        "윗몸말아올리기",
+        "회",
+        "integer",
+        "health_fitness",
+        "muscular_endurance",
+        "0",
+      ],
+      [
+        "ymca_recovery_heart_rate",
+        "YMCA 스텝검사 회복 심박수",
+        "bpm",
+        "integer",
+        "health_fitness",
+        "cardiorespiratory_endurance",
+        "1",
+      ],
+      [
+        "sit_and_reach",
+        "앉아 윗몸 앞으로 굽히기",
+        "cm",
+        "decimal",
+        "health_fitness",
+        "flexibility",
+        null,
+      ],
+    ] as const
+  ).map(([code, label, unit, valueType, category, factor, minValue]) => ({
     code,
     label,
     unit,
@@ -83,7 +86,9 @@ export const catalog = {
     sourceUrls: [],
   })),
 };
-export function testRecord(overrides: Record<string, unknown> = {}) {
+export function testRecord(
+  overrides: Record<string, unknown> = {},
+): Measurement {
   return {
     id: "00000000-0000-4000-8000-000000000004",
     catalogVersion: catalog.version,
@@ -118,6 +123,7 @@ export function testRecord(overrides: Record<string, unknown> = {}) {
 export async function installApi(
   page: Page,
   initialRecord?: ReturnType<typeof testRecord>,
+  initialCatalog: Catalog = catalog,
 ) {
   let record = initialRecord;
   const mutations: { path: string; method: string; body: unknown }[] = [];
@@ -156,7 +162,7 @@ export async function installApi(
         currency: { balance: 0 },
         currentCurriculum: assignment,
       });
-    if (path === "/measurement-catalog") return send(catalog);
+    if (path === "/measurement-catalog") return send(initialCatalog);
     if (path === "/measurements" && method === "POST") {
       record = testRecord(request.postDataJSON());
       return send(record, 201);

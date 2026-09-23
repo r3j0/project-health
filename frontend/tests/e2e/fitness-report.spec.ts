@@ -1,24 +1,18 @@
 import { test, expect } from "@playwright/test";
-import { installApi, testRecord } from "./integration-fixtures";
-import { evaluatedFixture, recordIdentity } from "../fixtures/fitness";
+import { installApi } from "./integration-fixtures";
+import {
+  storedRecordFixture,
+  storedCatalogFixture,
+  unscoredRecordFixture,
+  recordIdentity,
+} from "../fixtures/measurement-evaluation";
 
-test("평가가 하나여도 6축을 연결하고 상세 기준과 원래 결과표 등급을 구분한다", async ({
+test("실제 계약의 종목별 평가로 6축과 상세 기준을 표시하고 원문 등급을 구분한다", async ({
   page,
 }) => {
-  await installApi(
-    page,
-    testRecord({
-      evaluation: evaluatedFixture(),
-      items: [
-        {
-          measurementCode: "sit_and_reach",
-          value: "-2.5",
-          unit: "cm",
-          reportedGrade: "결과표 직접 입력 등급",
-        },
-      ],
-    }),
-  );
+  const record = storedRecordFixture();
+  record.items[0].reportedGrade = "결과표 직접 입력 등급";
+  await installApi(page, record, storedCatalogFixture);
   await page.goto(`/measurements/${recordIdentity.id}`);
   await expect(
     page.getByRole("img", { name: "6가지 체력 요인별 등급" }),
@@ -30,9 +24,12 @@ test("평가가 하나여도 6축을 연결하고 상세 기준과 원래 결과
   await expect(
     page.getByText("대표 등급 반영: 앉아 윗몸 앞으로 굽히기"),
   ).toBeVisible();
-  await expect(page.getByText(/현재 값과의 차이 12.5 cm/)).toBeVisible();
+  await expect(page.getByText(/현재 값과의 차이 4.8 cm/)).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "국민체력100 인증기준 (새 창)" }),
+    page.getByText("14.9 cm 이상", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /국민체력100 성인기 인증기준/ }),
   ).toHaveAttribute("href", /^https:\/\/nfa.kspo.or.kr/);
   await expect(
     page.getByText("결과표 등급: 결과표 직접 입력 등급"),
@@ -43,51 +40,107 @@ test("평가가 하나여도 6축을 연결하고 상세 기준과 원래 결과
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
-  await page.screenshot({
-    path: "/private/tmp/project-health-fitness-report-mobile.png",
-    fullPage: true,
-  });
 });
-
-test("이전 API와 오래된 평가 응답에서도 원본 기록과 편집 진입이 유지된다", async ({
+test("오래된 평가 응답에서는 원본 기록과 편집 진입을 유지한다", async ({
   page,
 }) => {
-  const e = evaluatedFixture();
-  e.measurementRevision = 2;
-  await installApi(page, testRecord({ evaluation: e }));
+  const record = storedRecordFixture();
+  record.items[0].evaluation.recordRevision = 2;
+  await installApi(page, record, storedCatalogFixture);
   await page.goto(`/measurements/${recordIdentity.id}`);
   await expect(page.getByText(/평가 정보를 확인하지 못했어요/)).toBeVisible();
   await expect(page.locator(".radar-point")).toHaveCount(0);
-  await expect(page.getByText("-2.5 cm", { exact: true })).toBeVisible();
+  await expect(page.getByText("10.1 cm", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "기록 수정", exact: true }).click();
   await expect(
     page.getByLabel("앉아 윗몸 앞으로 굽히기", { exact: true }),
-  ).toHaveValue("-2.5");
+  ).toHaveValue("10.1");
 });
-
-test("여섯 축 모두 평가가 없어도 원점을 연결한 다각형을 표시한다", async ({
+for (const status of [
+  "not_evaluated",
+  "insufficient_information",
+  "criteria_unavailable",
+] as const) {
+  test(`평가 없음도 원점 6개를 연결하고 사유를 구분한다: ${status}`, async ({
+    page,
+  }) => {
+    await installApi(page, unscoredRecordFixture(status), storedCatalogFixture);
+    await page.goto(`/measurements/${recordIdentity.id}`);
+    await expect(page.locator('.radar-point[cx="180"][cy="158"]')).toHaveCount(
+      6,
+    );
+    await expect(page.getByTestId("radar-path")).toHaveAttribute(
+      "d",
+      "M 180 158 L 180 158 L 180 158 L 180 158 L 180 158 L 180 158 Z",
+    );
+    await expect(page.locator(".radar-legend dd").nth(3)).toHaveText(
+      {
+        not_evaluated: "평가 미존재 · 미평가",
+        insufficient_information: "평가 불가 · 정보 부족",
+        criteria_unavailable: "평가 불가 · 기준 없음",
+      }[status],
+    );
+  });
+}
+test("범위와 열린 경계·대안 목표를 원래 조건대로 안내한다", async ({
   page,
 }) => {
-  const e = evaluatedFixture();
-  e.axes = e.axes.map((a) => ({
-    ...a,
-    status: "unsupported_rule",
-    grade: null,
-    reason: "지원 기준이 없어요.",
-    sourceMeasurementCodes: [],
-  }));
-  e.items = e.items.map((i) => ({
-    ...i,
-    status: "unsupported_rule",
-    grade: null,
-    reason: "지원 기준이 없어요.",
-    criteria: null,
-  }));
-  await installApi(page, testRecord({ evaluation: e }));
-  await page.goto(`/measurements/${recordIdentity.id}`);
-  await expect(page.locator('.radar-point[cx="180"][cy="158"]')).toHaveCount(6);
-  await expect(page.getByTestId("radar-path")).toHaveAttribute(
-    "d",
-    "M 180 158 L 180 158 L 180 158 L 180 158 L 180 158 L 180 158 Z",
-  );
+  const record = storedRecordFixture(),
+    e = record.items[0].evaluation;
+  e.criterion!.direction = "range";
+  const intervals = [
+    {
+      lower: { value: "10.1", inclusive: false },
+      upper: { value: "20", inclusive: true },
+    },
+    { lower: null, upper: { value: "-2", inclusive: false } },
+  ];
+  e.thresholds[0].intervals = intervals;
+  e.nextTarget.intervals = structuredClone(intervals);
+  e.nextTarget.adjustments = [
+    {
+      lower: {
+        threshold: "10.1",
+        inclusive: false,
+        difference: "0",
+        unit: "cm",
+        change: "increase",
+        requiresBeyondBoundary: true,
+      },
+      upper: {
+        threshold: "20",
+        inclusive: true,
+        difference: "0",
+        unit: "cm",
+        change: "none",
+        requiresBeyondBoundary: false,
+      },
+    },
+    {
+      lower: null,
+      upper: {
+        threshold: "-2",
+        inclusive: false,
+        difference: "12.1",
+        unit: "cm",
+        change: "decrease",
+        requiresBeyondBoundary: true,
+      },
+    },
+  ];
+  await installApi(page, record, storedCatalogFixture);
+  await page.goto(`/measurements/${record.id}`);
+  await page.getByText("유연성 · 2등급", { exact: true }).click();
+  await expect(
+    page.getByText("아래 조건 중 하나를 충족하면 돼요."),
+  ).toBeVisible();
+  await expect(
+    page.getByText("10.1 cm 초과 · 20 cm 이하", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/0 cm · 증가 필요.*10.1 cm 초과 필요/),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/12.1 cm · 감소 필요.*-2 cm 미만 필요/),
+  ).toBeVisible();
 });
