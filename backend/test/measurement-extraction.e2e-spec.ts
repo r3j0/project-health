@@ -52,7 +52,7 @@ describe('Authenticated photo extraction with PostgreSQL and isolated OpenAI tra
       .compile();
     app = module.createNestApplication();
     configureApp(app);
-    await app.init();
+    await app.listen(0, '127.0.0.1');
     database = app.get(DatabaseService);
     png = await sharp({
       create: { width: 8, height: 8, channels: 3, background: 'white' },
@@ -179,7 +179,7 @@ describe('Authenticated photo extraction with PostgreSQL and isolated OpenAI tra
       definitions: Array<{ code: string }>;
     };
     expect(prompt.catalogVersion).toBe(version);
-    expect(prompt.definitions).toHaveLength(19);
+    expect(prompt.definitions).toHaveLength(21);
     expect(
       prompt.definitions.some((def) => def.code === 'relative_grip_strength'),
     ).toBe(true);

@@ -6,7 +6,7 @@ import {
   NotFoundException,
   PreconditionFailedException,
 } from '@nestjs/common';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { DatabaseService } from '../database/database.service.js';
 import { Prisma } from '../generated/prisma/client.js';
 import type { MeasurementCreateRequest } from '../generated/prisma/client.js';
@@ -21,6 +21,15 @@ import type {
   PatchMeasurementInput,
   parseListQuery,
 } from './measurement-input.js';
+import {
+  aggregateAxes,
+  evaluateMeasurement,
+  legacyEvaluation,
+} from './evaluation/measurement-evaluator.js';
+import type {
+  EvaluatedItem,
+  ItemEvaluation,
+} from './evaluation/evaluation-types.js';
 
 export const includeRecord = {
   items: { orderBy: { code: 'asc' } },
@@ -47,16 +56,32 @@ const summarySelect = {
   _count: { select: { items: true } },
 } satisfies Prisma.MeasurementSelect;
 
-const storedItems = (items: CreateMeasurementInput['items']) =>
+const storedItems = (
+  items: CreateMeasurementInput['items'],
+  evaluations: EvaluatedItem[],
+) =>
   items.map((item) => ({
     code: item.measurementCode,
     value: item.value,
     unit: item.unit,
     reportedGrade: item.reportedGrade,
+    evaluation: evaluations.find(
+      (evaluated) => evaluated.measurementCode === item.measurementCode,
+    )!.evaluation as Prisma.InputJsonValue,
   }));
 
 export function serializeRecord(record: RecordWithItems) {
   const entered = new Set(record.items.map((item) => item.code));
+  const items = record.items.map((item) => ({
+    measurementCode: item.code,
+    value: item.value.toFixed(),
+    unit: item.unit,
+    reportedGrade: item.reportedGrade,
+    evaluation:
+      item.evaluation === null
+        ? legacyEvaluation(record, item.code)
+        : (item.evaluation as unknown as ItemEvaluation),
+  }));
   return {
     id: record.id,
     measuredOn: record.measuredOn.toISOString().slice(0, 10),
@@ -71,12 +96,8 @@ export function serializeRecord(record: RecordWithItems) {
     revision: record.revision,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
-    items: record.items.map((item) => ({
-      measurementCode: item.code,
-      value: item.value.toFixed(),
-      unit: item.unit,
-      reportedGrade: item.reportedGrade,
-    })),
+    items,
+    axes: aggregateAxes(items, record.revision),
     missingMeasurementCodes: record.catalog.definitions
       .filter(
         (def) =>
@@ -85,11 +106,10 @@ export function serializeRecord(record: RecordWithItems) {
           !entered.has(def.code),
       )
       .map((def) => def.code),
-    // No evaluation engine/rules have been implemented. This reports capability,
-    // never a fabricated score or certification result.
+    // Item grades and polygon axes do not establish overall certification.
     evaluation: {
       status: 'not_evaluated',
-      reason: 'evaluation_not_implemented',
+      reason: 'overall_certification_not_computed',
     },
   };
 }
@@ -101,10 +121,14 @@ export class MeasurementsService {
   ) {}
 
   async create(userId: string, key: string, input: CreateMeasurementInput) {
+    // Before entryMethod was accepted the default manual request omitted it
+    // from the hash. Keep existing idempotency keys replayable after upgrade.
+    const { entryMethod, ...hashInput } = input;
     const requestHash = createHash('sha256')
       .update(
         JSON.stringify({
-          ...input,
+          ...hashInput,
+          ...(entryMethod === 'manual' ? {} : { entryMethod }),
           items: [...input.items].sort((a, b) =>
             a.measurementCode.localeCompare(b.measurementCode),
           ),
@@ -137,14 +161,16 @@ export class MeasurementsService {
           ]);
         validateItems(input, catalog.definitions);
         const { items, ...metadata } = input;
+        const id = randomUUID();
+        const evaluations = evaluateMeasurement({ ...input, id, revision: 1 });
         const created = await tx.measurement.create({
           data: {
             ...metadata,
+            id,
             userId,
             measuredOn: new Date(`${input.measuredOn}T00:00:00.000Z`),
             sourceProgram: 'nfa100',
-            entryMethod: 'manual',
-            items: { create: storedItems(items) },
+            items: { create: storedItems(items, evaluations.items) },
           },
           include: includeRecord,
         });
@@ -213,6 +239,32 @@ export class MeasurementsService {
     return serializeRecord(record);
   }
 
+  async latestPolygon(userId: string) {
+    // Same ordering as list(), and one repeatable snapshot for all relations.
+    const record = await this.database.$transaction(
+      (tx) =>
+        tx.measurement.findFirst({
+          where: { userId },
+          orderBy: [{ measuredOn: 'desc' }, { id: 'asc' }],
+          include: includeRecord,
+        }),
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+    return record
+      ? {
+          measurementId: record.id,
+          measuredOn: record.measuredOn.toISOString().slice(0, 10),
+          revision: record.revision,
+          axes: serializeRecord(record).axes,
+        }
+      : {
+          measurementId: null,
+          measuredOn: null,
+          revision: null,
+          axes: aggregateAxes([]),
+        };
+  }
+
   async patch(
     userId: string,
     id: string,
@@ -256,13 +308,23 @@ export class MeasurementsService {
           reportedGrade: item.reportedGrade,
         }));
       validateItems(
-        { ageAtMeasurement: current.ageAtMeasurement, items },
+        {
+          ageAtMeasurement: current.ageAtMeasurement,
+          entryMethod: current.entryMethod,
+          items,
+        },
         current.catalog.definitions,
       );
-      if (replacement === undefined) return current;
+      // Recompute every item at the claimed revision, including metadata-only
+      // edits. Deferred constraints see only the final consistent state.
+      const evaluations = evaluateMeasurement({
+        ...current,
+        measuredOn: current.measuredOn.toISOString().slice(0, 10),
+        items,
+      });
       await tx.measurementItem.deleteMany({ where: { measurementId: id } });
       await tx.measurementItem.createMany({
-        data: storedItems(replacement).map((item) => ({
+        data: storedItems(items, evaluations.items).map((item) => ({
           ...item,
           measurementId: id,
           catalogVersion: current.catalogVersion,

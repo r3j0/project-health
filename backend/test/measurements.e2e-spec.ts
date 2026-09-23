@@ -16,6 +16,10 @@ import {
 } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { DatabaseService } from '../src/database/database.service.js';
+import type {
+  AxisEvaluation,
+  ItemEvaluation,
+} from '../src/measurements/evaluation/evaluation-types.js';
 import { configureApp } from '../src/setup-app.js';
 
 type Account = { user: { id: string }; access_token: string };
@@ -24,6 +28,7 @@ type Item = {
   value: string;
   unit: string;
   reportedGrade?: string | null;
+  evaluation: ItemEvaluation;
 };
 type RecordBody = {
   id: string;
@@ -42,6 +47,7 @@ type RecordBody = {
   catalogVersion: string;
   missingMeasurementCodes: string[];
   evaluation: { status: string; reason: string };
+  axes: AxisEvaluation[];
 };
 type Catalog = {
   version: string;
@@ -62,7 +68,7 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
   let version: string;
   const userIds: string[] = [];
   let afterMeasurementRead:
-    { id: string; run: () => Promise<unknown> } | undefined;
+    { id: string; latest?: boolean; run: () => Promise<unknown> } | undefined;
   // The spy below explicitly supplies the original factory as this via call().
   // oxlint-disable-next-line typescript/unbound-method
   const connect = PrismaPg.prototype.connect;
@@ -79,7 +85,9 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
             afterMeasurementRead &&
             query.sql.startsWith('SELECT') &&
             /FROM "[^"]+"\."measurements"/.test(query.sql) &&
-            query.args.includes(afterMeasurementRead.id)
+            (query.args.includes(afterMeasurementRead.id) ||
+              (afterMeasurementRead.latest &&
+                query.args.includes(owner.user.id)))
           ) {
             // The real parent SELECT has finished. Commit another HTTP write
             // before Prisma can issue the related item/catalog SELECTs.
@@ -104,7 +112,7 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
     }).compile();
     app = module.createNestApplication();
     configureApp(app);
-    await app.init();
+    await app.listen(0, '127.0.0.1');
     database = app.get(DatabaseService);
     owner = await register();
     other = await register();
@@ -206,7 +214,7 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
         .expect(200);
       const catalog = response.body as Catalog;
       expect(catalog.version).toBe(version);
-      expect(catalog.definitions).toHaveLength(15);
+      expect(catalog.definitions).toHaveLength(age >= 19 ? 17 : 15);
       expect(new Set(catalog.definitions.map((def) => def.factor)).size).toBe(
         factorCount,
       );
@@ -220,7 +228,16 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
     const all = await request(app.getHttpServer())
       .get('/api/v1/measurement-catalog')
       .expect(200);
-    expect((all.body as Catalog).definitions).toHaveLength(19);
+    expect((all.body as Catalog).definitions).toHaveLength(21);
+    const previous = await request(app.getHttpServer())
+      .get('/api/v1/measurement-catalog?version=nfa100-2026-09-19')
+      .expect(200);
+    expect((previous.body as Catalog).definitions).toHaveLength(19);
+    expect(
+      (previous.body as Catalog).definitions.some((definition) =>
+        ['self_curl_up', 'ymca_recovery_heart_rate'].includes(definition.code),
+      ),
+    ).toBe(false);
     await request(app.getHttpServer())
       .get('/api/v1/measurement-catalog?age=65')
       .expect(400);
@@ -241,9 +258,17 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
         value: '-3.25',
         unit: 'cm',
         reportedGrade: null,
+        evaluation: expect.objectContaining({
+          measurementId: record.id,
+          measurementCode: 'sit_and_reach',
+          status: 'insufficient_information',
+          reasonCode: 'sex_at_measurement_missing',
+          grade: null,
+          recordRevision: 1,
+        }),
       },
     ]);
-    expect(record.missingMeasurementCodes).toHaveLength(14);
+    expect(record.missingMeasurementCodes).toHaveLength(16);
     expect(record.missingMeasurementCodes).toContain('height');
     expect(record.missingMeasurementCodes).not.toContain('t_wall_coordination');
     expect(record.sexAtMeasurement).toBeNull();
@@ -512,6 +537,13 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
         value: '61.25',
         unit: 'kg',
         reportedGrade: null,
+        evaluation: expect.objectContaining({
+          measurementId: record.id,
+          measurementCode: 'weight',
+          status: 'criteria_unavailable',
+          grade: null,
+          recordRevision: 2,
+        }),
       },
     ]);
     expect(record.missingMeasurementCodes).toContain('sit_and_reach');
@@ -550,6 +582,8 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
   it.each([
     ['GET', 'PATCH'],
     ['GET', 'DELETE'],
+    ['GET latest', 'PATCH'],
+    ['GET latest', 'DELETE'],
     ['POST replay', 'PATCH'],
     ['POST replay', 'DELETE'],
   ] as const)(
@@ -568,14 +602,31 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
           items: [{ measurementCode: 'cross_sit_up', value: '21', unit: '회' }],
         }).expect(200);
       });
-      afterMeasurementRead = { id: original.id, run: change };
+      afterMeasurementRead = {
+        id: original.id,
+        latest: read === 'GET latest',
+        run: change,
+      };
       try {
         const response = await (
-          read === 'GET' ? get(original.id) : create(body, key)
+          read === 'GET'
+            ? get(original.id)
+            : read === 'GET latest'
+              ? get('latest-polygon')
+              : create(body, key)
         ).expect(200);
         expect(change).toHaveBeenCalledTimes(1);
-        expect(response.headers.etag).toBe('"1"');
-        expect(response.body).toEqual(original);
+        if (read === 'GET latest') {
+          expect(response.body).toEqual({
+            measurementId: original.id,
+            measuredOn: original.measuredOn,
+            revision: original.revision,
+            axes: original.axes,
+          });
+        } else {
+          expect(response.headers.etag).toBe('"1"');
+          expect(response.body).toEqual(original);
+        }
         if (read === 'POST replay') {
           expect(response.headers['idempotency-replayed']).toBe('true');
         }
@@ -682,6 +733,15 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
         centerName: 'updated center',
         revision: 3,
         updatedAt: (retried.body as RecordBody).updatedAt,
+        items: winner!.items.map((item) => ({
+          ...item,
+          evaluation: {
+            ...item.evaluation,
+            recordRevision: 3,
+            evaluatedAt: expect.any(String),
+          },
+        })),
+        axes: winner!.axes.map((axis) => ({ ...axis, recordRevision: 3 })),
       });
     } finally {
       afterMeasurementRead = undefined;
@@ -706,6 +766,15 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
       centerName: 'valid retry',
       revision: 2,
       updatedAt: (updated.body as RecordBody).updatedAt,
+      items: original.items.map((item) => ({
+        ...item,
+        evaluation: {
+          ...item.evaluation,
+          recordRevision: 2,
+          evaluatedAt: expect.any(String),
+        },
+      })),
+      axes: original.axes.map((axis) => ({ ...axis, recordRevision: 2 })),
     });
   });
 

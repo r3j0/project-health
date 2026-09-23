@@ -1,6 +1,6 @@
 # 국민체력100 측정 기록 API
 
-국민체력100 결과를 사용자가 확인하여 실제 DB에 저장·조회·수정·삭제한다. 2026-09-21 사용자 결정으로 [사진 추출 API](measurement-extraction-api.md)를 저장 전 초안 단계에 추가했다. 자가측정·점수 계산·운동 추천은 포함하지 않는다. [측정 데이터 명세](measurement-data-spec.md)의 지원 연령, 공식 항목, 부분 저장 정책을 따른다.
+국민체력100 결과를 사용자가 확인하여 실제 DB에 저장·조회·수정·삭제한다. 2026-09-21 사용자 결정으로 [사진 추출 API](measurement-extraction-api.md)를 저장 전 초안 단계에 추가했다. 2026-09-23에는 성인 간이측정 저장·공식 종목 평가·6축 조회를 추가했다. [평가 API·프론트 계약](measurement-evaluation-api.md)을 함께 따른다. 운동 추천·커리큘럼 변경은 포함하지 않는다. [측정 데이터 명세](measurement-data-spec.md)의 지원 연령, 공식 항목, 부분 저장 정책을 따른다.
 
 ## 실행과 인증
 
@@ -19,15 +19,16 @@ npm run start:dev
 
 ## 경로와 응답
 
-| 요청                              | 성공 응답         | 설명                                                           |
-| --------------------------------- | ----------------- | -------------------------------------------------------------- |
-| `GET /measurement-catalog?age=25` | 200               | 해당 연령의 실제 검사 정의·단위·출처·버전. 공개 기준 데이터    |
-| `POST /measurements`              | 201, 재시도는 200 | 최소 한 개 측정값과 회차 정보 생성                             |
-| `POST /measurements/extract`      | 200               | 사진 1장 추출 초안. 저장·온보딩 변경 없음. 별도 multipart 계약 |
-| `GET /measurements`               | 200               | 내 기록의 페이지별 목록                                        |
-| `GET /measurements/:id`           | 200               | 내 기록 상세와 ETag                                            |
-| `PATCH /measurements/:id`         | 200               | 지정한 필드 수정, revision 증가                                |
-| `DELETE /measurements/:id`        | 204               | 회차와 모든 항목 삭제                                          |
+| 요청                               | 성공 응답         | 설명                                                           |
+| ---------------------------------- | ----------------- | -------------------------------------------------------------- |
+| `GET /measurement-catalog?age=25`  | 200               | 해당 연령의 실제 검사 정의·단위·출처·버전. 공개 기준 데이터    |
+| `POST /measurements`               | 201, 재시도는 200 | 최소 한 개 측정값과 회차 정보 생성                             |
+| `POST /measurements/extract`       | 200               | 사진 1장 추출 초안. 저장·온보딩 변경 없음. 별도 multipart 계약 |
+| `GET /measurements`                | 200               | 내 기록의 페이지별 목록                                        |
+| `GET /measurements/latest-polygon` | 200               | 내 최신 회차 하나의 6축 대표 등급·상태                         |
+| `GET /measurements/:id`            | 200               | 내 기록 상세와 ETag                                            |
+| `PATCH /measurements/:id`          | 200               | 지정한 필드 수정, revision 증가                                |
+| `DELETE /measurements/:id`         | 204               | 회차와 모든 항목 삭제                                          |
 
 다른 사용자의 기록과 존재하지 않는 기록은 모두 404다. 개인 기록 응답은 `Cache-Control: no-store`다. 이 경로들은 프론트 화면이 아니라 HTTP API다. 주소창은 GET만 보내므로 생성·수정·삭제는 curl, Postman 또는 프론트 코드로 요청한다.
 
@@ -39,11 +40,11 @@ npm run start:dev
 
 ### 생성 입력
 
-사진 추출 응답 전체를 저장 요청으로 보내지 않는다. 사용자 확인 후의 메타데이터와 items만 전송한다. `entryMethod`는 기존대로 서버가 `manual`로 설정하며 OCR 출처 DB 필드는 추가하지 않는다. 변환 예시는 [사진 추출 안내](measurement-extraction-api.md)를 따른다. 아래 Idempotency-Key·revision 계약은 저장 CRUD에 적용한다.
+사진 추출 응답 전체를 저장 요청으로 보내지 않는다. 사용자 확인 후의 메타데이터와 items만 전송한다. `entryMethod`는 생략하면 `manual`이며 사진 초안 확인 저장도 이를 유지한다. 간이측정 완료 저장은 `self_assessment`를 보낸다. 변환 예시는 [사진 추출 안내](measurement-extraction-api.md)를 따른다. 아래 Idempotency-Key·revision 계약은 저장 CRUD에 적용한다.
 
 필수: `catalogVersion`, `measuredOn`(YYYY-MM-DD), `ageAtMeasurement`(13~64), `items`(1개 이상).
 
-선택: `sexAtMeasurement`(male/female/null), `reportKind`(standard/simple/unknown), `centerName`, `reportedOverallGrade`. 성별·시설·등급 생략은 null, 측정 유형 생략은 unknown이다. 빈 선택 텍스트는 null 또는 생략으로 보내며 빈 문자열은 오류다. 텍스트 필드의 앞뒤 공백은 제거한다.
+선택: `entryMethod`(manual/self_assessment, 기본 manual), `sexAtMeasurement`(male/female/null), `reportKind`(standard/simple/unknown), `centerName`, `reportedOverallGrade`. 성별·시설·등급 생략은 null, 측정 유형 생략은 unknown이다. 빈 선택 텍스트는 null 또는 생략으로 보내며 빈 문자열은 오류다. 텍스트 필드의 앞뒤 공백은 제거한다.
 
 각 항목은 `measurementCode`, `value`, `unit`, 선택 `reportedGrade`를 받는다. **value는 모든 숫자를 10진수 문자열로 보낸다.** 실제 0회는 `"0"`이다. JSON 숫자·공백·빈 문자열·지수 표기·NaN·Infinity는 거절한다. 소수 정밀도를 잃지 않도록 저장·응답 모두 Decimal을 사용하며 자릿수를 반올림하지 않는다. `"165.00"`과 `"165"`처럼 같은 수치의 표기는 정규화한다.
 
@@ -65,7 +66,7 @@ POST에는 UUID 형태의 **`Idempotency-Key` 헤더가 필수**다. 프론트�
 
 ### 조회·수정·삭제
 
-상세는 저장한 메타데이터와 실제 입력 `items`만 반환한다. 적용 연령에 속하지만 입력하지 않은 코드는 `missingMeasurementCodes`에 나열한다. 다른 연령 전용 검사는 누락으로 계산하지 않는다. `evaluation.status = not_evaluated`, `reason = evaluation_not_implemented`는 현재 평가 기능이 없음을 명시하며 임의 점수·등급을 만들지 않는다.
+상세는 저장한 메타데이터와 실제 입력 `items`만 반환한다. 적용 연령에 속하지만 입력하지 않은 코드는 `missingMeasurementCodes`에 나열한다. 다른 연령 전용 검사는 누락으로 계산하지 않는다. `items[].evaluation`은 저장된 종목별 평가, `axes`는 이 회차의 6축 대표값이다. 기존 최상위 `evaluation`은 종합 인증 미산출을 나타내며 `status = not_evaluated`, `reason = overall_certification_not_computed`다. 종목 등급으로 종합 인증을 만들지 않는다. 상세 필드와 과거 기록 미평가 상태는 [평가 계약](measurement-evaluation-api.md)을 따른다.
 
 상세 조회와 생성 재시도는 회차·항목·카탈로그를 Repeatable Read 트랜잭션의 같은 스냅샷에서 읽는다. 조회 도중 수정·삭제가 완료되더라도 응답의 메타데이터·items·누락 항목·revision·ETag는 같은 시점의 기록을 나타낸다. 조회와 겹친 삭제에서는 삭제 직전 기록이 반환될 수 있으며, 삭제 완료 후 시작한 상세 조회는 404, 생성 재시도는 410이다.
 
@@ -73,7 +74,7 @@ POST에는 UUID 형태의 **`Idempotency-Key` 헤더가 필수**다. 프론트�
 
 상세·생성·수정 응답에 `revision`과 `ETag: "1"` 형식의 헤더가 있다. PATCH·DELETE에는 **`If-Match: "조회한 revision"`**을 보낸다. 헤더 누락은 428, 형식 오류는 400, 오래된 버전은 412다. 프론트는 412를 받으면 다시 조회해 사용자 변경과 비교한 후 재요청한다. `*`나 약한 ETag로 무조건 덮어쓰는 동작은 허용하지 않는다.
 
-PATCH에서 생략한 필드는 유지하고, 선택 필드를 null로 보내면 지운다. `items`를 보내면 목록 전체를 교체하므로 유지하려는 항목도 함께 보내야 한다. 빈 items로 마지막 값을 없앨 수 없다. `catalogVersion`, 소유자, ID, sourceProgram, entryMethod, revision은 수정 입력에 넣지 않는다. 나이를 바꾸면 기존 항목도 다시 검증한다. 항목 교체와 revision 증가는 하나의 트랜잭션으로 적용한다. 성공한 PATCH는 같은 값을 다시 보내도 revision이 증가한다.
+PATCH에서 생략한 필드는 유지하고, 선택 필드를 null로 보내면 지운다. `items`를 보내면 목록 전체를 교체하므로 유지하려는 항목도 함께 보내야 한다. 빈 items로 마지막 값을 없앨 수 없다. `catalogVersion`, 소유자, ID, sourceProgram, revision은 수정 입력에 넣지 않는다. `entryMethod`는 수정 가능하며 생략하면 유지한다. 나이·등록 방식을 바꾸면 기존 항목도 다시 검증한다. 매 수정에서 종목 평가를 새 revision으로 다시 계산하며, 항목·평가·revision을 같은 트랜잭션으로 반영한다. 성공한 PATCH는 같은 값을 다시 보내도 revision이 증가한다.
 
 PATCH는 revision 조건이 붙은 UPDATE로 회차를 잠근 뒤 현재 항목을 읽고 검증한다. 먼저 완료된 동시 수정은 412, 삭제는 404로 처리하며 이전 나이와 새 항목을 섞어 입력 오류로 판정하지 않는다. 항목 검증에 실패하면 같은 트랜잭션에서 변경한 메타데이터·revision도 모두 롤백된다.
 
@@ -91,7 +92,7 @@ TOKEN='여기에_로그인_응답의_access_token'
 curl -sS 'http://localhost:3001/api/v1/measurement-catalog?age=25'
 ```
 
-다음 JSON의 `catalogVersion`은 위 응답의 version을 사용한다. 아래 버전·날짜·측정값은 재현용 예시이며, 운영 서비스가 생성하는 사용자 결과가 아니다. 현재 포함된 카탈로그 버전은 `nfa100-2026-09-19`다. 직접 측정값으로 바꿔도 같은 검증·저장 경로를 거친다.
+다음 JSON의 `catalogVersion`은 위 응답의 version을 사용한다. 아래 버전·날짜·측정값은 재현용 예시이며, 운영 서비스가 생성하는 사용자 결과가 아니다. 최신 카탈로그는 `nfa100-2026-09-23`이다. 아래 기존 `nfa100-2026-09-19` 예시도 계속 지원한다. 직접 측정값으로 바꿔도 같은 검증·저장 경로를 거친다.
 
 새 저장 요청 키를 한 번 생성하고 기록을 추가한다:
 

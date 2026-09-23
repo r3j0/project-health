@@ -84,7 +84,7 @@ describe('User profile and permanent deletion against PostgreSQL', () => {
     }).compile();
     app = module.createNestApplication();
     configureApp(app);
-    await app.init();
+    await app.listen(0, '127.0.0.1');
     database = app.get(DatabaseService);
     owner = await register();
     other = await register();
@@ -498,7 +498,7 @@ describe('User profile and permanent deletion against PostgreSQL', () => {
       .compile();
     const production = module.createNestApplication();
     configureApp(production);
-    await production.init();
+    await production.listen(0, '127.0.0.1');
     try {
       const registered = await request(production.getHttpServer())
         .post('/api/v1/auth/register')

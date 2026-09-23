@@ -77,7 +77,7 @@ it('upgrades populated schemas, removes retired profile data and preserves crede
     const measurementBefore = (await client.query('SELECT * FROM measurements'))
       .rows as unknown[];
     const itemsBefore = (await client.query('SELECT * FROM measurement_items'))
-      .rows as unknown[];
+      .rows as Record<string, unknown>[];
     const sessionsBefore = (await client.query('SELECT * FROM auth_sessions'))
       .rows as unknown[];
     let assignmentsBefore: unknown[] = [];
@@ -133,7 +133,7 @@ it('upgrades populated schemas, removes retired profile data and preserves crede
     );
     expect(
       (await client.query('SELECT * FROM measurement_items')).rows,
-    ).toEqual(itemsBefore);
+    ).toEqual(itemsBefore.map((item) => ({ ...item, evaluation: null })));
     expect((await client.query('SELECT * FROM auth_sessions')).rows).toEqual(
       sessionsBefore,
     );

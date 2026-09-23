@@ -79,6 +79,11 @@ export class MeasurementsController {
     return this.measurements.list(request.user.id, parseListQuery(query));
   }
 
+  @Get('latest-polygon')
+  latestPolygon(@Req() request: AuthenticatedRequest) {
+    return this.measurements.latestPolygon(request.user.id);
+  }
+
   @Get(':id')
   async get(
     @Req() request: AuthenticatedRequest,

@@ -63,14 +63,39 @@ export class MeasurementCatalogService {
   }
 }
 
+export const SELF_ASSESSMENT_CODES = [
+  'height',
+  'weight',
+  'bmi',
+  'waist_circumference',
+  'cross_sit_up',
+  'self_curl_up',
+  'ymca_recovery_heart_rate',
+  'sit_and_reach',
+] as const;
+
 export function validateItems(
-  input: Pick<CreateMeasurementInput, 'items' | 'ageAtMeasurement'>,
+  input: Pick<CreateMeasurementInput, 'items' | 'ageAtMeasurement'> &
+    Partial<Pick<CreateMeasurementInput, 'entryMethod'>>,
   definitions: MeasurementDefinition[],
 ) {
   const byCode = new Map(definitions.map((def) => [def.code, def]));
   const errors: FieldError[] = [];
+  if (input.entryMethod === 'self_assessment' && input.ageAtMeasurement < 19)
+    errors.push({
+      field: 'ageAtMeasurement',
+      message: '간이측정은 측정 당시 만 19~64세 성인에게만 제공됩니다.',
+    });
   input.items.forEach((item, index) => {
     const field = `items.${index}`;
+    if (
+      input.entryMethod === 'self_assessment' &&
+      !SELF_ASSESSMENT_CODES.some((code) => code === item.measurementCode)
+    )
+      errors.push({
+        field: `${field}.measurementCode`,
+        message: '간이측정에서 지원하지 않는 검사입니다.',
+      });
     const def = byCode.get(item.measurementCode);
     if (!def) {
       errors.push({

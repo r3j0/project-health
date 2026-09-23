@@ -48,6 +48,7 @@ enum MeasurementSource {
 
 enum MeasurementEntryMethod {
   manual
+  self_assessment
 }
 
 // Account updates change credentials only (2026-09-21 scope correction).
@@ -166,6 +167,8 @@ model MeasurementItem {
   value          Decimal               @db.Decimal
   unit           String
   reportedGrade  String?               @map("reported_grade")
+  // Immutable snapshot for this record revision; null on pre-evaluation records.
+  evaluation     Json?                @db.JsonB
   measurement    Measurement           @relation(fields: [measurementId, catalogVersion], references: [id, catalogVersion], onDelete: Cascade, onUpdate: Restrict)
   definition     MeasurementDefinition @relation(fields: [catalogVersion, code, unit], references: [catalogVersion, code, unit], onDelete: Restrict, onUpdate: Restrict)
 

@@ -34,7 +34,7 @@ describe('Email authentication against PostgreSQL', () => {
     }).compile();
     app = module.createNestApplication();
     configureApp(app);
-    await app.init();
+    await app.listen(0, '127.0.0.1');
     database = app.get(DatabaseService);
   });
 
@@ -367,7 +367,7 @@ describe('Email authentication against PostgreSQL', () => {
       .compile();
     const productionApp = module.createNestApplication();
     configureApp(productionApp);
-    await productionApp.init();
+    await productionApp.listen(0, '127.0.0.1');
     try {
       const response = await request(productionApp.getHttpServer())
         .post('/api/v1/auth/register')

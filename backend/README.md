@@ -9,6 +9,8 @@ Project Health의 NestJS API 서버입니다. 백엔드 코드·설정·문서·
 - [회원가입·로그인·로그아웃·토큰 갱신 API와 직접 테스트](docs/auth-api.md)
 - [측정 데이터 명세](docs/measurement-data-spec.md)
 - [측정 기록 CRUD API와 직접 테스트](docs/measurements-api.md)
+- [간이측정·공식 종목 평가·6축 조회 API](docs/measurement-evaluation-api.md)
+- [공식 평가 기준 조사·적용 범위](docs/research-fitness-criteria.md)
 - [국민체력100 사진 추출 API·환경설정·프론트 연동](docs/measurement-extraction-api.md)
 - [DB 설계와 마이그레이션](docs/database.md)
 
@@ -46,7 +48,7 @@ curl http://localhost:3001/api/v1/health/ready
 
 2026-09-21 정정으로 선호 운동·운동 목적·개인별 목표/기준값과 `currentFitness` 프로필 응답을 제거했습니다. 기존 측정 CRUD·저장 데이터와 유효한 기록 1건 이상의 온보딩 조건은 유지합니다.
 
-현재 이메일 인증·국민체력100 측정 CRUD와 이메일·비밀번호 변경·온보딩·재화 조회·영구 탈퇴를 구현했습니다. 운동 1회분 배정·완료·이력은 내부 서비스까지 제공하며 콘텐츠·추천 HTTP 호출은 후속 범위입니다. 비밀번호는 Argon2id 해시로 저장하고, 측정 기록은 인증된 본인만 조회·수정·삭제합니다. [인증 테스트](docs/auth-api.md)와 [측정 기록 테스트](docs/measurements-api.md)에 curl 예제가 있습니다. 소셜 로그인·이메일 확인·비밀번호 재설정·측정 점수 분석은 후속 범위입니다.
+현재 이메일 인증·국민체력100 측정 CRUD와 이메일·비밀번호 변경·온보딩·재화 조회·영구 탈퇴를 구현했습니다. 운동 1회분 배정·완료·이력은 내부 서비스까지 제공하며 콘텐츠·추천 HTTP 호출은 후속 범위입니다. 비밀번호는 Argon2id 해시로 저장하고, 측정 기록은 인증된 본인만 조회·수정·삭제합니다. [인증 테스트](docs/auth-api.md)와 [측정 기록 테스트](docs/measurements-api.md)에 curl 예제가 있습니다. 간이측정 저장·공식 종목 평가·최신 회차의 6축 조회도 제공합니다. 소셜 로그인·이메일 확인·비밀번호 재설정은 후속 범위입니다.
 
 ## 환경변수
 
@@ -96,6 +98,8 @@ npm run check
 
 `npm run test:e2e`는 `TEST_DATABASE_URL`의 DB 안에 매번 새로운 임시 스키마를 만들고 마이그레이션을 두 번 적용합니다. 실제 PostgreSQL로 테스트한 뒤 자신이 만든 스키마만 정리합니다. 테스트 DB가 설정되지 않거나 개발 DB와 같으면 실패하며, 인메모리 DB로 대체하거나 테스트를 건너뛰지 않습니다. 실행 환경은 로컬 DB 접속과 테스트용 포트 열기를 허용해야 합니다.
 
+HTTP 테스트 앱은 `await app.listen(0, '127.0.0.1')`로 시작하고 종료 시 `app.close()`합니다. macOS에서 Supertest의 자동 wildcard 바인딩이 다른 로컬 서버와 겹치는 문제를 방지합니다. [404 실패 분석과 재현](docs/auth-test-failure-analysis.md)을 참고합니다.
+
 | 테스트                           | 검증                                                                     |
 | -------------------------------- | ------------------------------------------------------------------------ |
 | `src/config/environment.spec.ts` | 환경변수·접속 주소 검증                                                  |
@@ -104,6 +108,8 @@ npm run check
 | `test/database.e2e-spec.ts`      | 실제 저장·조회, 부분 기록, 단위·연령·값 제약, 동시 삭제, 카탈로그 불변성 |
 | `test/measurements.e2e-spec.ts`  | 측정 CRUD·소유권·재시도 중복 방지·수정 충돌·삭제·페이지 조회             |
 | `test/app.e2e-spec.ts`           | 서버 초기화, CORS, 상태 확인·503 응답                                    |
+
+추가 평가 검증: `src/measurements/evaluation/measurement-evaluator.spec.ts`의 공식 경계·방향·연령·출처·미평가·6축·목표값 검사, `test/measurement-evaluation.e2e-spec.ts`의 간이측정 저장·최신 회차·기존 데이터·온보딩 회귀 검사. [검증 결과](docs/measurement-evaluation-verification.md)를 참고합니다.
 
 추가 PostgreSQL 통합 테스트:
 

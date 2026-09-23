@@ -26,7 +26,7 @@ Prisma 관계를 통한 조회는 비밀번호 필드를 포함할 수 있다. �
 
 Prisma가 표현하지 못하는 제약은 마이그레이션 SQL에 있다. 측정 당시 연령, 정수 횟수, 숫자 범위, 유한 숫자, 최소 한 항목을 검증한다. 부모와 항목을 같은 트랜잭션에서 만들 수 있도록 일부 제약은 커밋 시 검증한다. 항목 변경은 부모를 잠가 동시 삭제로 빈 기록이 생기지 않도록 한다. 트랜잭션의 중간에 항목을 교체할 수 있지만 최종 빈 기록은 커밋할 수 없다.
 
-측정 수정 API는 `If-Match`와 현재 revision을 비교하고 전체 변경과 같은 트랜잭션에서 revision을 증가시킨다. 생성은 사용자별 요청 키로 중복을 막고, 모든 개인 기록 조회·변경은 인증된 사용자 ID로 제한한다. Decimal 값은 API에서도 문자열로 처리한다. [측정 API 계약](measurements-api.md)을 참고한다. 실제 분석 결과 적용은 후속 기능이다.
+측정 수정 API는 `If-Match`와 현재 revision을 비교하고 전체 변경과 같은 트랜잭션에서 revision을 증가시킨다. 생성은 사용자별 요청 키로 중복을 막고, 모든 개인 기록 조회·변경은 인증된 사용자 ID로 제한한다. Decimal 값은 API에서도 문자열로 처리한다. [측정 API 계약](measurements-api.md)을 참고한다. 종목별 평가는 `measurement_items.evaluation` JSONB에 입력과 같은 트랜잭션으로 저장한다. null은 기존 미평가 데이터이며 조회만으로 채우지 않는다.
 
 ## 마이그레이션
 
@@ -70,3 +70,11 @@ npm run start:prod
 ## 의존성 고정
 
 Prisma Client·PostgreSQL 어댑터·CLI를 7.10.0으로 맞췄다. 이 버전의 하위 패키지에서 보고된 재귀 병합 및 MySQL 드라이버 취약점 때문에 `@prisma/config`의 `deepmerge-ts`를 8.0.2, Prisma의 `mysql2`를 3.24.4로 제한해 override한다. 현재 서비스 DB는 PostgreSQL이다. 의존성 갱신 시 override 필요성과 공식 지원 범위를 다시 확인하고 스키마 생성·마이그레이션·실제 DB 테스트를 함께 실행한다.
+
+## 2026-09-23 간이측정·평가 마이그레이션
+
+`20260923000100_self_assessment_evaluation`은 등록 방식 enum에 `self_assessment`, 측정 항목에 nullable JSONB `evaluation`을 추가한다. 기존 카탈로그 19개는 유지하고 21개 항목의 `nfa100-2026-09-23`을 추가한다. 기존 기록·원문 등급·계정·요청 키·온보딩은 보존하며 평가 백필이나 과거 일괄 재평가를 실행하지 않는다.
+
+`npm run db:generate` 후 `npm run db:migrate:deploy`로 적용한다. 새 서버 시작 전에 마이그레이션을 완료한다. enum 추가는 PostgreSQL의 새 enum 값 사용 제약 때문에 명시적 트랜잭션 밖에서 실행하고 나머지는 BEGIN/COMMIT으로 적용한다. 운영 DB는 이번 구현 검증에 사용하지 않는다.
+
+기존 deferred validator를 확장하여 self_assessment의 성인 연령·8개 허용 코드, 평가 JSON의 기록 ID·종목 코드·revision 일치를 검사한다. 과거 null 평가는 허용한다. API 수정은 부모 revision 잠금을 획득한 뒤 모든 종목의 평가를 다시 저장한다. 읽기는 Repeatable Read 스냅샷에서 저장된 평가를 반환하므로 기준 코드 변경만으로 과거 결과가 바뀌지 않는다.

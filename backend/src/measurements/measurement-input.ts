@@ -79,6 +79,7 @@ const items = z
 const mutableFields = {
   measuredOn,
   ageAtMeasurement: age,
+  entryMethod: z.enum(['manual', 'self_assessment']),
   sexAtMeasurement: z.enum(['male', 'female']).nullable(),
   reportKind: z.enum(['standard', 'simple', 'unknown']),
   centerName: text(200).nullable(),
@@ -98,6 +99,7 @@ export const measurementMetadataSchemas = {
 const createSchema = z.strictObject({
   ...mutableFields,
   catalogVersion: version,
+  entryMethod: mutableFields.entryMethod.optional().default('manual'),
   sexAtMeasurement: mutableFields.sexAtMeasurement.optional().default(null),
   reportKind: mutableFields.reportKind.optional().default('unknown'),
   centerName: mutableFields.centerName.optional().default(null),
