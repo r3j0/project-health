@@ -2,7 +2,7 @@
 
 모바일 중심의 국민체력100 측정 기록 웹앱입니다. 계정 설정, 기록 CRUD, 사진 추출 확인, 성인 간이측정과 서버 평가를 표시하는 6축 체력 프로필·리포트를 제공합니다. 기존 디자인 토큰과 `메인 / 내 프로필` 하단 메뉴를 유지합니다.
 
-**백엔드 연동 현황과 확정 전 계약은 [연동 문서](BACKEND-INTEGRATION.md)를 먼저 확인하세요.** PR #6의 사진 추출 API는 연결했고, 평가·최신 대표 프로필과 간이측정 저장 지원은 백엔드 구현을 기다립니다. 프론트에 예시 평가를 넣거나 등급을 계산하는 fallback은 없습니다. 이 브랜치의 과거 백엔드 확장은 되돌렸으므로 마이그레이션을 가져오거나 병합할 대상이 아닙니다.
+**실제 백엔드 계약은 [연동 문서](BACKEND-INTEGRATION.md)를 확인하세요.** PR #6의 `70fd83e`를 별도 체크아웃하여 간이측정 저장·종목별 평가·최신 다각형을 연결했습니다. 사진 추출 API도 연결했으며 실제 OpenAI 판독 성공 검증은 키·모델 설정 후 남아 있습니다. 프론트에 예시 평가를 넣거나 등급을 계산하는 fallback은 없습니다. 이 브랜치의 과거 백엔드 확장은 되돌렸으므로 마이그레이션을 가져오거나 병합할 대상이 아닙니다.
 
 ## 화면과 흐름
 
@@ -38,7 +38,7 @@ npm run dev
 
 ## 데이터와 인증
 
-측정 값은 Decimal 문자열로 보내고 공란은 제외합니다. 실제 `0`·음수·긴 소수를 보존합니다. `reportedGrade`는 결과표 원문, `evaluation`은 서버 판정입니다. 프론트가 두 값을 섞지 않습니다.
+측정 값은 Decimal 문자열로 보내고 공란은 제외합니다. 실제 `0`·음수·긴 소수를 보존합니다. `reportedGrade`는 결과표 원문, `items[].evaluation`은 서버의 종목별 판정입니다. 최상위 `evaluation`은 종합 인증 미판정 안내이며 차트 데이터는 `axes`입니다. 프론트가 두 값을 섞지 않습니다.
 
 생성은 작업당 한 `Idempotency-Key`, 수정/삭제는 조회한 ETag의 `If-Match`를 사용합니다. 저장 응답을 잃으면 원래 키·본문을 유지해 재확인합니다. 충돌 때 입력을 보존하고 최신 기록을 확인한 뒤 진행합니다. 인증 만료/로그아웃/계정 전환 뒤 늦은 응답은 무시합니다.
 
@@ -57,11 +57,12 @@ npm run test:e2e
 `check`는 ESLint·TypeScript·단위 테스트·프로덕션 빌드입니다. E2E는 프론트 서버가 별도로 실행 중이어야 합니다.
 
 - 기존 `flows`, `phase-two`, `phase-two-audit`, `phase-two-profile-recovery`, `self-assessment`는 **전용 로컬 DB/API**를 사용합니다. 테스트 계정·기록을 만들고 인증 제한을 유지합니다. 간이측정 E2E는 백엔드의 해당 저장 지원이 필요합니다.
-- 새 `integration-ready`, `photo-extraction`, `fitness-report`, `latest-fitness`, `assessment-auth`는 Playwright HTTP 계약 대역으로 백엔드 준비 전 흐름을 검증합니다. 실제 OCR/등급 판정 검증을 대체하지 않습니다.
+- `fitness-live`는 실제 API 응답으로 직접 입력·6축 등급·부분 간이측정·최신 회차·수정·삭제·온보딩을 검증하며 응답을 대체하지 않습니다. 테스트 계정은 각 시나리오 종료 시 삭제합니다.
+- `integration-ready`, `photo-extraction`, `fitness-report`, `latest-fitness`, `assessment-auth`는 Playwright HTTP 계약 대역으로 오류·경계·취소·동시성을 검증합니다. 평가 fixture는 실제 응답 구조를 따릅니다. 실제 OCR/서버 판정 검증을 대체하지 않습니다.
 - `E2E_BASE_URL`로 프론트 주소, `E2E_API_BASE_URL`로 실제 테스트 API 주소를 지정합니다. API 주소는 프론트 빌드 설정과 같아야 합니다.
 - Chromium 모바일 320px 포함. 실제 iOS/Android 카메라·키보드·소리와 Safari는 별도 확인이 필요합니다.
 
-결과와 한계는 [검증 기록](VERIFICATION.md), API 연결 후 확인 항목은 [연동 문서](BACKEND-INTEGRATION.md)에 있습니다.
+결과와 한계는 [검증 기록](VERIFICATION.md), API 계약과 남은 확인 항목은 [연동 문서](BACKEND-INTEGRATION.md)에 있습니다.
 
 ## 주요 모듈
 
@@ -70,5 +71,6 @@ npm run test:e2e
 - `lib/extraction.ts`, `components/report-photo.tsx`: 사진 추출 응답 검증·확인·등록.
 - `lib/workout.ts`, `components/workout-runner.tsx`: 재사용 가능한 운동 상태 전환과 실행 UI.
 - `lib/assessment.ts`, `components/assessment-workout.tsx`: 성인 절차·원본 값 변환·기록 저장.
-- `lib/fitness-evaluation.ts`: 평가/대표 API 계약 경계와 다각형 좌표. 등급 판정 규칙은 없습니다.
-- `components/fitness-radar.tsx`, `fitness-report.tsx`, `latest-fitness.tsx`: 공통 6축 표시·회차별 상세·최신 대표 조회.
+- `lib/fitness-contract.ts`, `lib/latest-fitness.ts`: 실제 상세 평가·최신 다각형 응답의 검증과 UI 변환.
+- `lib/fitness-evaluation.ts`: 공통 표시 상태·범례·다각형 좌표. 등급 판정 규칙은 없습니다.
+- `components/fitness-radar.tsx`, `fitness-report.tsx`, `fitness-criteria.tsx`, `latest-fitness.tsx`: 공통 6축 표시·회차별 상세·최신 대표 조회.

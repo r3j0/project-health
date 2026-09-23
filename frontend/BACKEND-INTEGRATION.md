@@ -1,120 +1,88 @@
 # 프론트엔드 연동 계약과 남은 확인
 
-확인일: 2026-09-22. 프론트 브랜치 `codex/frontend-phase-two`.
-백엔드 PR [#6](https://github.com/r3j0/project-health/pull/6)은 확인 시점에 OPEN, head `61d46b75a483655fb6618de6478412e4a43b9502`다.
+확인일: 2026-09-24. 프론트 브랜치 `feat/frontend/fitness-onboarding`, PR [#7](https://github.com/r3j0/project-health/pull/7).
+백엔드 PR [#6](https://github.com/r3j0/project-health/pull/6)의 실제 head `70fd83e159b6f8d4b738442f4d735c73c3038215`를 별도 체크아웃하여 연결했다. 이전 임시 백엔드 구현은 사용하지 않는다. 이 프론트 브랜치의 `backend/`를 변경하지 않는다.
 
-**사진 추출은 PR에 공개된 계약으로 구현했다. 아래 평가·대표 프로필의 URL/필드명은 프론트 연동 준비용 제안이며, 백엔드와 확정된 계약으로 간주하면 안 된다.** 실제 백엔드 응답이 공개되면 `lib/fitness-evaluation.ts`에서 맞춘 뒤 실제 통합 검증한다. 운영 UI에 예시 측정값이나 가짜 평가 결과를 주입하지 않는다.
+평가·최신 프로필의 이전 제안 계약은 폐기했다. 아래는 [실제 평가 API 명세](https://github.com/r3j0/project-health/blob/70fd83e159b6f8d4b738442f4d735c73c3038215/backend/docs/measurement-evaluation-api.md)에 연결한 현재 계약이다. 이후 백엔드가 변경되면 어댑터·fixture·실제 API 테스트를 함께 검증한다.
 
-## 현재 공개 API
+## 연결된 API
 
-| 기능                            | 프론트 요청                                                  | 상태                                                 |
-| ------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------- |
-| 계정·온보딩·재화·현재 배정 조회 | `GET /auth/me`                                               | PR #6 제공                                           |
-| 이메일/비밀번호 변경            | `PATCH /users/me`                                            | PR #6 제공, 현재 비밀번호 확인, 성공 후 재로그인     |
-| 회원 탈퇴                       | `DELETE /users/me`                                           | PR #6 제공                                           |
-| 카탈로그·측정 CRUD              | `/measurement-catalog`, `/measurements`, `/measurements/:id` | 제공, 기존 Decimal·부분 저장·소유권·동시성 계약 유지 |
-| 사진 추출                       | `POST /measurements/extract`                                 | PR #6 제공, 프론트 연결 완료                         |
-| 성인 간이측정 값 저장           | `POST /measurements`, `entryMethod: self_assessment`         | PR #6에 아직 미제공                                  |
-| 종목별 평가·6축 대표 등급       | 측정 응답의 `evaluation`                                     | PR #6은 `not_evaluated`만 제공                       |
-| 최신 한 기록의 대표 프로필      | `GET /users/me/fitness-profile` (제안)                       | PR #6에 아직 미제공                                  |
+경로는 `NEXT_PUBLIC_API_BASE_URL` 뒤에 붙으며 기본값은 `http://localhost:3001/api/v1`이다.
 
-경로는 `NEXT_PUBLIC_API_BASE_URL` 뒤에 붙으며 기본값은 `http://localhost:3001/api/v1`이다. 새 API 주소와 실제 JSON 예시가 오면 아래 어댑터와 계약 테스트를 함께 맞춘다. 이 프론트 브랜치에는 백엔드 구현·마이그레이션을 포함하지 않는다.
+| 기능                       | 경로 및 응답                                                                |
+| -------------------------- | --------------------------------------------------------------------------- |
+| 계정·온보딩·재화·현재 배정 | `GET /auth/me`                                                              |
+| 이메일/비밀번호 변경       | `PATCH /users/me`, 현재 비밀번호 확인, 성공 후 재로그인                     |
+| 회원 탈퇴                  | `DELETE /users/me`                                                          |
+| 카탈로그·측정 CRUD         | `/measurement-catalog`, `/measurements`, `/measurements/:id`                |
+| 사진 추출                  | `POST /measurements/extract`                                                |
+| 성인 간이측정 저장         | `POST /measurements`, `entryMethod: self_assessment`, `reportKind: unknown` |
+| 종목별 평가·6축            | 생성·수정·상세 응답의 `items[].evaluation`, 최상위 `axes`                   |
+| 최신 한 회차의 대표 프로필 | `GET /measurements/latest-polygon`                                          |
+
+생성의 `Idempotency-Key`, 수정·삭제의 ETag/`If-Match`, Decimal 문자열, 부분 저장, 소유권과 세션 격리는 기존 흐름을 유지한다. `axes`와 계산된 `evaluation`은 저장 요청에 포함하지 않는다.
 
 ## 사진 추출
 
-[PR의 사진 추출 명세](https://github.com/r3j0/project-health/blob/61d46b75a483655fb6618de6478412e4a43b9502/backend/docs/measurement-extraction-api.md)를 따른다.
+[실제 사진 API 명세](https://github.com/r3j0/project-health/blob/70fd83e159b6f8d4b738442f4d735c73c3038215/backend/docs/measurement-extraction-api.md)를 따른다.
 
-- Bearer 인증, `FormData` 파일 필드 `image` 1장, JPEG/PNG/WebP, 최대 10 MiB. boundary는 브라우저가 작성한다. 클라이언트 제한은 90초(서버 요청 제한 75초, 업로드·전송 여유 15초).
-- 업로드 전에 OpenAI에 사진을 전송한다는 사실을 표시한다. API 키·모델 선택은 백엔드에서 관리한다. 사진 바이트는 브라우저 저장소에 보관하지 않는다.
-- `items`, 메타데이터, 확인 대상 원문을 보여 주고 사용자가 확인·수정한 뒤 기존 저장 API를 호출한다. 추출만으로 기록·온보딩·커리큘럼·대표 프로필을 변경하지 않는다.
-- 혼합 회차·여러 사람·지원 연령 밖 결과는 자동 입력하지 않는다. 미탐지 항목을 실제 미측정으로 단정하지 않는다. 성별·날짜·나이를 계정이나 현재 날짜로 추정하지 않는다.
-- 숫자는 문자열 그대로 보존한다. `evidence`, `reviewItems`, `issues` 등을 저장 본문에 넣지 않는다. `reportKind`는 unknown, 사진 확인 후 저장은 현재 계약대로 manual이며 `entryMethod: ocr`를 보내지 않는다.
-- 취소/화면 이탈 이후 응답을 폐기한다. 429의 `retry_after` 동안 재요청을 막는다. 실패 후 사용자가 직접 입력할 수 있다. 비용이 발생하는 추출을 통신 오류 때문에 자동 재호출하지 않는다.
-- 확인 폼의 `입력 지우고 다른 사진 선택`은 사용자 확인 후 사진 초안만 폐기한다. 저장 중·결과 불확실 상태에서는 재선택을 잠가 원래 생성 요청을 유지한다.
-- 사진 확인 폼 초안은 계정별 `photo` 공간에 보관하여 직접 입력 초안과 분리한다. 새로고침·같은 계정 재로그인 후 값과 검토 메모를 복원한다. 이미지 미리보기는 복원하지 않는다.
+- Bearer 인증, `FormData` 파일 필드 `image` 1장, JPEG/PNG/WebP, 최대 10 MiB. multipart boundary는 브라우저가 작성한다. 프론트 제한은 90초로 서버 75초와 전송 여유를 포함한다.
+- OpenAI 전송을 안내하며 API 키·모델은 백엔드에서 관리한다. 사진 바이트는 브라우저 저장소에 보관하지 않는다.
+- 추출값·메타데이터·확인 대상 원문을 사용자에게 보여 주고 확인·수정 후 저장한다. 추출 자체는 기록·온보딩·커리큘럼을 변경하지 않는다.
+- 혼합 회차·여러 사람·지원 연령 밖 결과를 자동 입력하지 않는다. 성별·나이·날짜를 계정이나 현재 날짜로 추정하지 않는다.
+- 숫자 문자열을 보존하고 `evidence`, `reviewItems`, `issues`는 저장 본문에서 제외한다. 사진 확인 저장은 `manual`이며 `reportKind` 기본값은 `unknown`이다.
+- 취소·화면 이탈 이후 응답 폐기, 429 대기, 오류 후 직접 입력을 지원한다. 비용이 발생하는 추출을 자동 재호출하지 않는다.
+- 사진 확인 초안은 계정별 `photo` 공간에 격리한다. 명시적인 재선택은 사용자 확인 후 사진 초안만 지운다. 저장 중이거나 결과가 불확실하면 원래 요청을 보존한다. 새로고침 시 값과 메모는 복원하지만 사진 미리보기는 복원하지 않는다.
 
 ## 간이측정은 기록 등록의 한 방법
 
-시작점은 항상 `/onboarding`이다. 간이측정을 선택하면 `/workout?mode=assessment`로 들어간다. 기존 `?curriculum=adult-self-assessment-v1` 북마크도 지원한다. 일반 `/workout`은 현재 배정된 운동을 조회한다.
+시작점은 `/onboarding`이며 `/workout?mode=assessment`에서 공용 `WorkoutRunner`로 성인 절차를 실행한다. 기존 `?curriculum=adult-self-assessment-v1` 북마크도 유지한다. 일반 `/workout`은 기존 배정 조회를 유지한다.
 
-정적 성인 측정 정의를 공용 `WorkoutRunner`에 공급한다. 저장은 별도 `AssessmentWorkout` 어댑터에서 수행하며, 커리큘럼 배정·교체·완료 요청을 보내지 않는다. 인증 만료 후에도 mode와 같은 계정의 진행 상황을 복원한다.
+`AssessmentWorkout`이 저장을 담당하며 커리큘럼 배정·교체·완료 요청은 보내지 않는다. 신규 저장은 `entryMethod: self_assessment`, `reportKind: unknown`이다. `simple`은 기관의 공식 간편측정이므로 자동으로 설정하지 않는다. 저장 결과가 미확정인 기존 요청은 키와 본문을 그대로 재전송하며 이 변경 때문에 본문을 다시 작성하지 않는다.
 
-백엔드에 필요한 항목은 `entryMethod: self_assessment`, 성인용 `self_curl_up`, `ymca_recovery_heart_rate`의 카탈로그/저장 지원이다. 맥박 10초 횟수는 프론트에서 ×6하여 bpm으로 보내며 VO₂max 값으로 바꾸지 않는다. 성인 윗몸말아올리기를 청소년 코드로 바꾸지 않는다. 신체정보·체력 항목은 건너뛸 수 있고 실제 값 1개 이상만 저장한다. 기존 사용자 운동 배정은 유지한다.
+- 만 19~64세, 신체정보·체력 항목은 건너뛸 수 있고 실제 값 1개 이상만 저장한다. 빈 값 대신 가짜 0을 넣지 않는다.
+- 성인 `self_curl_up`을 청소년 `curl_up`으로 바꾸지 않는다.
+- YMCA 10초 맥박 횟수는 ×6한 bpm을 보내며 VO₂max로 환산하지 않는다. 실제 카탈로그의 `ymca_recovery_heart_rate`는 양수 Decimal이라 기록 수정에서 소수도 보존한다.
+- BMI는 신장·체중이 모두 있을 때 계산한다. 유연성은 기준선으로부터의 부호 있는 cm다.
+- 인증 만료 후 같은 계정의 mode와 진행을 복원한다. 로그아웃·다른 계정 전환 시 초안을 지운다.
 
-## 평가 응답 제안
+## 종목 평가와 상세 리포트
 
-`POST /measurements`, `PATCH /measurements/:id`, `GET /measurements/:id`에서 같은 revision의 원본과 평가를 반환한다. 저장·평가·대표 등급 선택은 백엔드가 처리한다. 프론트는 `reportedGrade` 원문과 계산된 등급을 분리해서 보여 준다.
+생성·수정·상세 응답의 `items[].evaluation`을 읽는다. 최상위 `evaluation.status: not_evaluated`와 `reason: overall_certification_not_computed`는 종합 인증을 계산하지 않았다는 뜻이므로 종목 리포트를 숨기는 조건으로 쓰지 않는다.
 
-상세 응답 `evaluation`:
+`lib/fitness-contract.ts`가 실제 응답을 검증하고 공통 표시 상태로 변환한다. 프론트에서 등급·대표 종목을 계산하지 않는다. 서버 계산과 결과표 원문 `reportedGrade`/`reportedOverallGrade`를 별도로 표시한다.
 
-| 필드                                   | 형식                                                                 |
-| -------------------------------------- | -------------------------------------------------------------------- |
-| `schemaVersion`, `status`              | `1`, `evaluated` (평가 처리 완료, 모든 축에 등급이 있다는 뜻은 아님) |
-| `measurementId`, `measurementRevision` | 바깥 측정 기록의 id/revision과 동일                                  |
-| `ruleVersion`, `evaluatedAt`           | 판정 기준 버전, ISO 시각                                             |
-| `axes`                                 | 아래 6개 factor가 정확히 한 번씩 등장                                |
-| `items`                                | 종목별 원본 값, 평가 상태·등급·사유와 상세 기준                      |
+| 종목 상태                  | 표시                                  |
+| -------------------------- | ------------------------------------- |
+| `graded`                   | 서버가 반환한 1~3등급                 |
+| `below_standard`           | 기준 미달, 원점 바깥의 가장 작은 고리 |
+| `insufficient_information` | 평가 불가 · 정보 부족, 원점           |
+| `criteria_unavailable`     | 평가 불가 · 기준 없음, 원점           |
+| `not_evaluated`            | 평가 미존재, 원점                     |
 
-축은 12시부터 시계 방향으로 `cardiorespiratory_endurance`(심폐지구력), `strength`(근력), `muscular_endurance`(근지구력), `flexibility`(유연성), `agility`(민첩성), `power`(순발력)다. [국민체력100 성인 인증기준 표](https://nfa.kspo.or.kr/reserve/0/selectMeasureGradeItemListByAgeSe.kspo)의 열 순서를 따른다(2026-09-22 확인).
+상세 기준은 `criterion`의 연령·성별·단위·방향·버전·적용 기간·출처와 `thresholds`, `nextTarget`을 표시한다. `intervals`는 대안(OR), 하나의 interval의 lower/upper는 모두 충족(AND)이며 열린 경계도 보존한다. `adjustments`의 증가/감소 방향, 차이, 경계 초과 필요 여부를 보여 준다. 최고 등급이면 목표를 만들지 않는다. 조건이 두 등급뿐인 항목에 임의 3등급을 추가하지 않는다.
 
-각 축은 `{ factor, status, grade, reason, sourceMeasurementCodes }`이다. `sourceMeasurementCodes`는 그 **회차 안에서** 대표 등급으로 선택된 종목 코드다. 같은 요인의 여러 종목은 백엔드가 가장 좋은 등급을 선택한다(1등급이 2등급보다 좋음). 프론트가 다른 날짜의 값이나 결과표 등급으로 보충하지 않는다.
+동일 수치의 `57.0`과 `57`은 Decimal 비교로 같다고 검증하되 원문 문자열은 표시에서 보존한다. 값·경계를 JavaScript 부동소수점으로 반올림하지 않는다. HTTP(S) 출처만 링크로 사용한다.
 
-| `status`           | `grade`   | 다각형 표시                    |
-| ------------------ | --------- | ------------------------------ |
-| `evaluated`        | 1 / 2 / 3 | 등급이 좋을수록 바깥           |
-| `below_standard`   | null      | 원점보다 바깥의 가장 작은 고리 |
-| `missing_input`    | null      | 원점, 평가 불가·정보 부족      |
-| `unsupported_rule` | null      | 원점, 평가 불가·기준 없음      |
-| `not_measured`     | null      | 원점, 평가 미존재·미측정       |
+검증은 기록 ID·revision·나이·성별·카탈로그·단위·평가 대상, 중복/누락 축, 대표 종목과 평가의 일치를 확인한다. 잘못되거나 부분적으로 누락된 응답은 오류 안내를 보여 주며 원본 기록과 수정·삭제 기능은 유지한다. 평가 필드 자체가 없는 이전 서버 응답도 원본은 읽을 수 있다. 마이그레이션 전 기록의 `not_evaluated`는 미측정·기준 미달과 구분한다.
 
-`reason`은 한국어 설명 또는 null. 평가/기준 미달 축은 반영 종목 코드가 필요하며, 평가 없는 축의 반영 코드 배열은 비어 있다. 평가 가능 종목이 0·1·2개여도 여섯 축·점은 유지하고 시계 방향으로 연결한 후 닫는다. 원점의 0은 화면 좌표이며 DB 등급이 아니다. 고리 위치는 서열 표시이며 100점 점수나 백분위가 아니다.
+## 6축과 최신 한 회차
 
-개별 종목의 1~3등급 임계값과 종합 인증 4~6등급 조건을 구분한다. 이 차트는 종목별 판정용이며 종합 인증서를 발급하거나 판정하지 않는다. 새로운 종목 등급 체계가 합의되면 어댑터·표시 범례·테스트를 함께 변경한다.
+축은 12시부터 시계 방향으로 심폐지구력 → 근력 → 근지구력 → 유연성 → 민첩성 → 순발력이다. `axes[]`의 `axis`, `status`, `grade`, `representativeMeasurementCode`, `measuredMeasurementCodes`, `recordRevision`을 읽는다.
 
-`items[]`는 아래 필드를 갖는다. 전체 TypeScript 형식은 `lib/fitness-evaluation.ts`에 있다.
+- `graded`는 해당 등급 위치, `below_standard`는 최소 고리, `unevaluable`과 `not_measured`는 원점이다. 상세 응답에 같은 원인의 종목 평가가 있으면 원점 사유를 더 자세히 표시한다.
+- 평가 가능한 종목이 0·1·2개여도 여섯 축과 점을 모두 유지하고 시계 방향으로 연결해 닫는다. 좌표 0을 DB의 0등급으로 해석하지 않는다.
+- 같은 축에서 가장 좋은 등급과 대표 종목 선택은 서버 결과를 사용한다. 다른 회차나 원문 등급으로 빈 축을 보충하지 않는다.
 
-- `measurementCode`, `factor`(6축 이외 신체정보 등은 null), `value`(원본 Decimal 문자열 또는 null), `unit`.
-- 위와 동일한 `status`, `grade`, `reason`.
-- `evaluatedValue`: 환산해서 판정한 값이 있다면 `{value, unit}`, 아니면 null. 예를 들어 raw bpm과 판정에 사용한 환산값을 구별한다. 프론트가 환산식을 추정하지 않는다.
-- `criteria`: 없으면 null, 있으면 `ageMin`, `ageMax`, `sex`, `direction`(`higher_is_better`/`lower_is_better`), `unit`, `thresholds`, `nextGrade`, `sources`.
-- `thresholds[]`: `{ grade, value: Decimal문자열, inclusive: boolean }`. 경계 포함 여부까지 표시한다.
-- `nextGrade`: `{grade, value, gap}` 또는 null. 기준값·현재 값과의 차이는 백엔드 값을 그대로 표시한다.
-- `sources[]`: `{title, url}`. HTTP(S) 출처만 링크로 표시한다.
+`lib/latest-fitness.ts`는 `/measurements/latest-polygon`의 `measurementId`, `measuredOn`, `revision`, `axes`를 읽는다. 상세 종목·기준 필드는 요구하지 않는다. 기록이 없으면 식별 필드 세 개가 모두 null이고, revision이 null인 미측정 축 여섯 개가 있어야 한다. 404/501·잘못된 응답·통신 오류를 빈 기록으로 처리하지 않는다.
 
-상세 어댑터는 id/revision 불일치, 원본과 다른 값·단위, 중복 축·종목, 알려지지 않은 등급, 대표 종목과 축의 불일치를 거부한다. 오류가 있어도 저장된 원본·수정·삭제는 사용할 수 있다. 기존 `{status: "not_evaluated", reason: "evaluation_not_implemented"}` 응답은 미평가 안내로 표시한다. 과거 기록 재평가 정책은 이번 범위에서 정하지 않는다.
+메인·계정에서 측정 저장/수정/삭제, 다른 탭 변경, 창 복귀 후 다시 조회한다. 조회 중에는 이전 차트를 숨기고 늦은 응답을 폐기한다. 현재 서버의 최신 선정은 `measuredOn DESC, id ASC`다. 같은 날 마지막으로 저장한 기록이 반드시 대표가 되는 것은 아니며 프론트에서 정렬을 바꾸지 않는다.
 
-## 최신 대표 프로필 제안
+## 검증과 남은 사항
 
-`GET /users/me/fitness-profile`은 로그인한 사용자의 최신 **측정 회차 하나**를 반환한다. 종목별로 다른 날짜를 찾아 합치는 방식은 사용하지 않는다. 최신 회차 판정과 같은 날짜의 정렬 규칙은 백엔드 계약으로 고정해야 한다. 프론트가 목록 첫 줄을 대신 사용하지 않는다.
+`npm run check`, `npm run format:check`, 실제 API를 실행한 상태에서 `npm run test:e2e`로 검증한다. `fitness-live`는 실제 응답으로 등록 → 상세 → 메인/계정 → 수정 → 삭제를 검사한다. `fitness-report`와 `latest-fitness`는 실제 구조의 fixture로 잘못된 응답·경계·동시성을 검사한다. 상세 결과는 [검증 기록](VERIFICATION.md)에 있다.
 
-```json
-{
-  "measurement": {
-    "id": "00000000-0000-4000-8000-000000000004",
-    "revision": 1,
-    "measuredOn": "2026-09-01"
-  },
-  "evaluation": {
-    "schemaVersion": 1,
-    "status": "evaluated",
-    "measurementId": "00000000-0000-4000-8000-000000000004",
-    "measurementRevision": 1,
-    "ruleVersion": "서버 기준 버전",
-    "evaluatedAt": "2026-09-01T01:00:00Z",
-    "axes": []
-  }
-}
-```
-
-위 `axes: []`는 문서 축약이며 실제 응답에는 반드시 6개 축이 필요하다. 대표 API는 상세 종목·기준 전체를 보낼 필요 없이 이 요약만 제공하면 된다. 전체 예시는 테스트 전용 `tests/fixtures/fitness.ts`의 축을 참고한다. 그 파일의 임계값은 합성 테스트 데이터이며 실제 판정 규칙이 아니다.
-
-기록이 없으면 `200 {"measurement":null,"evaluation":null}`. 기능 미구현의 404/501, 통신 실패, 레거시 미평가는 각각 구분한다. 메인·내 프로필은 저장/수정/삭제, 다른 탭 변경, 창 복귀 시 재조회하고 조회 중 이전 차트를 숨긴다. 늦은 응답이 현재 사용자나 수정 후 결과를 덮어쓸 수 없다.
-
-## 실제 백엔드 연결 후 완료할 검증
-
-1. 확정 URL·응답 예시·상태 코드를 어댑터와 계약 fixture에 함께 반영한다.
-2. 사진 → 추출 → 사용자 확인 → 실제 저장 → 원본/평가/온보딩 조회. 추출만으로 DB 기록이 늘지 않아야 한다.
-3. 같은 factor의 두 종목에서 최고 등급 선택, 부분 입력·실제 0·음수·나이/성별 부족·기준 미지원. 다각형은 항상 6개 축이다.
-4. 기록 수정 후 평가와 revision/ETag 일치, 최신 기록의 날짜 변경/삭제 후 대표 회차 갱신. 다른 사용자의 정보에 접근할 수 없어야 한다.
-5. 간이측정 저장 전후 `currentCurriculum` 동일, 생성 키 재시도에 기록/평가가 중복되지 않음.
-6. 실제 OpenAI 키·모델·사용 가능한 결과지 표본으로 인식 품질을 검증한다. 프론트 계약 테스트가 실제 사진 판독 품질을 보장하지 않는다.
+1. 같은 측정일에 마지막 등록순으로 대표를 선택하려면 백엔드의 목록·최신 조회 정렬 정책을 함께 합의해야 한다.
+2. `self_curl_up`과 YMCA bpm은 현재 서버에서 호환 공식 기준 미확보로 반환한다. 값은 저장하고 평가 불가 사유를 표시한다. 등급 제공에는 서버 기준 데이터 확보가 필요하다.
+3. 실제 OpenAI 키·모델과 결과지로 사진 인식 성공·품질을 검증해야 한다. 현재 환경에서는 미설정 503 안내와 직접 입력 전환까지 검증했다. 계약 대역의 추출 성공은 실물 판독 검증이 아니다.
+4. 실제 iOS/Android 카메라·키보드·음향과 Safari는 별도 확인 범위다.
