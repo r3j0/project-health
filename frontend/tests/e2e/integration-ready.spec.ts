@@ -23,6 +23,7 @@ test("간이측정 등록은 기존 사용자 커리큘럼을 보존한다", asy
     ["POST", "/measurements"],
   ]);
   expect(server.record?.entryMethod).toBe("self_assessment");
+  expect(server.record?.reportKind).toBe("unknown");
   await page.goto("/workout");
   await expect(
     page.getByRole("heading", { name: "내 기존 운동" }),

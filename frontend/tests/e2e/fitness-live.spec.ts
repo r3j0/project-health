@@ -1,9 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
+import { prepareAssessment, skipToFlexibility } from "./workout-helpers";
 const api = process.env.E2E_API_BASE_URL ?? "http://localhost:3001/api/v1";
 const password = "fitness-live-test-2026!";
 const today = () =>
   new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
 let headers: Record<string, string>, version: string;
+let pageErrors: string[];
 const examples = [
   ["왕복오래달리기(20m)", "44", "shuttle_run_20m", "회"],
   ["상대악력", "51.6", "relative_grip_strength", "%"],
@@ -14,6 +16,8 @@ const examples = [
 ];
 // These scenarios use real HTTP responses, never route.fulfill or grade fixtures.
 test.beforeEach(async ({ page }) => {
+  pageErrors = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
   headers = {
     Origin: new URL(test.info().project.use.baseURL as string).origin,
     "X-CSRF-Protection": "1",
@@ -39,6 +43,7 @@ test.afterEach(async ({ page }) => {
     });
     expect(removed.status()).toBe(204);
   }
+  expect(pageErrors).toEqual([]);
 });
 async function add(page: Page, label: string, value: string) {
   await page
@@ -259,4 +264,59 @@ test("실제 API: 메인·계정은 최신 한 회차만 표시하고 수정·�
     page.getByRole("heading", { name: "내 체력 기록부터 시작해요" }),
   ).toBeVisible();
   await expect(page.locator(".radar-point")).toHaveCount(0);
+});
+
+test("실제 API: 간이측정은 기관 결과표와 구분하고 부분 기록·평가·온보딩을 저장한다", async ({
+  page,
+}) => {
+  const before = await page.request.get(`${api}/auth/me`, { headers });
+  const profile = await before.json();
+  await page.goto("/onboarding");
+  await page.getByRole("link", { name: "간이측정 시작하기" }).click();
+  await page.getByLabel("성별 (선택)").selectOption("male");
+  await prepareAssessment(page);
+  await skipToFlexibility(page);
+  await page.getByLabel("기준선에서 도달한 거리 (cm)").fill("10.1");
+  await page.getByRole("button", { name: "결과 확인", exact: true }).click();
+  const waiting = page.waitForResponse(
+    (r) => r.url() === `${api}/measurements` && r.request().method() === "POST",
+  );
+  await page
+    .getByRole("button", { name: "측정 기록 저장", exact: true })
+    .click();
+  const response = await waiting;
+  expect(response.status()).toBe(201);
+  expect(response.request().postDataJSON()).toMatchObject({
+    entryMethod: "self_assessment",
+    reportKind: "unknown",
+    items: [{ measurementCode: "sit_and_reach", value: "10.1", unit: "cm" }],
+  });
+  const saved = await response.json();
+  expect(saved).toMatchObject({
+    entryMethod: "self_assessment",
+    reportKind: "unknown",
+  });
+  expect(saved.items).toHaveLength(1);
+  await page.getByRole("link", { name: "측정 기록 보기", exact: true }).click();
+  await expect(page.locator(".radar-point")).toHaveCount(6);
+  await expect(page.locator('.radar-point[cx="180"][cy="158"]')).toHaveCount(5);
+  await expect(page.locator(".radar-legend dd").nth(3)).toHaveText("2등급");
+  await page.getByRole("link", { name: "기록 수정", exact: true }).click();
+  await page.getByRole("button", { name: "변경", exact: true }).click();
+  await page.getByText("추가 정보", { exact: false }).click();
+  await expect(page.getByLabel("측정 당시 성별")).toHaveValue("male");
+  await expect(page.getByLabel("측정 유형", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("측정 센터", { exact: true })).toHaveCount(0);
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "내 체력 기록부터 시작해요" }),
+  ).toHaveCount(0);
+  await expect(
+    page.locator(".latest-fitness .radar-legend dd").nth(3),
+  ).toHaveText("2등급");
+  const after = await page.request.get(`${api}/auth/me`, { headers });
+  expect(await after.json()).toMatchObject({
+    isOnboarded: true,
+    currentCurriculum: profile.currentCurriculum,
+  });
 });

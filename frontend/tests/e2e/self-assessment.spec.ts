@@ -108,13 +108,16 @@ test("교차 윗몸일으키기와 YMCA의 실제 시간·맥박 환산·저장�
   const record = await page.request.get(`${api}/measurements/${id}`, {
     headers: { Authorization: `Bearer ${account.access_token}` },
   });
+  const saved = await record.json();
+  expect(saved).toMatchObject({
+    entryMethod: "self_assessment",
+    reportKind: "unknown",
+  });
   expect(
-    (await record.json()).items.map(
-      (i: { measurementCode: string; value: string }) => [
-        i.measurementCode,
-        i.value,
-      ],
-    ),
+    saved.items.map((i: { measurementCode: string; value: string }) => [
+      i.measurementCode,
+      i.value,
+    ]),
   ).toEqual([
     ["cross_sit_up", "0"],
     ["sit_and_reach", "-2.5"],
@@ -122,11 +125,27 @@ test("교차 윗몸일으키기와 YMCA의 실제 시간·맥박 환산·저장�
   ]);
   await page.getByRole("link", { name: "기록 수정" }).click();
   await expect(page.getByText("항목별 결과표 등급")).toHaveCount(0);
-  await page
-    .getByLabel("YMCA 스텝검사 회복 심박수", { exact: true })
-    .fill("96");
+  await page.getByLabel("YMCA 회복 심박수", { exact: true }).fill("96.5");
   await page.getByRole("button", { name: "수정 내용 저장" }).click();
   await expect(page).toHaveURL(/saved=1/);
+  const changed = await page.request.get(`${api}/measurements/${id}`, {
+    headers: { Authorization: `Bearer ${account.access_token}` },
+  });
+  expect(await changed.json()).toMatchObject({
+    entryMethod: "self_assessment",
+    reportKind: "unknown",
+    revision: 2,
+    items: expect.arrayContaining([
+      {
+        ...saved.items.find(
+          (item: { measurementCode: string }) =>
+            item.measurementCode === "ymca_recovery_heart_rate",
+        ),
+        value: "96.5",
+        evaluation: expect.objectContaining({ recordRevision: 2 }),
+      },
+    ]),
+  });
   await page.getByRole("link", { name: "메인", exact: true }).click();
   await expect(
     page.getByRole("link", { name: "내 측정 기록 보기", exact: true }),

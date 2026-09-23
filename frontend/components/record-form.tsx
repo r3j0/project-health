@@ -622,11 +622,15 @@ export function RecordForm({
                   추가 정보 <span className="optional-label">(선택)</span>
                 </summary>
                 <p className="caption summary-hint">
-                  성별 · 측정 유형 · 센터 · 결과표 종합등급
+                  {selfAssessment
+                    ? "측정 당시 성별"
+                    : "성별 · 측정 유형 · 센터 · 결과표 종합등급"}
                 </p>
                 <div className="stack">
                   <div className="field">
-                    <label htmlFor="sex">결과표의 성별</label>
+                    <label htmlFor="sex">
+                      {selfAssessment ? "측정 당시 성별" : "결과표의 성별"}
+                    </label>
                     <select
                       id="sex"
                       value={meta.sex}
@@ -637,29 +641,33 @@ export function RecordForm({
                       <option value="female">여성</option>
                     </select>
                   </div>
-                  <div className="field">
-                    <label htmlFor="kind">측정 유형</label>
-                    <select
-                      id="kind"
-                      disabled={selfAssessment}
-                      value={meta.kind}
-                      onChange={(e) =>
-                        update("kind", e.target.value as FormMetadata["kind"])
-                      }
-                    >
-                      <option value="unknown">모름 / 선택 안 함</option>
-                      <option value="standard">일반 체력측정</option>
-                      <option value="simple">
-                        {selfAssessment ? "성인 간이측정" : "공식 간편측정"}
-                      </option>
-                    </select>
-                  </div>
-                  {textField(
-                    "center",
-                    "측정 센터",
-                    "center",
-                    200,
-                    "centerName",
+                  {!selfAssessment && (
+                    <>
+                      <div className="field">
+                        <label htmlFor="kind">측정 유형</label>
+                        <select
+                          id="kind"
+                          value={meta.kind}
+                          onChange={(e) =>
+                            update(
+                              "kind",
+                              e.target.value as FormMetadata["kind"],
+                            )
+                          }
+                        >
+                          <option value="unknown">모름 / 선택 안 함</option>
+                          <option value="standard">일반 체력측정</option>
+                          <option value="simple">공식 간편측정</option>
+                        </select>
+                      </div>
+                      {textField(
+                        "center",
+                        "측정 센터",
+                        "center",
+                        200,
+                        "centerName",
+                      )}
+                    </>
                   )}
                   {!selfAssessment &&
                     textField(
@@ -670,8 +678,9 @@ export function RecordForm({
                       "reportedOverallGrade",
                     )}
                   <p className="caption">
-                    결과표에 적힌 그대로 입력해 주세요. 서비스가 계산한 등급이
-                    아니에요.
+                    {selfAssessment
+                      ? "측정 당시 성별은 등급 판정에 사용돼요."
+                      : "결과표에 적힌 그대로 입력해 주세요. 서비스가 계산한 등급이 아니에요."}
                   </p>
                 </div>
               </details>

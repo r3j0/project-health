@@ -148,7 +148,9 @@ test("an unresolved save retains its exact idempotency key/body after ordinary e
     d.pending = {
       key: "12345678-1234-1234-1234-123456789012",
       body: JSON.stringify({
+        // An old in-flight request must not be rewritten after a contract update.
         entryMethod: "self_assessment",
+        reportKind: "simple",
         catalogVersion: "test",
         items: [{ measurementCode: "height", value: "170", unit: "cm" }],
       }),

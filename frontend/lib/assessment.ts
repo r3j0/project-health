@@ -227,7 +227,7 @@ export function assessmentInput(
       measuredOn: setup.measuredOn,
       age: setup.age,
       sex: setup.sex,
-      kind: "simple",
+      kind: "unknown",
       center: "",
       grade: "",
     },

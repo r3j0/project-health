@@ -150,6 +150,7 @@ test("save payload has only measured values and separate pulse units; no fabrica
   const built = assessmentInput(setup, state, catalog, "2026-09-21");
   assert.deepEqual(built.errors, {});
   assert.equal(built.input.entryMethod, "self_assessment");
+  assert.equal(built.input.reportKind, "unknown");
   assert.deepEqual(
     built.input.items.map((i) => [i.measurementCode, i.value]),
     [
