@@ -7,7 +7,7 @@ import {
   latestFitnessPath,
   parseLatestFitness,
   type LatestFitnessProfile,
-} from "@/lib/fitness-evaluation";
+} from "@/lib/latest-fitness";
 import { displayDate } from "@/lib/measurements";
 import { FitnessRadar } from "./fitness-radar";
 import { useSession } from "./session-provider";
@@ -76,13 +76,7 @@ export function LatestFitness() {
             {displayDate(state.data.measurement.measuredOn)} · 최신 측정 기록
             기준
           </p>
-          {state.data.evaluation ? (
-            <FitnessRadar axes={state.data.evaluation.axes} />
-          ) : (
-            <Notice tone="info">
-              이 기록의 평가 결과는 아직 제공되지 않았어요.
-            </Notice>
-          )}
+          <FitnessRadar axes={state.data.axes} />
           <Link
             className="text-link"
             href={`/measurements/${state.data.measurement.id}`}

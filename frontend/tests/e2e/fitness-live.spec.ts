@@ -173,3 +173,90 @@ test("실제 API: 미측정·정보 부족·기준 미확보·0회·음수를 �
   );
   await expect(page.locator('.radar-point[cx="180"][cy="158"]')).toHaveCount(6);
 });
+
+test("실제 API: 메인·계정은 최신 한 회차만 표시하고 수정·삭제 후 갱신한다", async ({
+  page,
+}, info) => {
+  const yesterday = new Date(Date.now() + 9 * 3600000 - 86400000)
+    .toISOString()
+    .slice(0, 10);
+  const older = await seed(page, { measuredOn: yesterday });
+  const partial = await seed(page, {
+    entryMethod: "self_assessment",
+    items: [{ measurementCode: "sit_and_reach", value: "10.1", unit: "cm" }],
+  });
+  for (const path of ["/", "/account"]) {
+    await page.goto(path);
+    await expect(page.locator(".latest-fitness .radar-point")).toHaveCount(6);
+    await expect(
+      page.locator('.latest-fitness .radar-point[cx="180"][cy="158"]'),
+    ).toHaveCount(5);
+    await expect(page.locator(".latest-fitness .radar-legend dd")).toHaveText([
+      "평가 미존재 · 미측정",
+      "평가 미존재 · 미측정",
+      "평가 미존재 · 미측정",
+      "2등급",
+      "평가 미존재 · 미측정",
+      "평가 미존재 · 미측정",
+    ]);
+    await expect(
+      page.getByRole("link", { name: "이 기록의 상세 리포트 보기" }),
+    ).toHaveAttribute("href", `/measurements/${partial.id}`);
+  }
+  await page.screenshot({
+    path: info.outputPath("real-latest-partial.png"),
+    fullPage: true,
+  });
+  await page.getByRole("link", { name: "이 기록의 상세 리포트 보기" }).click();
+  await page.getByRole("link", { name: "기록 수정", exact: true }).click();
+  await page.getByLabel("앉아윗몸앞으로굽히기", { exact: true }).fill("14.9");
+  await page.getByRole("button", { name: "수정 내용 저장" }).click();
+  await expect(page).toHaveURL(/saved=1/);
+  await page
+    .getByRole("navigation", { name: "하단 메뉴" })
+    .getByRole("link", { name: "메인", exact: true })
+    .click();
+  await expect(
+    page.locator(".latest-fitness .radar-legend dd").nth(3),
+  ).toHaveText("1등급");
+  await page.getByRole("link", { name: "이 기록의 상세 리포트 보기" }).click();
+  await page.getByRole("button", { name: "기록 삭제", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "기록 삭제", exact: true })
+    .click();
+  await expect(page).toHaveURL("/measurements");
+  await page
+    .getByRole("navigation", { name: "하단 메뉴" })
+    .getByRole("link", { name: "메인", exact: true })
+    .click();
+  await expect(page.locator(".latest-fitness .radar-legend dd")).toHaveText([
+    "2등급",
+    "3등급",
+    "1등급",
+    "2등급",
+    "2등급",
+    "1등급",
+  ]);
+  await expect(
+    page.getByRole("link", { name: "이 기록의 상세 리포트 보기" }),
+  ).toHaveAttribute("href", `/measurements/${older.id}`);
+  const removed = await page.request.delete(`${api}/measurements/${older.id}`, {
+    headers: { ...headers, "If-Match": '"1"' },
+  });
+  expect(removed.status()).toBe(204);
+  const empty = await page.request.get(`${api}/measurements/latest-polygon`, {
+    headers,
+  });
+  expect(empty.status()).toBe(200);
+  expect(await empty.json()).toMatchObject({
+    measurementId: null,
+    measuredOn: null,
+    revision: null,
+  });
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "내 체력 기록부터 시작해요" }),
+  ).toBeVisible();
+  await expect(page.locator(".radar-point")).toHaveCount(0);
+});

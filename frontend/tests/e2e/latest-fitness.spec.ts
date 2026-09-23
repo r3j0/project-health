@@ -1,84 +1,39 @@
 import { test, expect } from "@playwright/test";
-import { installApi, testRecord, testUser } from "./integration-fixtures";
-import { evaluatedFixture, recordIdentity } from "../fixtures/fitness";
-
-test("대표 프로필은 최신 한 기록만 사용하고 수정·삭제 후 다시 조회한다", async ({
-  page,
-}) => {
-  const server = await installApi(
-    page,
-    testRecord({ evaluation: evaluatedFixture() }),
-  );
-  let reads = 0;
-  await page.route("**/users/me/fitness-profile", (route) => {
-    reads++;
-    const r = server.record;
-    // Model backend atomic evaluation of the current record, not a frontend fallback.
-    const e = evaluatedFixture();
-    if (r) {
-      e.measurementRevision = r.revision;
-      e.items[0].value = r.items[0].value;
-    }
-    const { items, ...summary } = e;
-    expect(items).toHaveLength(1);
-    return route.fulfill({
-      json: {
-        measurement: r
-          ? { id: r.id, revision: r.revision, measuredOn: r.measuredOn }
-          : null,
-        evaluation: r ? summary : null,
-      },
-    });
-  });
-  await page.goto("/");
-  await expect(page.locator(".latest-fitness .radar-point")).toHaveCount(6);
-  await expect(page.locator(".latest-fitness")).toContainText(
-    "2026년 9월 1일 · 최신 측정 기록 기준",
-  );
-  await page.getByRole("link", { name: "이 기록의 상세 리포트 보기" }).click();
-  await expect(page).toHaveURL(`/measurements/${recordIdentity.id}`);
-  await page.getByRole("link", { name: "기록 수정", exact: true }).click();
-  await page.getByLabel("앉아 윗몸 앞으로 굽히기", { exact: true }).fill("0");
-  await page.getByRole("button", { name: "수정 내용 저장" }).click();
-  await expect(page).toHaveURL(/saved=1/);
-  expect(server.record?.revision).toBe(2);
-  const before = reads;
-  await page
-    .getByRole("navigation", { name: "하단 메뉴" })
-    .getByRole("link", { name: "메인", exact: true })
-    .click();
-  await expect(page.locator(".latest-fitness .radar-point")).toHaveCount(6);
-  expect(reads).toBeGreaterThan(before);
-  await page.getByRole("link", { name: "이 기록의 상세 리포트 보기" }).click();
-  await page.getByRole("button", { name: "기록 삭제", exact: true }).click();
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "기록 삭제", exact: true })
-    .click();
-  await expect(page).toHaveURL("/measurements");
-  await page
-    .getByRole("navigation", { name: "하단 메뉴" })
-    .getByRole("link", { name: "메인", exact: true })
-    .click();
-  await expect(
-    page.getByRole("heading", { name: "내 체력 기록부터 시작해요" }),
-  ).toBeVisible();
-  await expect(page.locator(".radar-point")).toHaveCount(0);
-  expect(server.mutations.map((m) => m.method)).toEqual(["PATCH", "DELETE"]);
+import { installApi, testUser } from "./integration-fixtures";
+import {
+  storedRecordFixture,
+  storedCatalogFixture,
+  recordIdentity,
+} from "../fixtures/measurement-evaluation";
+const polygon = () => ({
+  measurementId: recordIdentity.id,
+  revision: 1,
+  measuredOn: recordIdentity.measuredOn,
+  axes: storedRecordFixture().axes,
+});
+const empty = () => ({
+  measurementId: null,
+  revision: null,
+  measuredOn: null,
+  axes: storedRecordFixture().axes.map((a) => ({
+    ...a,
+    status: "not_measured",
+    grade: null,
+    representativeMeasurementCode: null,
+    measuredMeasurementCodes: [],
+    recordRevision: null,
+  })),
 });
 
-test("대표 API 미연결과 빈 기록을 구분하고 다른 기록으로 보충하지 않는다", async ({
+test("대표 API 미연결과 실제 계약의 빈 기록을 구분하고 재시도한다", async ({
   page,
 }) => {
-  await installApi(page, testRecord());
+  await installApi(page, storedRecordFixture(), storedCatalogFixture);
   await page.goto("/");
   await expect(page.getByText(/체력 프로필을 준비 중이에요/)).toBeVisible();
   await expect(page.locator(".radar-point")).toHaveCount(0);
-  await expect(
-    page.getByRole("link", { name: "내 측정 기록 보기", exact: true }),
-  ).toBeVisible();
-  await page.route("**/users/me/fitness-profile", (route) =>
-    route.fulfill({ json: { measurement: null, evaluation: null } }),
+  await page.route("**/measurements/latest-polygon", (route) =>
+    route.fulfill({ json: empty() }),
   );
   await page.getByRole("button", { name: "체력 프로필 다시 확인" }).click();
   await expect(
@@ -86,26 +41,20 @@ test("대표 API 미연결과 빈 기록을 구분하고 다른 기록으로 보
   ).toBeVisible();
   await expect(page.locator(".radar-point")).toHaveCount(0);
 });
-
-test("다른 탭에서 기록을 변경하면 이전 차트를 즉시 숨기고 늦은 응답을 버린다", async ({
+test("다른 탭의 기록 변경은 이전 차트를 숨기고 늦게 도착한 응답을 버린다", async ({
   page,
 }) => {
-  await installApi(page, testRecord({ evaluation: evaluatedFixture() }));
+  await installApi(page, storedRecordFixture(), storedCatalogFixture);
   let count = 0;
   let release = () => {};
   const held = new Promise<void>((resolve) => {
     release = resolve;
   });
-  await page.route("**/users/me/fitness-profile", async (route) => {
+  await page.route("**/measurements/latest-polygon", async (route) => {
     const index = ++count;
     if (index === 2) await held;
     await route
-      .fulfill({
-        json:
-          index < 3
-            ? { measurement: recordIdentity, evaluation: evaluatedFixture() }
-            : { measurement: null, evaluation: null },
-      })
+      .fulfill({ json: index < 3 ? polygon() : empty() })
       .catch(() => {});
   });
   await page.goto("/");
@@ -132,4 +81,21 @@ test("다른 탭에서 기록을 변경하면 이전 차트를 즉시 숨기고 
   ).toBeVisible();
   release();
   await expect(page.locator(".radar-point")).toHaveCount(0);
+});
+test("대표 응답의 revision 불일치는 잘못된 다각형 대신 재시도로 복구한다", async ({
+  page,
+}) => {
+  await installApi(page, storedRecordFixture(), storedCatalogFixture);
+  let corrected = false;
+  await page.route("**/measurements/latest-polygon", (route) =>
+    route.fulfill({ json: { ...polygon(), revision: corrected ? 1 : 2 } }),
+  );
+  await page.goto("/account");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
+    "평가 응답을 확인하지 못했어요",
+  );
+  await expect(page.locator(".radar-point")).toHaveCount(0);
+  corrected = true;
+  await page.getByRole("button", { name: "체력 프로필 다시 확인" }).click();
+  await expect(page.locator(".radar-point")).toHaveCount(6);
 });
