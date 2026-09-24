@@ -77,11 +77,11 @@
 
 `lib/latest-fitness.ts`는 `/measurements/latest-polygon`의 `measurementId`, `measuredOn`, `revision`, `axes`를 읽는다. 상세 종목·기준 필드는 요구하지 않는다. 기록이 없으면 식별 필드 세 개가 모두 null이고, revision이 null인 미측정 축 여섯 개가 있어야 한다. 404/501·잘못된 응답·통신 오류를 빈 기록으로 처리하지 않는다.
 
-메인·계정에서 측정 저장/수정/삭제, 다른 탭 변경, 창 복귀 후 다시 조회한다. 조회 중에는 이전 차트를 숨기고 늦은 응답을 폐기한다. 현재 서버의 대표 선정은 `measuredOn DESC, createdAt DESC, id ASC`다. 목록 정렬은 `measuredOn DESC, id ASC`로 남아 있어 같은 날 첫 목록 항목과 대표 기록이 다를 수 있다. 프론트에서 응답 순서를 임의로 바꾸지 않는다.
+계정의 체력 프로필은 측정 저장/수정/삭제, 다른 탭 변경, 창 복귀 후 다시 조회한다. 조회 중에는 이전 차트를 숨기고 늦은 응답을 폐기한다. 현재 서버의 대표 선정은 `measuredOn DESC, createdAt DESC, id ASC`다. 목록 정렬은 `measuredOn DESC, id ASC`로 남아 있어 같은 날 첫 목록 항목과 대표 기록이 다를 수 있다. 프론트에서 응답 순서를 임의로 바꾸지 않는다.
 
 ## 검증과 남은 사항
 
-`npm run check`, `npm run format:check`, 실제 API를 실행한 상태에서 `npm run test:e2e`로 검증한다. `fitness-live`는 실제 응답으로 등록 → 상세 → 메인/계정 → 수정 → 삭제를 검사한다. `fitness-report`와 `latest-fitness`는 실제 구조의 fixture로 잘못된 응답·경계·동시성을 검사한다. 상세 결과는 [검증 기록](VERIFICATION.md)에 있다.
+`npm run check`, `npm run format:check`, 실제 API를 실행한 상태에서 `npm run test:e2e`로 검증한다. `fitness-live`는 실제 응답으로 등록 → 상세 → 내 프로필 → 수정 → 삭제를 검사한다. `fitness-report`와 `latest-fitness`는 실제 구조의 fixture로 잘못된 응답·경계·동시성을 검사한다. 상세 결과는 [검증 기록](VERIFICATION.md)에 있다.
 
 1. 백엔드 목록과 대표 조회의 같은 날짜 정렬 순서가 다르다. 목록과 대표의 일관성은 별도 정렬 계약 작업이다.
 2. 성인 YMCA bpm은 아래 환산 계약으로 참고 평가한다. 센터의 측정 정확도와 동일하다고 표시하지 않는다. 성인 `self_curl_up`의 신규 등록은 제거했으며 과거 기록의 평가 사유는 서버 응답대로 표시한다.
@@ -112,5 +112,5 @@
 - `evaluation.conversion`은 기존 악력 환산과 구분되는 `nfa100-adult-step-vo2max-v1`이다. `measurementCode: step_test_vo2max`, `unit: ml/kg/min`, 양수 Decimal value, 원본 맥박·신장·체중 inputs, 같은 기록의 성별·나이, `assessmentKind: reference`, `protocol: nfa100-self-step-30cm-96bpm-180s-rest60s-pulse10s-v1` 및 출처 URL을 검증한다.
 - 원본·환산 입력 불일치, 잘못된 단위/공식/측정 방식, 누락된 근거가 있으면 평가 응답 오류를 표시한다. 기존 환산 전 YMCA 스냅샷은 원래 평가 불가 사유와 원본으로 읽는다.
 - 상세에는 bpm 원본, 추정 VO₂max, 남녀별 공식과 측정 당시 입력, 참고 등급, VO₂max 기준 및 다음 목표를 표시한다. 등급 판정은 서버에 맡기며 표시용 소수 축약으로 다시 판정하지 않는다.
-- 6축 집계는 서버 응답을 그대로 따른다. 대표가 YMCA일 때 메인·계정·상세 다각형에 자가측정 기반 참고 등급임을 표시한다. 최신 조회는 종목 상세 근거를 주지 않으므로 평가 불가 사유의 상세 내용은 기록 화면에서 확인한다.
+- 6축 집계는 서버 응답을 그대로 따른다. 대표가 YMCA일 때 계정·상세 다각형에 자가측정 기반 참고 등급임을 표시한다. 최신 조회는 종목 상세 근거를 주지 않으므로 평가 불가 사유의 상세 내용은 기록 화면에서 확인한다.
 - 사용자 커리큘럼과 과거 기록은 자동 변경하지 않는다. 사용자가 기록을 수정하면 서버가 새 revision에서 재평가한다.

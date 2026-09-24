@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { LatestFitness } from "./latest-fitness";
+import { BreathingMascot } from "./mascot/BreathingMascot";
 import { ArrowRight, ClipboardList } from "lucide-react";
 import { Loading, Notice, Shell } from "./ui";
 import { useUserProfile } from "./user-profile-provider";
@@ -10,7 +10,7 @@ export function Home() {
   const user = profile.data;
   const assignment = user?.currentCurriculum;
   return (
-    <Shell>
+    <Shell className="home-shell">
       <h1 className="sr-only">메인</h1>
       <div className="content stack home-content">
         {profile.status === "loading" && (
@@ -26,7 +26,7 @@ export function Home() {
         )}
         {user && (
           <>
-            {!user.isOnboarded ? (
+            {!user.isOnboarded && (
               <section className="feature-card home-intro stack">
                 <h2>내 체력 기록부터 시작해요</h2>
                 <p className="muted">
@@ -37,12 +37,10 @@ export function Home() {
                   <ArrowRight size={18} />
                 </Link>
               </section>
-            ) : (
-              <Link className="text-link" href="/measurements">
-                내 측정 기록 보기
-              </Link>
             )}
-            {user.isOnboarded && <LatestFitness />}
+            <div className="home-mascot-stage">
+              <BreathingMascot size={320} label="편안하게 숨 쉬는 햄스터" />
+            </div>
             <section className="stack" aria-labelledby="today-title">
               <div className="section-heading">
                 <ClipboardList size={22} />

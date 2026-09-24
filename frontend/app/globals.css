@@ -129,8 +129,22 @@
   overflow-wrap: anywhere;
   margin-top: 8px;
 }
+.home-shell {
+  display: flex;
+  flex-direction: column;
+}
 .home-content {
+  flex: 1;
   gap: 32px;
+}
+.home-mascot-stage {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  min-height: 280px;
+}
+.home-mascot-stage > span {
+  width: min(100%, 320px, 40svh);
 }
 .home-intro {
   background: var(--navy);

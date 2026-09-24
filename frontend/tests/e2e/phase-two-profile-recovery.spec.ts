@@ -93,8 +93,11 @@ test("저장 응답을 잃어도 메인은 실제 서버의 등록 상태를 반
   page.on("dialog", (dialog) => dialog.accept());
   await page.getByRole("link", { name: "메인", exact: true }).click();
   await expect(
-    page.getByRole("link", { name: "내 측정 기록 보기", exact: true }),
+    page.getByRole("img", { name: "편안하게 숨 쉬는 햄스터" }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "내 체력 기록부터 시작해요" }),
+  ).toHaveCount(0);
   expect(creates).toBe(1);
 });
 
@@ -123,8 +126,11 @@ test("focus 없이 화면이 다시 표시되어도 외부 변경을 반영한�
     document.dispatchEvent(new Event("visibilitychange"));
   });
   await expect(
-    page.getByRole("link", { name: "내 측정 기록 보기", exact: true }),
+    page.getByRole("img", { name: "편안하게 숨 쉬는 햄스터" }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "내 체력 기록부터 시작해요" }),
+  ).toHaveCount(0);
 });
 
 test("마지막 기록의 삭제 응답을 잃어도 메인 등록 상태를 다시 확인한다", async ({
@@ -134,11 +140,13 @@ test("마지막 기록의 삭제 응답을 잃어도 메인 등록 상태를 다
   const record = await createRecord(page, account.access_token);
   await page.goto("/");
   await expect(
-    page.getByRole("link", { name: "내 측정 기록 보기", exact: true }),
+    page.getByRole("img", { name: "편안하게 숨 쉬는 햄스터" }),
   ).toBeVisible();
-  await page
-    .getByRole("link", { name: "내 측정 기록 보기", exact: true })
-    .click();
+  await expect(
+    page.getByRole("heading", { name: "내 체력 기록부터 시작해요" }),
+  ).toHaveCount(0);
+  await page.getByRole("link", { name: "내 프로필", exact: true }).click();
+  await page.getByRole("link", { name: "내 측정 기록", exact: true }).click();
   await page.locator(".record-card").click();
   let deletes = 0;
   await page.route(`${api}/measurements/${record.id}`, async (route) => {

@@ -77,9 +77,7 @@ async function openManualRecord(page: Page) {
 }
 async function openSavedRecord(page: Page) {
   await expect(page).toHaveURL(new URL("/", page.url()).href);
-  await page
-    .getByRole("link", { name: "내 측정 기록 보기", exact: true })
-    .click();
+  await openRecords(page);
   await expect(page.locator(".record-card")).toHaveCount(1);
   await page.locator(".record-card").click();
   await expect(page.getByRole("link", { name: "기록 수정" })).toBeVisible();

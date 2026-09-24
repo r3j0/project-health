@@ -6,7 +6,7 @@
 
 ## 화면과 흐름
 
-- `/`: 실제 `isOnboarded`에 따른 등록 안내, 최신 측정 회차의 체력 프로필, 현재 배정된 운동. 일반 운동 알고리즘·실행 내용은 후속 범위입니다.
+- `/`: 실제 `isOnboarded`에 따른 등록 안내, 중앙의 기본 캐릭터 대기 모션, 현재 배정된 운동. 측정 기록·체력 프로필·상세 리포트는 하단 `내 프로필`에서 확인합니다. 일반 운동 알고리즘·실행 내용은 후속 범위입니다.
 - `/account`, `/account/settings`: 이메일·가입일·재화 조회, 대표 프로필, 이메일/비밀번호 변경과 영구 탈퇴. 현재 비밀번호를 먼저 입력하며 성공 후 모든 탭에서 인증과 개인 초안을 정리합니다. preference API는 폐기된 계약이므로 임의로 추가하지 않습니다.
 - `/measurements`: 최근 기록, 기간 조회, 추가 등록의 `+` 진입점. 모든 등록 시작점은 `/onboarding`이며 `/measurements/new`도 이곳으로 이동합니다.
 - `/onboarding`: 사진·직접 입력·간이측정 중 등록 방법 선택.
@@ -73,6 +73,7 @@ npm run test:e2e
 - `lib/assessment.ts`, `components/assessment-workout.tsx`: 성인 절차·원본 값 변환·기록 저장.
 - `lib/fitness-contract.ts`, `lib/latest-fitness.ts`: 실제 상세 평가·최신 다각형 응답의 검증과 UI 변환.
 - `lib/fitness-evaluation.ts`: 공통 표시 상태·범례·다각형 좌표. 등급 판정 규칙은 없습니다.
+- `components/mascot/`: 기존 캐릭터 SVG와 호흡 모션. 동작 줄이기·숨겨진 탭·언마운트를 처리합니다.
 - `components/fitness-radar.tsx`, `fitness-report.tsx`, `fitness-criteria.tsx`, `latest-fitness.tsx`: 공통 6축 표시·회차별 상세·최신 대표 조회.
 
 절대악력은 새 카탈로그의 `절대악력 (kg)` 항목으로 등록합니다. 같은 측정 기록의 체중을 함께 저장하면 서버가 상대악력으로 환산해 근력 등급을 반환합니다. 체중이 없어도 원본은 보존하며 평가 불가 사유를 표시합니다. 상세 리포트에서 원본·환산 근거·상대악력 기준을 확인할 수 있습니다. [환산 연동 계약](BACKEND-INTEGRATION.md#절대악력-입력과-환산-리포트-2026-09-24)을 참고하세요.

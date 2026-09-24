@@ -179,7 +179,7 @@ test("실제 API: 미측정·정보 부족·기준 미확보·0회·음수를 �
   await expect(page.locator('.radar-point[cx="180"][cy="158"]')).toHaveCount(6);
 });
 
-test("실제 API: 메인·계정은 최신 한 회차만 표시하고 수정·삭제 후 갱신한다", async ({
+test("실제 API: 내 프로필은 최신 한 회차만 표시하고 수정·삭제 후 갱신한다", async ({
   page,
 }, info) => {
   const yesterday = new Date(Date.now() + 9 * 3600000 - 86400000)
@@ -190,24 +190,22 @@ test("실제 API: 메인·계정은 최신 한 회차만 표시하고 수정·�
     entryMethod: "self_assessment",
     items: [{ measurementCode: "sit_and_reach", value: "10.1", unit: "cm" }],
   });
-  for (const path of ["/", "/account"]) {
-    await page.goto(path);
-    await expect(page.locator(".latest-fitness .radar-point")).toHaveCount(6);
-    await expect(
-      page.locator('.latest-fitness .radar-point[cx="180"][cy="158"]'),
-    ).toHaveCount(5);
-    await expect(page.locator(".latest-fitness .radar-legend dd")).toHaveText([
-      "평가 미존재 · 미측정",
-      "평가 미존재 · 미측정",
-      "평가 미존재 · 미측정",
-      "2등급",
-      "평가 미존재 · 미측정",
-      "평가 미존재 · 미측정",
-    ]);
-    await expect(
-      page.getByRole("link", { name: "이 기록의 상세 리포트 보기" }),
-    ).toHaveAttribute("href", `/measurements/${partial.id}`);
-  }
+  await page.goto("/account");
+  await expect(page.locator(".latest-fitness .radar-point")).toHaveCount(6);
+  await expect(
+    page.locator('.latest-fitness .radar-point[cx="180"][cy="158"]'),
+  ).toHaveCount(5);
+  await expect(page.locator(".latest-fitness .radar-legend dd")).toHaveText([
+    "평가 미존재 · 미측정",
+    "평가 미존재 · 미측정",
+    "평가 미존재 · 미측정",
+    "2등급",
+    "평가 미존재 · 미측정",
+    "평가 미존재 · 미측정",
+  ]);
+  await expect(
+    page.getByRole("link", { name: "이 기록의 상세 리포트 보기" }),
+  ).toHaveAttribute("href", `/measurements/${partial.id}`);
   await page.screenshot({
     path: info.outputPath("real-latest-partial.png"),
     fullPage: true,
@@ -219,7 +217,7 @@ test("실제 API: 메인·계정은 최신 한 회차만 표시하고 수정·�
   await expect(page).toHaveURL(/saved=1/);
   await page
     .getByRole("navigation", { name: "하단 메뉴" })
-    .getByRole("link", { name: "메인", exact: true })
+    .getByRole("link", { name: "내 프로필", exact: true })
     .click();
   await expect(
     page.locator(".latest-fitness .radar-legend dd").nth(3),
@@ -233,7 +231,7 @@ test("실제 API: 메인·계정은 최신 한 회차만 표시하고 수정·�
   await expect(page).toHaveURL("/measurements");
   await page
     .getByRole("navigation", { name: "하단 메뉴" })
-    .getByRole("link", { name: "메인", exact: true })
+    .getByRole("link", { name: "내 프로필", exact: true })
     .click();
   await expect(page.locator(".latest-fitness .radar-legend dd")).toHaveText([
     "2등급",
@@ -259,7 +257,7 @@ test("실제 API: 메인·계정은 최신 한 회차만 표시하고 수정·�
     measuredOn: null,
     revision: null,
   });
-  await page.reload();
+  await page.goto("/");
   await expect(
     page.getByRole("heading", { name: "내 체력 기록부터 시작해요" }),
   ).toBeVisible();
@@ -311,6 +309,7 @@ test("실제 API: 간이측정은 기관 결과표와 구분하고 부분 기록
   await expect(
     page.getByRole("heading", { name: "내 체력 기록부터 시작해요" }),
   ).toHaveCount(0);
+  await page.getByRole("link", { name: "내 프로필", exact: true }).click();
   await expect(
     page.locator(".latest-fitness .radar-legend dd").nth(3),
   ).toHaveText("2등급");
@@ -350,6 +349,7 @@ test("실제 API: 절대악력 저장·환산 리포트·체중 수정 및 제�
     evaluation: { grade: 2, conversion: { value: "60", unit: "%" } },
   });
   await expect(page).toHaveURL("/");
+  await page.getByRole("link", { name: "내 프로필", exact: true }).click();
   await expect(page.locator(".radar-legend dd").nth(1)).toHaveText("2등급");
   await page.goto(`/measurements/${record.id}`);
   await page.getByText("근력 · 2등급", { exact: true }).click();
@@ -397,7 +397,7 @@ test("실제 API: 절대악력 저장·환산 리포트·체중 수정 및 제�
   expect((await saved.json()).items).toHaveLength(1);
 });
 
-test("실제 API: 스텝검사 완료부터 환산 리포트·메인·신체정보 수정까지 연결된다", async ({
+test("실제 API: 스텝검사 완료부터 환산 리포트·내 프로필·신체정보 수정까지 연결된다", async ({
   page,
 }, info) => {
   await page.goto("/workout?mode=assessment");
@@ -448,7 +448,7 @@ test("실제 API: 스텝검사 완료부터 환산 리포트·메인·신체정�
     fullPage: true,
     animations: "disabled",
   });
-  await page.goto("/");
+  await page.goto("/account");
   await expect(
     page.locator(".latest-fitness .radar-legend dd").first(),
   ).toHaveText("1등급");
@@ -481,7 +481,7 @@ test("실제 API: 스텝검사 완료부터 환산 리포트·메인·신체정�
   await expect(
     page.getByRole("definition").filter({ hasText: "90 bpm" }),
   ).toBeVisible();
-  await page.goto("/");
+  await page.goto("/account");
   await expect(
     page.locator(".latest-fitness .radar-legend dd").first(),
   ).toHaveText("평가 불가");

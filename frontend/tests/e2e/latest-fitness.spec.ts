@@ -29,7 +29,7 @@ test("대표 API 미연결과 실제 계약의 빈 기록을 구분하고 재시
   page,
 }) => {
   await installApi(page, storedRecordFixture(), storedCatalogFixture);
-  await page.goto("/");
+  await page.goto("/account");
   await expect(page.getByText(/체력 프로필을 준비 중이에요/)).toBeVisible();
   await expect(page.locator(".radar-point")).toHaveCount(0);
   await page.route("**/measurements/latest-polygon", (route) =>
@@ -57,7 +57,7 @@ test("다른 탭의 기록 변경은 이전 차트를 숨기고 늦게 도착한
       .fulfill({ json: index < 3 ? polygon() : empty() })
       .catch(() => {});
   });
-  await page.goto("/");
+  await page.goto("/account");
   await expect(page.locator(".radar-point")).toHaveCount(6);
   const broadcast = async () => {
     const other = await page.context().newPage();
