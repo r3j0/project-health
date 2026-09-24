@@ -202,6 +202,143 @@ describe('Stored measurement evaluation and latest polygon against PostgreSQL', 
     return { id, evaluation };
   }
 
+  it('stores step estimates, replays snapshots and re-evaluates same-record inputs atomically', async () => {
+    const key = randomUUID();
+    const pulse = {
+      measurementCode: 'ymca_recovery_heart_rate',
+      value: '90',
+      unit: 'bpm',
+    };
+    const height = { measurementCode: 'height', value: '170', unit: 'cm' };
+    const weight = { measurementCode: 'weight', value: '65', unit: 'kg' };
+    const body = payload({
+      ageAtMeasurement: 25,
+      items: [pulse, height, weight],
+    });
+    const original = (await create(body, key).expect(201)).body as Measurement;
+    const step = (r: Measurement) =>
+      r.items.find((i) => i.measurementCode === pulse.measurementCode)!;
+    expect(step(original)).toMatchObject({
+      ...pulse,
+      evaluation: {
+        grade: 1,
+        conversion: { value: '49.877', assessmentKind: 'reference' },
+      },
+    });
+    await create(body, key).expect(200, original);
+    await detail(original.id).expect(200, original);
+    expect(((await latest().expect(200)).body as Polygon).axes[0].grade).toBe(
+      1,
+    );
+    const changed = (
+      await patch(original.id, {
+        items: [pulse, height, { ...weight, value: '100' }],
+      }).expect(200)
+    ).body as Measurement;
+    expect(step(changed).evaluation).toMatchObject({
+      recordRevision: 2,
+      grade: 3,
+      conversion: { value: '42.107' },
+    });
+    expect(((await latest().expect(200)).body as Polygon).axes[0].grade).toBe(
+      3,
+    );
+    await patch(original.id, { sexAtMeasurement: 'female' }, 1).expect(412);
+    await detail(original.id, other).expect(404);
+    const incomplete = (
+      await patch(original.id, { items: [pulse, weight] }, 2).expect(200)
+    ).body as Measurement;
+    expect(step(incomplete).evaluation).toMatchObject({
+      status: 'insufficient_information',
+      reasonCode: 'height_at_measurement_missing',
+    });
+    expect(step(incomplete).evaluation.conversion).toBeUndefined();
+    const restored = (
+      await patch(
+        original.id,
+        { items: [pulse, height, weight], sexAtMeasurement: 'female' },
+        3,
+      ).expect(200)
+    ).body as Measurement;
+    expect(step(restored).evaluation).toMatchObject({
+      grade: 1,
+      conversion: { value: '39.232', sexAtMeasurement: 'female' },
+    });
+    const newAge = (
+      await patch(original.id, { ageAtMeasurement: 30 }, 4).expect(200)
+    ).body as Measurement;
+    expect(step(newAge).evaluation.conversion).toMatchObject({
+      value: '38.307',
+      ageAtMeasurement: 30,
+    });
+    const noSex = (
+      await patch(original.id, { sexAtMeasurement: null }, 5).expect(200)
+    ).body as Measurement;
+    expect(step(noSex).evaluation.status).toBe('insufficient_information');
+    await remove(original.id, 6).expect(204);
+  });
+
+  it('does not recalculate a historical YMCA snapshot during reads or idempotent replay', async () => {
+    const key = randomUUID();
+    const body = payload({
+      items: [
+        {
+          measurementCode: 'ymca_recovery_heart_rate',
+          value: '90',
+          unit: 'bpm',
+        },
+        { measurementCode: 'height', value: '170', unit: 'cm' },
+        { measurementCode: 'weight', value: '65', unit: 'kg' },
+      ],
+    });
+    const record = (await create(body, key).expect(201)).body as Measurement;
+    const saved = record.items.find(
+      (item) => item.measurementCode === 'ymca_recovery_heart_rate',
+    )!.evaluation;
+    const historical = {
+      ...saved,
+      grade: null,
+      status: 'criteria_unavailable',
+      criterion: null,
+      thresholds: [],
+      ageBand: null,
+      conversion: undefined,
+      reasonCode: 'ymca_bpm_criteria_unverified',
+      message: '이전 버전에서 평가하지 않은 기록입니다.',
+      nextTarget: {
+        status: 'unavailable',
+        grade: null,
+        intervals: [],
+        adjustments: [],
+        reasonCode: 'ymca_bpm_criteria_unverified',
+      },
+    };
+    const snapshot = JSON.parse(
+      JSON.stringify(historical),
+    ) as Prisma.InputJsonValue;
+    await database.measurementItem.update({
+      where: {
+        measurementId_code: {
+          measurementId: record.id,
+          code: 'ymca_recovery_heart_rate',
+        },
+      },
+      data: { evaluation: snapshot },
+    });
+    for (const response of [
+      await detail(record.id).expect(200),
+      await create(body, key).expect(200),
+    ]) {
+      const current = response.body as Measurement;
+      expect(
+        current.items.find(
+          (item) => item.measurementCode === 'ymca_recovery_heart_rate',
+        )!.evaluation,
+      ).toEqual(snapshot);
+      expect(current.axes[0].status).toBe('unevaluable');
+    }
+  });
+
   it('stores absolute grip unchanged and re-evaluates same-record weight atomically', async () => {
     const key = randomUUID();
     const body = payload({
@@ -701,8 +838,8 @@ describe('Stored measurement evaluation and latest polygon against PostgreSQL', 
       unit: 'bpm',
       evaluation: {
         grade: null,
-        status: 'criteria_unavailable',
-        reasonCode: 'ymca_bpm_criteria_unverified',
+        status: 'insufficient_information',
+        reasonCode: 'height_at_measurement_missing',
         criterion: null,
         thresholds: [],
         nextTarget: { status: 'unavailable' },

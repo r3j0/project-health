@@ -151,3 +151,7 @@ backend/
 새 기능은 기능별 Nest 모듈·컨트롤러·서비스로 추가하며, 필요한 모듈에서 `DatabaseModule`을 import해 `DatabaseService`를 주입합니다. ESM 로컬 import는 `.js` 확장자를 사용합니다. 생성 코드는 직접 수정하지 않습니다.
 
 Prisma 구성은 [공식 NestJS 안내](https://docs.prisma.io/docs/guides/frameworks/nestjs)를 참고하되 이 저장소의 ESM 설정을 유지합니다.
+
+## 성인 스텝검사 참고 평가 (2026-09-24)
+
+회복 심박수 원본을 보존하고 측정 당시 성별·나이·신장·체중으로 최대산소섭취량을 추정합니다. 부분 저장, 계산 근거 및 참고 등급 계약은 [스텝검사 안내](docs/step-assessment.md)를 따릅니다. 과거의 YMCA 기준 미확보 설명은 새로 저장·수정하는 성인 기록에 한해 이 계약으로 대체되며, 기존 스냅샷은 유지됩니다.

@@ -1,5 +1,6 @@
 import { Prisma } from '../../generated/prisma/client.js';
 import { convertAbsoluteGrip } from './grip-conversion.js';
+import { convertStepHeartRate } from './step-conversion.js';
 import type {
   AxisCode,
   AxisEvaluation,
@@ -270,12 +271,6 @@ function evaluateItem(
         'self_curl_up_criteria_unverified',
         '성인 자가측정용 윗몸말아올리기의 공식 등급 기준을 확인하지 못했습니다. 교차윗몸일으키기 기준을 대신 적용하지 않습니다.',
       );
-    if (item.measurementCode === 'ymca_recovery_heart_rate')
-      return unavailable(
-        evaluation,
-        'ymca_bpm_criteria_unverified',
-        'YMCA 회복 심박수(bpm)의 공식 등급 기준을 확인하지 못했습니다. 최대산소섭취량 기준을 대신 적용하지 않습니다.',
-      );
     return evaluation;
   }
   const restrictions: {
@@ -385,6 +380,60 @@ export function evaluateMeasurement(
 ): { items: EvaluatedItem[]; axes: AxisEvaluation[] } {
   const timestamp = evaluatedAt.toISOString();
   const items = input.items.map((item) => {
+    if (item.measurementCode === 'ymca_recovery_heart_rate') {
+      const result = convertStepHeartRate(input, item);
+      if (!result.ok)
+        return {
+          measurementCode: item.measurementCode,
+          evaluation: unavailable(
+            baseEvaluation(input, item.measurementCode, timestamp),
+            result.reasonCode,
+            result.message,
+            result.status,
+          ),
+        };
+      // Reuse the exact VO2 thresholds, with an explicitly versioned reference
+      // application. Directly entered VO2 criteria and raw bpm stay unchanged.
+      const referenceCriteria = criteria.map((c) =>
+        c.measurementCode === 'step_test_vo2max'
+          ? {
+              ...c,
+              internalVersion: `${c.internalVersion}-step-reference-v1`,
+              entryMethods: [
+                ...new Set([...c.entryMethods, input.entryMethod]),
+              ],
+            }
+          : c,
+      );
+      const evaluated = evaluateItem(
+        input,
+        result.conversion,
+        timestamp,
+        referenceCriteria,
+      );
+      const scored =
+        evaluated.status === 'graded' || evaluated.status === 'below_standard';
+      return {
+        measurementCode: item.measurementCode,
+        evaluation: {
+          ...evaluated,
+          measurementCode: item.measurementCode,
+          conversion: result.conversion,
+          ...(scored
+            ? {
+                reasonCode:
+                  evaluated.grade === null
+                    ? 'step_reference_below_standard'
+                    : 'step_reference_grade_applied',
+                message:
+                  evaluated.grade === null
+                    ? '자가측정으로 추정한 최대산소섭취량이 최저 등급 기준에 미달합니다. 참고 평가이며 공식 인증이 아닙니다.'
+                    : `자가측정으로 추정한 최대산소섭취량은 심폐지구력 참고 ${evaluated.grade}등급에 해당합니다. 공식 인증이 아닙니다.`,
+              }
+            : {}),
+        },
+      };
+    }
     if (item.measurementCode !== 'absolute_grip_strength')
       return {
         measurementCode: item.measurementCode,

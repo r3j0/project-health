@@ -287,8 +287,8 @@ describe('Verified adult criteria', () => {
       }),
     ).toMatchObject({
       grade: null,
-      status: 'criteria_unavailable',
-      reasonCode: 'ymca_bpm_criteria_unverified',
+      status: 'insufficient_information',
+      reasonCode: 'height_at_measurement_missing',
       nextTarget: { status: 'unavailable', grade: null },
     });
   });

@@ -82,9 +82,23 @@ export type GripConversion = {
   inputs: { measurementCode: string; value: string; unit: 'kg' }[];
   sourceUrl: string;
 };
+export type StepConversion = {
+  formulaVersion: 'nfa100-adult-step-vo2max-v1';
+  measurementCode: 'step_test_vo2max';
+  value: string;
+  unit: 'ml/kg/min';
+  inputs: { measurementCode: string; value: string; unit: string }[];
+  ageAtMeasurement: number;
+  sexAtMeasurement: Sex;
+  assessmentKind: 'reference';
+  protocol: 'nfa100-self-step-30cm-96bpm-180s-rest60s-pulse10s-v1';
+  sourceUrl: string;
+  protocolUrl: string;
+};
+export type MeasurementConversion = GripConversion | StepConversion;
 export type ItemEvaluation = {
-  // Optional for backwards compatibility. Raw MeasurementItem values stay in kg.
-  conversion?: GripConversion;
+  // Optional for backwards compatibility. Original MeasurementItem values are preserved.
+  conversion?: MeasurementConversion;
   measurementId: string;
   measurementCode: string;
   grade: number | null;
