@@ -30,6 +30,7 @@ import {
   Shell,
   SubmitLabel,
 } from "./ui";
+import { StepAssessmentHelp } from "./step-assessment-help";
 import { CatalogPicker } from "./catalog-picker";
 import { RecordValues } from "./record-values";
 import { useUnsaved } from "./use-unsaved";
@@ -796,10 +797,62 @@ export function RecordForm({
                             updateItem(item.code, "value", e.target.value)
                           }
                           aria-invalid={!!errors[`item.${item.code}`]}
-                          aria-describedby={`error-${item.code}${item.code === "absolute_grip_strength" ? " grip-help" : ""}`}
+                          aria-describedby={`error-${item.code}${item.code === "absolute_grip_strength" ? " grip-help" : item.code === "ymca_recovery_heart_rate" ? " step-help" : ""}`}
                         />
                         <span className="input-unit">{definition?.unit}</span>
                       </div>
+                      {item.code === "ymca_recovery_heart_rate" && (
+                        <div id="step-help" className="stack-sm">
+                          <p className="caption">
+                            1분 회복 후 10초간 센 맥박에 6을 곱한 분당
+                            심박수(bpm)를 입력해 주세요.
+                          </p>
+                          <StepAssessmentHelp
+                            sex={meta.sex}
+                            height={
+                              items.find((i) => i.code === "height")?.value ??
+                              ""
+                            }
+                            weight={
+                              items.find((i) => i.code === "weight")?.value ??
+                              ""
+                            }
+                          />
+                          {(
+                            [
+                              ["height", "신장"],
+                              ["weight", "체중"],
+                            ] as const
+                          )
+                            .filter(
+                              ([code]) =>
+                                !items.some((i) => i.code === code) &&
+                                catalog?.definitions.some(
+                                  (d) => d.code === code,
+                                ),
+                            )
+                            .map(([code, label]) => (
+                              <button
+                                key={code}
+                                type="button"
+                                className="text-link"
+                                onClick={() => {
+                                  setItems((old) =>
+                                    old.some((i) => i.code === code)
+                                      ? old
+                                      : [
+                                          ...old,
+                                          { code, value: "", grade: "" },
+                                        ],
+                                  );
+                                  setDirty(true);
+                                }}
+                              >
+                                측정 당시 {label} 추가
+                              </button>
+                            ))}
+                        </div>
+                      )}
                       {item.code === "absolute_grip_strength" && (
                         <div id="grip-help" className="stack-sm caption">
                           <p>

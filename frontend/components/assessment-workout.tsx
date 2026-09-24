@@ -25,6 +25,7 @@ import { getCatalog, koreaDate } from "@/lib/measurements";
 import { api, getSession } from "@/lib/session";
 import { ApiError, errorMessage } from "@/lib/http";
 import type { Catalog, Measurement } from "@/lib/types";
+import { StepAssessmentHelp } from "./step-assessment-help";
 import { WorkoutRunner } from "./workout-runner";
 import { useOperationScope } from "./use-operation-scope";
 import {
@@ -286,6 +287,11 @@ export function AssessmentWorkout() {
               신체정보 <span className="optional-label">(선택)</span>
             </h3>
             <p className="caption">측정하지 못한 항목은 비워 두세요.</p>
+            <StepAssessmentHelp
+              sex={draft.setup.sex}
+              height={draft.setup.height}
+              weight={draft.setup.weight}
+            />
           </div>
           {bodyFields.map(([key, label, unit]) => (
             <div className="field" key={key}>
@@ -428,7 +434,24 @@ export function AssessmentWorkout() {
                   <p className="caption">
                     {draft.setup.measuredOn} · 만 {draft.setup.age}세
                   </p>
+                  {draft.state.results.cardio !== undefined && (
+                    <StepAssessmentHelp
+                      sex={draft.setup.sex}
+                      height={draft.setup.height}
+                      weight={draft.setup.weight}
+                    />
+                  )}
                   <dl className="value-list">
+                    <div className="value-row">
+                      <dt>성별</dt>
+                      <dd>
+                        {draft.setup.sex === "male"
+                          ? "남성"
+                          : draft.setup.sex === "female"
+                            ? "여성"
+                            : "미입력"}
+                      </dd>
+                    </div>
                     {bodyFields.map(([key, label, unit]) => (
                       <div className="value-row" key={key}>
                         <dt>{label}</dt>
@@ -482,8 +505,8 @@ export function AssessmentWorkout() {
                   </SubmitLabel>
                 </button>
                 <p className="caption center">
-                  직접 측정한 값으로 기록해요. 공식 인증이나 등급은 부여하지
-                  않아요.
+                  직접 측정한 값으로 참고 등급을 계산해요. 국민체력100의 공식
+                  인증을 부여하는 것은 아니에요.
                 </p>
               </>
             )}
