@@ -1,41 +1,110 @@
+import { ChevronDown, Info } from "lucide-react";
 import type { Catalog, Measurement } from "@/lib/types";
-import { fitnessFactors, gradeLabel } from "@/lib/fitness-evaluation";
+import {
+  fitnessFactors,
+  gradeLabel,
+  type GradeResult,
+} from "@/lib/fitness-evaluation";
 import {
   itemGradeResult,
   parseMeasurementEvaluation,
   type ReportItem,
 } from "@/lib/fitness-contract";
+import { gradeTone } from "@/lib/fitness-report-display";
+import { displayConvertedValue } from "@/lib/conversion-display";
 import { FitnessRadar } from "./fitness-radar";
 import { FitnessCriteria } from "./fitness-criteria";
+import { FitnessGradeProgress } from "./fitness-grade-progress";
+import { FitnessReportSources } from "./fitness-report-sources";
 import { Notice } from "./ui";
 import { ConversionDetails } from "./conversion-details";
+import styles from "./fitness-report.module.css";
 
-function ItemReport({ item, label }: { item: ReportItem; label: string }) {
-  const evaluation = item.evaluation;
+const isReference = (item: ReportItem) =>
+  item.evaluation.conversion?.formulaVersion === "nfa100-adult-step-vo2max-v1";
+function GradeBadge({
+  result,
+  reference = false,
+}: {
+  result: GradeResult;
+  reference?: boolean;
+}) {
   return (
-    <div className="evaluation-item stack-sm">
-      <h3>{label}</h3>
-      <p>
-        {item.value} {item.unit} · {gradeLabel(itemGradeResult(evaluation))}
+    <span className={styles.badge} data-grade={gradeTone(result)}>
+      {gradeLabel(result)}
+      {reference && " (참고)"}
+    </span>
+  );
+}
+function ItemReport({
+  item,
+  label,
+  criteria,
+  representative = false,
+}: {
+  item: ReportItem;
+  label: string;
+  criteria: boolean;
+  representative?: boolean;
+}) {
+  const { evaluation } = item;
+  const conversion = evaluation.conversion;
+  const reference = isReference(item);
+  const scored =
+    evaluation.status === "graded" || evaluation.status === "below_standard";
+  const value =
+    reference && conversion
+      ? displayConvertedValue(conversion.value)
+      : item.value;
+  const unit = reference && conversion ? conversion.unit : item.unit;
+  return (
+    <div className={`evaluation-item ${styles.item}`}>
+      <div className={styles.itemHeading}>
+        <h3>{label}</h3>
+        {representative && (
+          <span className={styles.representative}>대표 등급 반영</span>
+        )}
+      </div>
+      {reference && <p className="caption">추정 최대산소섭취량</p>}
+      <p
+        className={styles.value}
+        aria-label={
+          reference ? `추정 최대산소섭취량: ${value} ${unit}` : undefined
+        }
+      >
+        <strong>{value}</strong> <span>{unit}</span>
       </p>
-      {evaluation.conversion && (
-        <ConversionDetails conversion={evaluation.conversion} />
+      {conversion &&
+        (reference ? (
+          <>
+            <p className={styles.conversionValue}>
+              입력한 회복 심박수: {item.value} {item.unit}
+            </p>
+            <p className={styles.reference}>
+              <Info size={16} aria-hidden="true" />
+              <span>자가측정 기반 참고 등급이며 공식 인증이 아니에요.</span>
+            </p>
+          </>
+        ) : (
+          <p className={styles.conversionValue}>
+            등급 판정에 사용한 상대악력:{" "}
+            {displayConvertedValue(conversion.value)} {conversion.unit}
+          </p>
+        ))}
+      {scored ? (
+        <FitnessGradeProgress evaluation={evaluation} />
+      ) : (
+        <div className={styles.unscored}>
+          <strong>{gradeLabel(itemGradeResult(evaluation))}</strong>
+          <p>{evaluation.message}</p>
+        </div>
       )}
-      <p className="muted">{evaluation.message}</p>
-      <FitnessCriteria evaluation={evaluation} />
-      {evaluation.evaluatedAt && (
-        <p className="caption evaluation-version">
-          평가 시각{" "}
-          {new Intl.DateTimeFormat("ko-KR", {
-            timeZone: "Asia/Seoul",
-            dateStyle: "medium",
-            timeStyle: "short",
-          }).format(new Date(evaluation.evaluatedAt))}
-        </p>
-      )}
+      {conversion && <ConversionDetails conversion={conversion} />}
+      {criteria && <FitnessCriteria evaluation={evaluation} />}
     </div>
   );
 }
+
 export function FitnessReport({
   record,
   catalog,
@@ -61,8 +130,10 @@ export function FitnessReport({
         있어요.
       </Notice>
     );
-  const label = (code: string) =>
-    catalog.definitions.find((d) => d.code === code)?.label ?? code;
+  const labels = Object.fromEntries(
+    catalog.definitions.map((d) => [d.code, d.label]),
+  );
+  const label = (code: string) => labels[code] ?? code;
   return (
     <section className="stack" aria-labelledby="fitness-report-title">
       <h2 id="fitness-report-title">이 기록의 체력 프로필</h2>
@@ -71,37 +142,102 @@ export function FitnessReport({
         이 측정 기록에서 같은 체력 요인에 속한 종목 중 가장 높은 등급을
         표시해요. 종합 인증등급과는 별개예요.
       </p>
-      <div className="stack-sm">
-        {evaluation.axes.map((axis) => (
-          <details className="accordion" key={axis.factor}>
-            <summary>
-              {fitnessFactors.find((f) => f.code === axis.factor)!.label} ·{" "}
-              {gradeLabel(axis)}
-            </summary>
-            <div className="stack-sm">
-              {axis.reason && <p className="muted">{axis.reason}</p>}
-              {!!axis.sourceMeasurementCodes.length && (
-                <p>
-                  대표 등급 반영:{" "}
-                  {axis.sourceMeasurementCodes.map(label).join(", ")}
-                </p>
-              )}
-              {evaluation.items
-                .filter((i) => i.factor === axis.factor)
-                .map((item) => (
-                  <ItemReport
-                    key={item.measurementCode}
-                    item={item}
-                    label={label(item.measurementCode)}
-                  />
-                ))}
-            </div>
-          </details>
-        ))}
+      <section className={styles.report} aria-label="측정 상세 리포트">
+        <h2>측정 상세 리포트</h2>
+        {evaluation.axes.map((axis) => {
+          const items = evaluation.items
+            .filter((i) => i.factor === axis.factor)
+            .sort(
+              (a, b) =>
+                Number(
+                  axis.sourceMeasurementCodes.includes(b.measurementCode),
+                ) -
+                Number(axis.sourceMeasurementCodes.includes(a.measurementCode)),
+            );
+          const multiple = items.length > 1;
+          const reference = items.some(
+            (i) =>
+              axis.sourceMeasurementCodes.includes(i.measurementCode) &&
+              isReference(i),
+          );
+          const title = `${fitnessFactors.find((f) => f.code === axis.factor)!.label} · ${gradeLabel(axis)}`;
+          return (
+            <details className={styles.axis} key={axis.factor}>
+              <summary aria-label={`${title}${reference ? " (참고)" : ""}`}>
+                <span className={styles.axisName}>
+                  {fitnessFactors.find((f) => f.code === axis.factor)!.label}
+                  <small>
+                    {multiple
+                      ? `${items.length}개 종목 · ${axis.status === "evaluated" || axis.status === "below_standard" ? "가장 높은 등급" : "평가 상태 확인"}`
+                      : items.length
+                        ? label(items[0].measurementCode)
+                        : "입력한 종목 없음"}
+                  </small>
+                </span>
+                <GradeBadge result={axis} reference={reference} />
+                <ChevronDown size={16} aria-hidden="true" />
+              </summary>
+              <div className={styles.axisBody}>
+                {!items.length && (
+                  <p className={styles.unscored}>
+                    {axis.reason ?? "이 체력 요소의 측정 기록이 없어요."}
+                  </p>
+                )}
+                {items.map((item, index) =>
+                  index === 0 ? (
+                    <ItemReport
+                      key={item.measurementCode}
+                      item={item}
+                      label={label(item.measurementCode)}
+                      criteria={!multiple}
+                      representative={
+                        multiple &&
+                        (axis.status === "evaluated" ||
+                          axis.status === "below_standard") &&
+                        axis.sourceMeasurementCodes.includes(
+                          item.measurementCode,
+                        )
+                      }
+                    />
+                  ) : (
+                    <details
+                      className={styles.secondaryItem}
+                      key={item.measurementCode}
+                    >
+                      <summary>
+                        <span>
+                          {label(item.measurementCode)}
+                          <small>
+                            {item.value} {item.unit}
+                          </small>
+                        </span>
+                        <GradeBadge
+                          result={itemGradeResult(item.evaluation)}
+                          reference={isReference(item)}
+                        />
+                        <ChevronDown size={16} aria-hidden="true" />
+                      </summary>
+                      <ItemReport
+                        item={item}
+                        label={label(item.measurementCode)}
+                        criteria={false}
+                      />
+                    </details>
+                  ),
+                )}
+              </div>
+            </details>
+          );
+        })}
         {evaluation.items.some((i) => i.factor === null) && (
-          <details className="accordion">
-            <summary>다각형에 포함하지 않는 항목</summary>
-            <div className="stack-sm">
+          <details className={styles.axis}>
+            <summary>
+              <span className={styles.axisName}>
+                다각형에 포함하지 않는 항목
+              </span>
+              <ChevronDown size={16} aria-hidden="true" />
+            </summary>
+            <div className={styles.axisBody}>
               {evaluation.items
                 .filter((i) => i.factor === null)
                 .map((item) => (
@@ -109,12 +245,14 @@ export function FitnessReport({
                     key={item.measurementCode}
                     item={item}
                     label={label(item.measurementCode)}
+                    criteria={true}
                   />
                 ))}
             </div>
           </details>
         )}
-      </div>
+        <FitnessReportSources items={evaluation.items} labels={labels} />
+      </section>
     </section>
   );
 }

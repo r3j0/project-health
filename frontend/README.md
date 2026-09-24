@@ -16,7 +16,7 @@
 - `/onboarding/photo`: 사진 선택/촬영, JPEG·PNG·WebP/10MiB·디코딩 검증, OpenAI 전송 안내, 추출 요청·취소·재시도. 원문과 추출값을 확인·수정한 뒤 기존 기록 API로 저장합니다. 사진 초안은 직접 입력 초안과 분리합니다.
 - `/workout?mode=assessment`: 성인 만 19~64세, 신체정보→교차 윗몸일으키기→YMCA→유연성→확인→저장→기록 상세. 준비 안내·공식 영상·카운트다운·타이머·선택 가능한 박자 안내·재측정·건너뛰기·진행 복원을 제공합니다. **사용자 커리큘럼을 배정·교체·완료하지 않습니다.** 기존 curriculum 쿼리 북마크도 유지합니다.
 - `/workout`: 사용자에게 배정된 일반 운동의 현 상태 조회. 간이측정은 선택한 등록 모드에서만 실행합니다.
-- `/measurements/:id`: 해당 회차의 6축 다각형, 서버 판정 기준·다음 등급 기준값·출처, 원본 측정값과 결과표 원문 등급. 평가 API가 없거나 잘못된 응답이면 원본 기록을 계속 확인·수정·삭제할 수 있습니다.
+- `/measurements/:id`: 해당 회차의 6축 다각형과 접어서 보는 상세 리포트. 기준 미달은 연한 빨강, 3등급은 Orange, 2등급은 Sky Blue, 1등급은 Blue로 이전·현재·다음 기준을 표시합니다. 한 축에 여러 종목이 있으면 서버가 선택한 대표 종목을 먼저 보여주고 나머지는 개별적으로 펼칩니다. 여러 종목에는 공통·개별 전체 기준표를 두지 않으며, 단일 종목에서만 전체 기준표를 펼칠 수 있습니다. 환산 과정은 접고 출처는 하단 한곳에 모읍니다. 원본 측정값과 결과표 원문 등급을 유지하며, 평가 API가 없거나 잘못된 응답이면 원본 기록을 계속 확인·수정·삭제할 수 있습니다.
 
 [국민체력100 성인 자가측정](https://nfa.kspo.or.kr/measure/self/selectSelfMeasureItem.kspo)의 절차를 정적 운동 정의로 사용합니다. 실제 기록은 사용자 입력만 저장합니다. BMI는 신장·체중이 모두 있을 때만 계산하며 YMCA 10초 맥박 횟수는 ×6하여 bpm으로 저장합니다. 판정용 환산과 등급은 백엔드가 담당합니다. 성인 스텝검사는 같은 기록의 성별·나이·신장·체중이 있으면 VO₂max 추정값과 참고 등급을 표시합니다. 입력이 부족하면 심박수 원본을 저장하고 평가 불가 사유를 안내합니다. 정식 국민체력100 인증을 부여하지 않습니다.
 
@@ -60,7 +60,7 @@ npm run test:e2e
 
 - 기존 `flows`, `phase-two`, `phase-two-audit`, `phase-two-profile-recovery`, `self-assessment`는 **전용 로컬 DB/API**를 사용합니다. 테스트 계정·기록을 만들고 인증 제한을 유지합니다. 간이측정 E2E는 백엔드의 해당 저장 지원이 필요합니다.
 - `fitness-live`는 실제 API 응답으로 직접 입력·6축 등급·부분 간이측정·최신 회차·수정·삭제·온보딩을 검증하며 응답을 대체하지 않습니다. 테스트 계정은 각 시나리오 종료 시 삭제합니다.
-- `integration-ready`, `photo-extraction`, `fitness-report`, `latest-fitness`, `assessment-auth`, `grip-strength`는 Playwright HTTP 계약 대역으로 오류·경계·취소·동시성을 검증합니다. 평가 fixture는 실제 응답 구조를 따릅니다. 실제 OCR/서버 판정 검증을 대체하지 않습니다.
+- `integration-ready`, `photo-extraction`, `fitness-report`, `fitness-report-layout`, `latest-fitness`, `assessment-auth`, `grip-strength`는 Playwright HTTP 계약 대역으로 오류·경계·취소·동시성을 검증합니다. 평가 fixture는 실제 응답 구조를 따릅니다. 실제 OCR/서버 판정 검증을 대체하지 않습니다.
 - `E2E_BASE_URL`로 프론트 주소, `E2E_API_BASE_URL`로 실제 테스트 API 주소를 지정합니다. API 주소는 프론트 빌드 설정과 같아야 합니다.
 - Chromium 모바일 320px 포함. 실제 iOS/Android 카메라·키보드·소리와 Safari는 별도 확인이 필요합니다.
 
@@ -76,6 +76,8 @@ npm run test:e2e
 - `lib/fitness-contract.ts`, `lib/latest-fitness.ts`: 실제 상세 평가·최신 다각형 응답의 검증과 UI 변환.
 - `lib/fitness-evaluation.ts`: 공통 표시 상태·범례·다각형 좌표. 등급 판정 규칙은 없습니다.
 - `components/mascot/`: 기존 캐릭터 SVG와 호흡 모션. 동작 줄이기·숨겨진 탭·언마운트를 처리합니다.
+- `lib/fitness-report-display.ts`, `components/fitness-grade-progress.tsx`: 서버 기준 구간을 이전·현재·다음 단계로 배치하며 없는 등급을 추가하지 않습니다.
+- `lib/fitness-report-sources.ts`, `components/fitness-report-sources.tsx`: 출처 URL 중복 제거와 기준 버전·적용 기간별 근거 표시.
 - `components/fitness-radar.tsx`, `fitness-report.tsx`, `fitness-criteria.tsx`, `latest-fitness.tsx`: 공통 6축 표시·회차별 상세·최신 대표 조회.
 
 절대악력은 새 카탈로그의 `절대악력 (kg)` 항목으로 등록합니다. 같은 측정 기록의 체중을 함께 저장하면 서버가 상대악력으로 환산해 근력 등급을 반환합니다. 체중이 없어도 원본은 보존하며 평가 불가 사유를 표시합니다. 상세 리포트에서 원본·환산 근거·상대악력 기준을 확인할 수 있습니다. [환산 연동 계약](BACKEND-INTEGRATION.md#절대악력-입력과-환산-리포트-2026-09-24)을 참고하세요.

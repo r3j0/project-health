@@ -10,10 +10,11 @@ test("스텝검사 리포트는 원본 bpm과 참고 등급·환산 근거·VO2 
   const record = stepRecordFixture();
   await installApi(page, record, stepCatalogFixture);
   await page.goto(`/measurements/${record.id}`);
-  await page.getByText("심폐지구력 · 2등급", { exact: true }).click();
+  await page.locator('summary[aria-label^="심폐지구력 · 2등급"]').click();
   await expect(
-    page.getByText("추정 최대산소섭취량: 42.527 ml/kg/min"),
+    page.getByLabel("추정 최대산소섭취량: 42.527 ml/kg/min", { exact: true }),
   ).toBeVisible();
+  await page.getByText("환산 과정 보기", { exact: true }).click();
   await expect(
     page.getByText(
       /측정 당시 남성 · 만 25세 · 신장 170 cm · 체중 65 kg · 회복 심박수 140 bpm/,

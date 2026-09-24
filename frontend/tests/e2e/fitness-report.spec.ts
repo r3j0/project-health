@@ -20,14 +20,17 @@ test("실제 계약의 종목별 평가로 6축과 상세 기준을 표시하고
   await expect(page.locator(".radar-point")).toHaveCount(6);
   await expect(page.locator('.radar-point[cx="180"][cy="158"]')).toHaveCount(5);
   await expect(page.getByTestId("radar-path")).toHaveAttribute("d", / Z$/);
-  await page.getByText("유연성 · 2등급", { exact: true }).click();
+  await page.locator('summary[aria-label^="유연성 · 2등급"]').click();
   await expect(
-    page.getByText("대표 등급 반영: 앉아 윗몸 앞으로 굽히기"),
+    page
+      .locator(".evaluation-item")
+      .getByRole("heading", { name: "앉아 윗몸 앞으로 굽히기" }),
   ).toBeVisible();
   await expect(page.getByText(/현재 값과의 차이 4.8 cm/)).toBeVisible();
   await expect(
     page.getByText("14.9 cm 이상", { exact: true }).first(),
   ).toBeVisible();
+  await page.getByText("판정 기준 및 출처", { exact: true }).click();
   await expect(
     page.getByRole("link", { name: /국민체력100 성인기 인증기준/ }),
   ).toHaveAttribute("href", /^https:\/\/nfa.kspo.or.kr/);
@@ -130,7 +133,7 @@ test("범위와 열린 경계·대안 목표를 원래 조건대로 안내한다
   ];
   await installApi(page, record, storedCatalogFixture);
   await page.goto(`/measurements/${record.id}`);
-  await page.getByText("유연성 · 2등급", { exact: true }).click();
+  await page.locator('summary[aria-label^="유연성 · 2등급"]').click();
   await expect(
     page.getByText("아래 조건 중 하나를 충족하면 돼요."),
   ).toBeVisible();

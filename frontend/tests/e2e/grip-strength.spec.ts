@@ -45,10 +45,11 @@ test("근력 리포트는 원본 kg, 환산 %, 적용 기준과 다음 목표를
   const record = gripRecordFixture();
   await installApi(page, record, gripCatalogFixture);
   await page.goto(`/measurements/${record.id}`);
-  await page.getByText("근력 · 2등급", { exact: true }).click();
+  await page.locator('summary[aria-label^="근력 · 2등급"]').click();
   await expect(
     page.getByText("등급 판정에 사용한 상대악력: 60 %"),
   ).toBeVisible();
+  await page.getByText("환산 과정 보기", { exact: true }).click();
   await expect(
     page.getByText("절대악력 30 kg ÷ 같은 기록의 체중 50 kg × 100"),
   ).toBeVisible();

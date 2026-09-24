@@ -112,7 +112,7 @@ test("실제 API: 6종목 직접 입력·상세 등급·기준·수정 재평가
     "1등급",
   ]);
   await expect(page.locator(".radar-point")).toHaveCount(6);
-  await page.getByText("유연성 · 2등급", { exact: true }).click();
+  await page.locator('summary[aria-label^="유연성 · 2등급"]').click();
   await expect(page.getByText(/현재 값과의 차이 4.8 cm/)).toBeVisible();
   await page.screenshot({
     path: info.outputPath("real-detail.png"),
@@ -360,7 +360,7 @@ test("실제 API: 절대악력 저장·환산 리포트·체중 수정 및 제�
     "2등급",
   );
   await page.goto(`/measurements/${record.id}`);
-  await page.getByText("근력 · 2등급", { exact: true }).click();
+  await page.locator('summary[aria-label^="근력 · 2등급"]').click();
   await expect(
     page.getByText("등급 판정에 사용한 상대악력: 60 %"),
   ).toBeVisible();
@@ -377,7 +377,7 @@ test("실제 API: 절대악력 저장·환산 리포트·체중 수정 및 제�
   await expect(page).toHaveURL(/saved=1/);
   await expect(page.locator(".radar-legend dd").nth(1)).toHaveText("기준 미달");
   await page.reload();
-  await page.getByText("근력 · 기준 미달", { exact: true }).click();
+  await page.locator('summary[aria-label^="근력 · 기준 미달"]').click();
   await expect(
     page.getByText("등급 판정에 사용한 상대악력: 30 %"),
   ).toBeVisible();
@@ -392,13 +392,17 @@ test("실제 API: 절대악력 저장·환산 리포트·체중 수정 및 제�
   await expect(page.locator(".radar-legend dd").nth(1)).toHaveText(
     "평가 불가 · 정보 부족",
   );
-  await page.getByText("근력 · 평가 불가 · 정보 부족", { exact: true }).click();
+  await page
+    .locator('summary[aria-label^="근력 · 평가 불가 · 정보 부족"]')
+    .click();
   await expect(
     page
       .locator(".evaluation-item")
       .getByText(/같은 측정 기록의 체중\(kg\)이 없습니다/),
   ).toBeVisible();
-  await expect(page.getByText("30 kg", { exact: true })).toBeVisible();
+  await expect(
+    page.locator(".evaluation-item").getByText("30 kg", { exact: true }),
+  ).toBeVisible();
   const saved = await page.request.get(`${api}/measurements/${record.id}`, {
     headers,
   });
@@ -447,9 +451,9 @@ test("실제 API: 스텝검사 완료부터 환산 리포트·내 프로필·신
   });
   await page.getByRole("link", { name: "측정 기록 보기", exact: true }).click();
   await expect(page.locator(".radar-legend dd").first()).toHaveText("1등급");
-  await page.getByText("심폐지구력 · 1등급", { exact: true }).click();
+  await page.locator('summary[aria-label^="심폐지구력 · 1등급"]').click();
   await expect(
-    page.getByText("추정 최대산소섭취량: 49.877 ml/kg/min"),
+    page.getByLabel("추정 최대산소섭취량: 49.877 ml/kg/min", { exact: true }),
   ).toBeVisible();
   await page.screenshot({
     path: info.outputPath("step-live-detail.png"),
@@ -465,9 +469,9 @@ test("실제 API: 스텝검사 완료부터 환산 리포트·내 프로필·신
   await page.getByRole("button", { name: "수정 내용 저장" }).click();
   await expect(page).toHaveURL(/saved=1/);
   await expect(page.locator(".radar-legend dd").first()).toHaveText("3등급");
-  await page.getByText("심폐지구력 · 3등급", { exact: true }).click();
+  await page.locator('summary[aria-label^="심폐지구력 · 3등급"]').click();
   await expect(
-    page.getByText("추정 최대산소섭취량: 42.107 ml/kg/min"),
+    page.getByLabel("추정 최대산소섭취량: 42.107 ml/kg/min", { exact: true }),
   ).toBeVisible();
   await page.goto(`/measurements/${record.id}/edit`);
   page.once("dialog", (dialog) => dialog.accept());
