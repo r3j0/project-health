@@ -1022,7 +1022,35 @@ fieldset:disabled select {
   font-size: 14px;
   margin-top: 10px;
 }
-/* Shared KSPO Orange tokens, applied only by themed screens. */
+/* Route-scoped KSPO Sky Blue colors for onboarding and its nested forms. */
+.kspo-sky-theme {
+  --sky: #1b99c4;
+  --accent: var(--sky);
+  --navy: #126580;
+  --navy-hover: #0e536a;
+  --navy-pressed: #0a4254;
+  --tint: #e6f5fa;
+  --canvas: #f3fafd;
+  --border: #cce5ee;
+  --text: #102e3a;
+  --text-secondary: #365e6d;
+  --muted: #527280;
+  color: var(--text);
+}
+.kspo-sky-theme .button.primary:not(:disabled),
+.kspo-sky-theme .segmented button[aria-pressed="true"]:not(:disabled) {
+  background: var(--sky);
+  color: #062b3a;
+}
+.kspo-sky-theme .button.primary:hover:not(:disabled),
+.kspo-sky-theme .segmented button[aria-pressed="true"]:hover:not(:disabled) {
+  background: #42aed1;
+}
+.kspo-sky-theme .button.primary:active:not(:disabled),
+.kspo-sky-theme .segmented button[aria-pressed="true"]:active:not(:disabled) {
+  background: #31a3c9;
+}
+/* KSPO Orange tokens for the profile screen. */
 .kspo-orange-theme {
   --navy: #a64900;
   --navy-hover: #8c3e00;

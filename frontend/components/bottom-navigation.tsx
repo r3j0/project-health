@@ -7,6 +7,11 @@ import { House, UserRound } from "lucide-react";
 export function BottomNavigation() {
   const pathname = usePathname();
   if (pathname === "/onboarding") return null;
+  const theme = pathname.startsWith("/onboarding/")
+    ? " kspo-sky-theme"
+    : pathname === "/account"
+      ? " kspo-orange-theme"
+      : "";
   const tabs = [
     { href: "/", label: "메인", icon: House, active: pathname === "/" },
     {
@@ -18,10 +23,7 @@ export function BottomNavigation() {
   ];
 
   return (
-    <nav
-      className={`bottom-navigation${pathname === "/account" ? " kspo-orange-theme" : ""}`}
-      aria-label="하단 메뉴"
-    >
+    <nav className={`bottom-navigation${theme}`} aria-label="하단 메뉴">
       {tabs.map(({ href, label, icon: Icon, active }) => (
         <Link
           key={href}

@@ -8,7 +8,7 @@ import { useUserProfile } from "./user-profile-provider";
 export function Onboarding() {
   const profile = useUserProfile();
   return (
-    <Shell className="onboarding-shell kspo-orange-theme">
+    <Shell className="onboarding-shell">
       <Header title="체력 기록 시작하기" back="/" />
       <div className="content stack">
         <div className="intro">
