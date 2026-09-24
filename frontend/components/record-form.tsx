@@ -13,6 +13,7 @@ import {
 import { getCatalog, getRecord, koreaDate } from "@/lib/measurements";
 import {
   buildInput,
+  isRetiredMeasurement,
   emptyMetadata,
   metadataFrom,
   validateMetadata,
@@ -62,7 +63,6 @@ export function RecordForm({
     "bmi",
     "waist_circumference",
     "cross_sit_up",
-    "self_curl_up",
     "ymca_recovery_heart_rate",
     "sit_and_reach",
   ];
@@ -115,15 +115,25 @@ export function RecordForm({
           ? metadataFrom(initial.data)
           : (seed?.meta ?? { ...emptyMetadata })),
     );
-  const [items, setItems] = useState<FormItem[]>(
+  const sourceItems =
     restored?.items ??
-      (initial
-        ? initial.data.items.map((i) => ({
-            code: i.measurementCode,
-            value: i.value,
-            grade: i.reportedGrade ?? "",
-          }))
-        : (seed?.items ?? [])),
+    (initial
+      ? initial.data.items.map((i) => ({
+          code: i.measurementCode,
+          value: i.value,
+          grade: i.reportedGrade ?? "",
+        }))
+      : (seed?.items ?? []));
+  // Stored records and uncertain requests retain their original values.
+  const excludeRetired = !initial && !restored?.pending && !restored?.uncertain;
+  const [removedRetiredItems] = useState(
+    () =>
+      excludeRetired && sourceItems.some((i) => isRetiredMeasurement(i.code)),
+  );
+  const [items, setItems] = useState<FormItem[]>(() =>
+    excludeRetired
+      ? sourceItems.filter((i) => !isRetiredMeasurement(i.code))
+      : sourceItems,
   );
   const [catalog, setCatalog] = useState(initialCatalog),
     [step, setStep] = useState(restored?.step ?? (initial ? 2 : 1)),
@@ -520,6 +530,12 @@ export function RecordForm({
       />
       <div className="content">
         {reference}
+        {removedRetiredItems && (
+          <Notice tone="info">
+            성인 윗몸말아올리기는 새 기록에서 지원하지 않아 임시 입력에서
+            제외했어요.
+          </Notice>
+        )}
         {!!extractionNotes?.length && (
           <details className="accordion" open>
             <summary>
@@ -857,6 +873,7 @@ export function RecordForm({
           <CatalogPicker
             definitions={catalog.definitions.filter(
               (d) =>
+                !isRetiredMeasurement(d.code) &&
                 Number(meta.age) >= d.minAge &&
                 Number(meta.age) <= d.maxAge &&
                 (!selfAssessment ||
@@ -865,10 +882,6 @@ export function RecordForm({
                     !(
                       d.code === "cross_sit_up" &&
                       items.some((i) => i.code === "self_curl_up")
-                    ) &&
-                    !(
-                      d.code === "self_curl_up" &&
-                      items.some((i) => i.code === "cross_sit_up")
                     ))),
             )}
             selected={items.map((i) => i.code)}

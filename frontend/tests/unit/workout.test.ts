@@ -17,7 +17,7 @@ import {
   type AssessmentSetup,
 } from "../../lib/assessment.ts";
 import type { Catalog } from "../../lib/types.ts";
-const definition = adultAssessment("cross");
+const definition = adultAssessment();
 test("countdown and 60-second test require full elapsed time, never manual early completion", () => {
   let s = initialWorkout();
   assert.equal(
@@ -76,8 +76,20 @@ test("interruption restarts only current test; skip is distinct from zero; retes
   assert.equal(s.phase, "review");
   assert.equal(s.results.flexibility, "-2.5");
 });
-test("curl-up is count-up and can finish; input and corrupted draft validation", () => {
-  const d = adultAssessment("curl");
+test("the reusable runner supports count-up segments without an assessment-specific test", () => {
+  const d = adultAssessment();
+  d.steps[0] = {
+    ...d.steps[0],
+    segments: [
+      {
+        id: "practice",
+        title: "자유 연습",
+        durationSeconds: null,
+        canFinish: true,
+        cadence: { intervalMs: 3000, cues: ["시작", "돌아오기"] },
+      },
+    ],
+  };
   let s = advanceWorkout(d, initialWorkout(), { type: "start", now: 0 });
   s = advanceWorkout(d, s, { type: "tick", now: 9500 });
   assert.equal(s.elapsedMs, 6500);
@@ -99,7 +111,6 @@ const setup: AssessmentSetup = {
   height: "170",
   weight: "65",
   waist: "",
-  endurance: "cross",
 };
 test("adult support, positive body values, and optional BMI", () => {
   assert.deepEqual(setupErrors(setup), {});
@@ -118,7 +129,6 @@ test("save payload has only measured values and separate pulse units; no fabrica
     ["bmi", "kg/m²"],
     ["waist_circumference", "cm"],
     ["cross_sit_up", "회"],
-    ["self_curl_up", "회"],
     ["ymca_recovery_heart_rate", "bpm"],
     ["sit_and_reach", "cm"],
   ];

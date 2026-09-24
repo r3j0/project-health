@@ -13,73 +13,39 @@ export type AssessmentSetup = {
   height: string;
   weight: string;
   waist: string;
-  endurance: "cross" | "curl";
 };
-export function adultAssessment(
-  endurance: AssessmentSetup["endurance"],
-): WorkoutDefinition {
+export function adultAssessment(): WorkoutDefinition {
   return {
     id: assessmentId,
-    version: 1,
+    version: 2,
     title: "성인 간이측정",
     sourceUrl: assessmentSource,
     description: "내가 직접 측정한 근지구력·심폐지구력·유연성을 기록해요.",
     steps: [
-      endurance === "cross"
-        ? {
-            id: "endurance",
-            title: "교차 윗몸일으키기",
-            factor: "근지구력",
-            equipment: ["매트", "발목을 잡아 줄 보조자 또는 발걸이"],
-            instructions: [
-              "무릎을 굽혀 누운 뒤 발목을 고정하고, 팔을 가슴 앞에 교차해 손을 어깨에 놓아요.",
-              "일어날 때 팔꿈치가 허벅지에 닿고, 내려갈 때 등과 어깨가 바닥에 닿아야 해요.",
-              "팔꿈치가 허벅지에 닿으면 1회로 세고, 60초 동안의 횟수를 입력해요.",
-            ],
-            videoUrl: "https://www.youtube.com/watch?v=j5sktGOVq1c",
-            segments: [
-              { id: "sit-ups", title: "60초 동안 측정", durationSeconds: 60 },
-            ],
-            result: {
-              code: "cross_sit_up",
-              label: "성공한 횟수",
-              unit: "회",
-              storedUnit: "회",
-              kind: "integer",
-              minimum: 0,
-              hint: "올바른 자세로 마친 횟수만 입력해 주세요.",
-            },
-          }
-        : {
-            id: "endurance",
-            title: "윗몸말아올리기",
-            factor: "근지구력",
-            equipment: ["매트", "횟수를 확인할 보조자"],
-            instructions: [
-              "무릎을 굽혀 누워 손바닥을 허벅지에 놓고 팔을 뻗어요.",
-              "3초 간격 안내에 맞춰 상체를 말아 올렸다가 내려와요. 머리가 바닥에 닿으면 1회예요.",
-              "발바닥이 들리거나 박자를 따라가기 어려우면 종료하고, 그전까지 마친 횟수를 입력해요.",
-            ],
-            videoUrl: "https://www.youtube.com/watch?v=RZ4xuuFnZiU",
-            segments: [
-              {
-                id: "curl-ups",
-                title: "리듬에 맞춰 측정",
-                durationSeconds: null,
-                canFinish: true,
-                cadence: { intervalMs: 3000, cues: ["올라오기", "내려가기"] },
-              },
-            ],
-            result: {
-              code: "self_curl_up",
-              label: "성공한 횟수",
-              unit: "회",
-              storedUnit: "회",
-              kind: "integer",
-              minimum: 0,
-              hint: "신호를 지키며 완전히 마친 횟수만 입력해 주세요.",
-            },
-          },
+      {
+        id: "endurance",
+        title: "교차 윗몸일으키기",
+        factor: "근지구력",
+        equipment: ["매트", "발목을 잡아 줄 보조자 또는 발걸이"],
+        instructions: [
+          "무릎을 굽혀 누운 뒤 발목을 고정하고, 팔을 가슴 앞에 교차해 손을 어깨에 놓아요.",
+          "일어날 때 팔꿈치가 허벅지에 닿고, 내려갈 때 등과 어깨가 바닥에 닿아야 해요.",
+          "팔꿈치가 허벅지에 닿으면 1회로 세고, 60초 동안의 횟수를 입력해요.",
+        ],
+        videoUrl: "https://www.youtube.com/watch?v=j5sktGOVq1c",
+        segments: [
+          { id: "sit-ups", title: "60초 동안 측정", durationSeconds: 60 },
+        ],
+        result: {
+          code: "cross_sit_up",
+          label: "성공한 횟수",
+          unit: "회",
+          storedUnit: "회",
+          kind: "integer",
+          minimum: 0,
+          hint: "올바른 자세로 마친 횟수만 입력해 주세요.",
+        },
+      },
       {
         id: "cardio",
         title: "YMCA 스텝검사",
@@ -203,7 +169,7 @@ export function assessmentInput(
   catalog: Catalog,
   today: string,
 ) {
-  const definition = adultAssessment(setup.endurance);
+  const definition = adultAssessment();
   const items: FormItem[] = [];
   for (const [code, value] of [
     ["height", setup.height],

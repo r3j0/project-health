@@ -216,9 +216,9 @@ test("빈 측정은 저장하지 않으며 결과 재측정과 신체정보 수�
     page.getByText("측정값을 하나 이상 입력해 주세요."),
   ).toBeVisible();
   await page.getByRole("button", { name: "수정", exact: true }).click();
-  await expect(
-    page.getByRole("radio", { name: "윗몸말아올리기" }),
-  ).toBeDisabled();
+  await expect(page.getByRole("radio", { name: "윗몸말아올리기" })).toHaveCount(
+    0,
+  );
   await page.getByLabel("신장 (cm)").fill("170");
   await page.getByRole("button", { name: "변경 완료" }).click();
   await page
@@ -234,25 +234,21 @@ test("빈 측정은 저장하지 않으며 결과 재측정과 신체정보 수�
     page.getByRole("heading", { name: "나의 체력을 기록했어요" }),
   ).toBeVisible();
 });
-test("윗몸말아올리기 박자와 중단·새로고침 복원을 지원한다", async ({
+test("교차 윗몸일으키기 중단·새로고침 후 60초 재측정을 지원한다", async ({
   page,
 }) => {
   await register(page);
   await page.goto("/workout?mode=assessment");
-  await prepareAssessment(page, "curl");
+  await prepareAssessment(page);
   await page.clock.install();
   await page.getByRole("button", { name: "측정 시작", exact: true }).click();
   await page.clock.fastForward(3100);
-  await expect(page.getByText("올라오기", { exact: true })).toBeVisible();
-  await page.clock.fastForward(3000);
-  await expect(page.getByText("내려가기", { exact: true })).toBeVisible();
   await page.reload();
   await expect(
     page.getByRole("button", { name: "이 항목 다시 시작" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "이 항목 다시 시작" }).click();
-  await page.clock.fastForward(10000);
-  await page.getByRole("button", { name: "측정 종료 · 횟수 입력" }).click();
+  await page.clock.fastForward(63050);
   await page.getByLabel("성공한 횟수 (회)").fill("1");
   await page.getByRole("button", { name: "입력하고 다음으로" }).click();
   await page.getByRole("button", { name: "이 항목 건너뛰기" }).click();

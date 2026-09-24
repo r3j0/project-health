@@ -1291,45 +1291,6 @@ fieldset:disabled select {
   color: var(--muted);
   font-weight: 400;
 }
-.endurance-choice {
-  display: grid;
-  gap: 12px;
-  border: 0;
-  padding: 0;
-  margin: 0;
-  min-width: 0;
-}
-.endurance-choice legend {
-  font-size: 16px;
-  font-weight: 700;
-  margin-bottom: 12px;
-}
-.endurance-choice .choice-card {
-  margin: 0;
-  padding-inline: 16px;
-  cursor: pointer;
-  border-radius: var(--radius-card);
-}
-.endurance-choice .choice-card:has(input:checked) {
-  box-shadow: inset 0 0 0 1px var(--sky);
-  background: var(--tint);
-}
-.endurance-choice .choice-card:has(input:checked) small {
-  color: var(--text-secondary);
-}
-.endurance-choice input {
-  width: 18px;
-  height: 18px;
-  min-height: 0;
-  flex: 0 0 18px;
-  accent-color: var(--navy);
-}
-.endurance-choice small {
-  display: block;
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 6px;
-}
 .assessment-footer {
   display: flex;
   flex-wrap: wrap;

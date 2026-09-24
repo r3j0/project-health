@@ -1,11 +1,6 @@
 import { expect, type Page } from "@playwright/test";
-export async function prepareAssessment(
-  page: Page,
-  endurance: "cross" | "curl" = "cross",
-) {
+export async function prepareAssessment(page: Page) {
   await page.getByLabel("만 나이", { exact: true }).fill("25");
-  if (endurance === "curl")
-    await page.getByRole("radio", { name: "윗몸말아올리기" }).check();
   await page.getByRole("button", { name: "측정 준비 완료" }).click();
   await expect(
     page.getByRole("button", { name: "측정 시작", exact: true }),

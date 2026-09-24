@@ -12,6 +12,7 @@ export type WorkoutDraft = {
   state: WorkoutState;
   catalogVersion?: string;
   pending: { key: string; body: string } | null;
+  removedEndurance?: true;
 };
 type Saved = { owner: string; expiresAt: number; draft: WorkoutDraft };
 let memory: Saved | null | undefined;
@@ -44,11 +45,12 @@ export function setWorkoutOwner(owner: string | null, erase = false) {
 export function validWorkoutDraft(value: unknown): value is WorkoutDraft {
   if (!value || typeof value !== "object") return false;
   const d = value as WorkoutDraft,
-    s = d.setup;
+    s = d.setup as AssessmentSetup & { endurance?: unknown };
   if (
     !s ||
     !["setup", "session"].includes(d.stage) ||
-    !["cross", "curl"].includes(s.endurance) ||
+    ![undefined, "cross", "curl"].includes(s.endurance as string | undefined) ||
+    (d.removedEndurance !== undefined && d.removedEndurance !== true) ||
     !["", "male", "female"].includes(s.sex)
   )
     return false;
@@ -63,7 +65,7 @@ export function validWorkoutDraft(value: unknown): value is WorkoutDraft {
     (typeof d.catalogVersion !== "string" || d.catalogVersion.length > 100)
   )
     return false;
-  if (!isWorkoutState(d.state, adultAssessment(s.endurance))) return false;
+  if (!isWorkoutState(d.state, adultAssessment())) return false;
   if (d.pending !== null) {
     if (
       !d.pending ||
@@ -90,6 +92,31 @@ export function validWorkoutDraft(value: unknown): value is WorkoutDraft {
   }
   return true;
 }
+/** Legacy curl-up results must never become cross sit-ups after an update. */
+export function restoreWorkoutDraft(value: unknown): WorkoutDraft | null {
+  if (!validWorkoutDraft(value)) return null;
+  const { endurance, ...setup } = value.setup as AssessmentSetup & {
+    endurance?: string;
+  };
+  if (endurance !== "curl") return { ...value, setup };
+  const state = { ...value.state, results: { ...value.state.results } };
+  delete state.results.endurance;
+  state.skipped = state.skipped.filter((id) => id !== "endurance");
+  if (state.phase === "review" || state.index > 0) {
+    state.skipped.push("endurance");
+  } else {
+    Object.assign(state, {
+      phase: "ready",
+      segmentIndex: 0,
+      remainingMs: 0,
+      elapsedMs: 0,
+      runningSince: null,
+      draftValue: "",
+    });
+  }
+  // An unresolved request may already be committed. Preserve its exact body/key.
+  return { ...value, setup, state, removedEndurance: true };
+}
 export function readWorkoutProgress(owner: string): WorkoutDraft | null {
   if (activeOwner !== owner) return null;
   if (memory === undefined) {
@@ -102,16 +129,17 @@ export function readWorkoutProgress(owner: string): WorkoutDraft | null {
   }
   const saved = memory;
   if (!saved) return null;
+  const draft = restoreWorkoutDraft(saved.draft);
   if (
     saved.owner !== owner ||
     !Number.isFinite(saved.expiresAt) ||
     (saved.expiresAt <= Date.now() && !saved.draft?.pending) ||
-    !validWorkoutDraft(saved.draft)
+    !draft
   ) {
     clearWorkoutProgress();
     return null;
   }
-  return { ...saved.draft, state: interruptedWorkout(saved.draft.state) };
+  return { ...draft, state: interruptedWorkout(draft.state) };
 }
 export function saveWorkoutProgress(owner: string, draft: WorkoutDraft) {
   if (activeOwner !== owner) return false;

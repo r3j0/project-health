@@ -7,7 +7,7 @@ import {
 } from "../../lib/workout.ts";
 import { adultAssessment } from "../../lib/assessment.ts";
 import type { WorkoutDraft } from "../../lib/workout-progress.ts";
-const definition = adultAssessment("cross");
+const definition = adultAssessment();
 const draft = (state: WorkoutState): WorkoutDraft => ({
   state,
   stage: "session",
@@ -18,7 +18,6 @@ const draft = (state: WorkoutState): WorkoutDraft => ({
     weight: "",
     waist: "",
     measuredOn: "2026-09-21",
-    endurance: "cross",
   },
   pending: null,
 });

@@ -1,4 +1,6 @@
 import type { Catalog, Measurement, MeasurementInput } from "./types.ts";
+/** Retire adult self curl-ups only; official youth curl_up remains supported. */
+export const isRetiredMeasurement = (code: string) => code === "self_curl_up";
 export interface FormMetadata {
   measuredOn: string;
   age: string;

@@ -46,7 +46,6 @@ const freshDraft = (): WorkoutDraft => ({
     height: "",
     weight: "",
     waist: "",
-    endurance: "cross",
   },
   state: initialWorkout(),
   pending: null,
@@ -70,7 +69,7 @@ export function AssessmentWorkout() {
   const guard = useRef(false),
     saved = useRef(false);
   const beginOperation = useOperationScope();
-  const definition = adultAssessment(draft.setup.endurance);
+  const definition = adultAssessment();
   const locked = busy || !!draft.pending;
   const persist = useCallback(
     (next: WorkoutDraft) =>
@@ -87,8 +86,8 @@ export function AssessmentWorkout() {
       .then((value) => {
         if (abort.signal.aborted) return;
         if (
-          !["self_curl_up", "ymca_recovery_heart_rate"].every((code) =>
-            value.definitions.some((item) => item.code === code),
+          !["cross_sit_up", "ymca_recovery_heart_rate", "sit_and_reach"].every(
+            (code) => value.definitions.some((item) => item.code === code),
           )
         ) {
           setLoadError(
@@ -111,11 +110,7 @@ export function AssessmentWorkout() {
           ? current
           : {
               ...current,
-              state: advanceWorkout(
-                adultAssessment(current.setup.endurance),
-                current.state,
-                action,
-              ),
+              state: advanceWorkout(adultAssessment(), current.state, action),
             },
       ),
     [],
@@ -168,7 +163,12 @@ export function AssessmentWorkout() {
       }
       pending = { key: crypto.randomUUID(), body: JSON.stringify(built.input) };
     }
-    const next = { ...draft, pending };
+    const next = {
+      ...draft,
+      pending,
+      // A new save contains only current tests; the legacy recovery UI is done.
+      removedEndurance: draft.pending ? draft.removedEndurance : undefined,
+    };
     if (!persist(next)) return;
     setDraft(next);
     guard.current = true;
@@ -321,33 +321,12 @@ export function AssessmentWorkout() {
             허리둘레는 편안히 숨을 쉰 뒤 배꼽 높이에서 재요.
           </p>
         </section>
-        <fieldset
-          className="endurance-choice"
-          disabled={!!draft.catalogVersion}
-        >
-          <legend>근지구력 검사 선택</legend>
-          <p className="caption">두 검사 중 하나만 진행해요.</p>
-          {(
-            [
-              ["cross", "교차 윗몸일으키기", "60초 동안 성공한 횟수"],
-              ["curl", "윗몸말아올리기", "일정한 신호에 맞춰 수행"],
-            ] as const
-          ).map(([value, label, hint]) => (
-            <label className="choice-card" key={value}>
-              <input
-                type="radio"
-                name="endurance"
-                checked={draft.setup.endurance === value}
-                value={value}
-                onChange={() => update("endurance", value)}
-              />
-              <span>
-                <strong>{label}</strong>
-                <small>{hint}</small>
-              </span>
-            </label>
-          ))}
-        </fieldset>
+        <section className="stack-sm">
+          <h3>근지구력 검사 · 교차 윗몸일으키기</h3>
+          <p className="caption">
+            60초 동안 올바른 자세로 마친 횟수를 기록해요.
+          </p>
+        </section>
         <p className="caption">
           매트, 30cm 스텝박스, 줄자를 준비해 주세요. 장비가 없는 항목은 건너뛸
           수 있어요. 측정 중 통증이나 어지러움이 있으면 중단하고 쉬어 주세요.
@@ -365,6 +344,13 @@ export function AssessmentWorkout() {
     >
       <Header title="간이측정" back="/onboarding" />
       <div className="content stack">
+        {!complete && draft.removedEndurance && (
+          <Notice tone="info">
+            {draft.pending
+              ? "이전 버전의 윗몸말아올리기 저장 결과를 확인하고 있어요. 중복 저장을 막기 위해 원래 요청으로 확인해 주세요."
+              : "윗몸말아올리기 지원이 종료되어 해당 임시 측정값은 제외했어요. 다른 측정값은 유지되며, 근지구력은 교차 윗몸일으키기로 측정할 수 있어요."}
+          </Notice>
+        )}
         {complete ? (
           <section className="feature-card stack assessment-complete">
             <CheckCircle2 size={44} />
@@ -412,12 +398,16 @@ export function AssessmentWorkout() {
           setupForm
         ) : (
           <>
-            <WorkoutRunner
-              definition={definition}
-              state={draft.state}
-              dispatch={dispatch}
-              disabled={locked}
-            />
+            {draft.removedEndurance && draft.pending ? (
+              <h2>이전 측정 저장 확인</h2>
+            ) : (
+              <WorkoutRunner
+                definition={definition}
+                state={draft.state}
+                dispatch={dispatch}
+                disabled={locked}
+              />
+            )}
             {draft.state.phase === "review" && (
               <>
                 <section className="feature-card stack-sm">

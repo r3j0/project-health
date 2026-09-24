@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Pencil, Trash2 } from "lucide-react";
 import { getCatalog, getRecord, displayDate } from "@/lib/measurements";
 import { api } from "@/lib/session";
+import { isRetiredMeasurement } from "@/lib/measurement-form";
 import { ApiError, errorMessage } from "@/lib/http";
 import type { Catalog, RecordResponse } from "@/lib/types";
 import { RecordForm } from "./record-form";
@@ -111,6 +112,9 @@ function RecordDetail({
 }) {
   const r = record.data,
     router = useRouter();
+  const missingCodes = r.missingMeasurementCodes.filter(
+    (code) => !isRetiredMeasurement(code),
+  );
   const [confirm, setConfirm] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -166,15 +170,13 @@ function RecordDetail({
         <details className="accordion">
           <summary>
             미입력 항목 보기{" "}
-            <span className="optional-label">
-              ({r.missingMeasurementCodes.length})
-            </span>
+            <span className="optional-label">({missingCodes.length})</span>
           </summary>
           <p className="caption summary-hint">
             측정하지 않은 검사는 입력하지 않아도 괜찮아요.
           </p>
           <ul className="missing-list">
-            {r.missingMeasurementCodes.map((code) => (
+            {missingCodes.map((code) => (
               <li key={code}>
                 {catalog.definitions.find((d) => d.code === code)?.label ??
                   code}{" "}
@@ -182,7 +184,7 @@ function RecordDetail({
               </li>
             ))}
           </ul>
-          {!r.missingMeasurementCodes.length && (
+          {!missingCodes.length && (
             <p className="caption">미입력 항목이 없어요.</p>
           )}
         </details>
