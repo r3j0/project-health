@@ -3,8 +3,8 @@ import type { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { randomUUID } from 'node:crypto';
+import type { Server } from 'node:http';
 import request from 'supertest';
-import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/setup-app.js';
@@ -12,7 +12,7 @@ import { DatabaseService } from '../src/database/database.service.js';
 import { validateEnvironment } from '../src/config/environment.js';
 
 describe('API bootstrap (e2e)', () => {
-  let app: INestApplication<App>;
+  let app: INestApplication<Server>;
   const frontendOrigin = 'http://localhost:3000';
 
   beforeAll(async () => {
@@ -32,7 +32,7 @@ describe('API bootstrap (e2e)', () => {
 
     app = module.createNestApplication();
     configureApp(app);
-    await app.init();
+    await app.listen(0, '127.0.0.1');
   });
 
   afterAll(async () => {
@@ -40,10 +40,16 @@ describe('API bootstrap (e2e)', () => {
   });
 
   it('serves the health endpoint with the explicit v1 API prefix', async () => {
+    // Supertest's automatic wildcard bind can be shadowed by a different
+    // loopback listener on macOS. The listener must match its IPv4 client URL.
+    const server = app.getHttpServer();
+    const address = server.address();
+    expect(address).toMatchObject({ address: '127.0.0.1', family: 'IPv4' });
     await request(app.getHttpServer())
       .get('/api/v1/health')
       .expect('Content-Type', /json/)
       .expect(200, { status: 'ok' });
+    expect(server.address()).toEqual(address);
   });
 
   it('does not expose the endpoint outside the API prefix', async () => {
@@ -59,6 +65,8 @@ describe('API bootstrap (e2e)', () => {
         ['post', '/auth/refresh'],
         ['post', '/auth/logout'],
         ['get', '/auth/me'],
+        ['patch', '/users/me'],
+        ['delete', '/users/me'],
         ['get', '/measurement-catalog'],
         ['post', '/measurements'],
         ['get', '/measurements'],

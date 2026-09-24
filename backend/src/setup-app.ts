@@ -15,7 +15,11 @@ export function configureApp(app: INestApplication): void {
   app.setGlobalPrefix(API_PREFIX);
   app.enableVersioning({ type: VersioningType.URI });
   app.use(
-    [`${API_V1_BASE_PATH}/auth`, `${API_V1_BASE_PATH}/measurements`],
+    [
+      `${API_V1_BASE_PATH}/auth`,
+      `${API_V1_BASE_PATH}/measurements`,
+      `${API_V1_BASE_PATH}/users`,
+    ],
     (_request: Request, response: Response, next: NextFunction) => {
       response.setHeader('Cache-Control', 'no-store');
       response.setHeader('Pragma', 'no-cache');
@@ -32,6 +36,6 @@ export function configureApp(app: INestApplication): void {
       'Idempotency-Key',
       'If-Match',
     ],
-    exposedHeaders: ['ETag', 'Location', 'Idempotency-Replayed'],
+    exposedHeaders: ['ETag', 'Location', 'Idempotency-Replayed', 'Retry-After'],
   });
 }

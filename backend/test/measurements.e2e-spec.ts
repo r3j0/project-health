@@ -16,6 +16,10 @@ import {
 } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { DatabaseService } from '../src/database/database.service.js';
+import type {
+  AxisEvaluation,
+  ItemEvaluation,
+} from '../src/measurements/evaluation/evaluation-types.js';
 import { configureApp } from '../src/setup-app.js';
 
 type Account = { user: { id: string }; access_token: string };
@@ -24,6 +28,7 @@ type Item = {
   value: string;
   unit: string;
   reportedGrade?: string | null;
+  evaluation: ItemEvaluation;
 };
 type RecordBody = {
   id: string;
@@ -42,6 +47,7 @@ type RecordBody = {
   catalogVersion: string;
   missingMeasurementCodes: string[];
   evaluation: { status: string; reason: string };
+  axes: AxisEvaluation[];
 };
 type Catalog = {
   version: string;
@@ -51,7 +57,13 @@ type Catalog = {
     factor: string;
     unit: string;
     sourceUrls: string[];
+    availableForNewMeasurements: boolean;
+    unavailabilityReason: string | null;
   }>;
+};
+type ListBody = {
+  items: Array<{ id: string; itemCount: number }>;
+  nextCursor: string | null;
 };
 
 describe('Authenticated measurement CRUD against PostgreSQL', () => {
@@ -62,7 +74,7 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
   let version: string;
   const userIds: string[] = [];
   let afterMeasurementRead:
-    { id: string; run: () => Promise<unknown> } | undefined;
+    { id: string; latest?: boolean; run: () => Promise<unknown> } | undefined;
   // The spy below explicitly supplies the original factory as this via call().
   // oxlint-disable-next-line typescript/unbound-method
   const connect = PrismaPg.prototype.connect;
@@ -77,9 +89,11 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
           const result = await queryRaw(query);
           if (
             afterMeasurementRead &&
-            query.sql.startsWith('SELECT') &&
+            query.sql.trimStart().startsWith('SELECT') &&
             /FROM "[^"]+"\."measurements"/.test(query.sql) &&
-            query.args.includes(afterMeasurementRead.id)
+            (query.args.includes(afterMeasurementRead.id) ||
+              (afterMeasurementRead.latest &&
+                query.args.includes(owner.user.id)))
           ) {
             // The real parent SELECT has finished. Commit another HTTP write
             // before Prisma can issue the related item/catalog SELECTs.
@@ -104,7 +118,7 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
     }).compile();
     app = module.createNestApplication();
     configureApp(app);
-    await app.init();
+    await app.listen(0, '127.0.0.1');
     database = app.get(DatabaseService);
     owner = await register();
     other = await register();
@@ -206,7 +220,7 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
         .expect(200);
       const catalog = response.body as Catalog;
       expect(catalog.version).toBe(version);
-      expect(catalog.definitions).toHaveLength(15);
+      expect(catalog.definitions).toHaveLength(age >= 19 ? 17 : 16);
       expect(new Set(catalog.definitions.map((def) => def.factor)).size).toBe(
         factorCount,
       );
@@ -220,7 +234,52 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
     const all = await request(app.getHttpServer())
       .get('/api/v1/measurement-catalog')
       .expect(200);
-    expect((all.body as Catalog).definitions).toHaveLength(19);
+    const latestCatalog = all.body as Catalog;
+    expect(latestCatalog.version).toBe('nfa100-2026-09-24-grip-v1');
+    expect(latestCatalog.definitions).toHaveLength(21);
+    expect(
+      latestCatalog.definitions.map((definition) => definition.code),
+    ).not.toContain('self_curl_up');
+    expect(latestCatalog.definitions).toContainEqual(
+      expect.objectContaining({ code: 'curl_up' }),
+    );
+    expect(
+      latestCatalog.definitions.every(
+        (definition) =>
+          definition.availableForNewMeasurements &&
+          definition.unavailabilityReason === null,
+      ),
+    ).toBe(true);
+    const retired = await request(app.getHttpServer())
+      .get('/api/v1/measurement-catalog?version=nfa100-2026-09-23')
+      .expect(200);
+    const retiredCatalog = retired.body as Catalog;
+    expect(retiredCatalog.definitions).toHaveLength(21);
+    expect(retiredCatalog.definitions).toContainEqual(
+      expect.objectContaining({
+        code: 'self_curl_up',
+        availableForNewMeasurements: false,
+        unavailabilityReason: 'official_criteria_unverified',
+      }),
+    );
+    expect(
+      retiredCatalog.definitions
+        .filter((definition) => definition.code !== 'self_curl_up')
+        .every(
+          (definition) =>
+            definition.availableForNewMeasurements &&
+            definition.unavailabilityReason === null,
+        ),
+    ).toBe(true);
+    const previous = await request(app.getHttpServer())
+      .get('/api/v1/measurement-catalog?version=nfa100-2026-09-19')
+      .expect(200);
+    expect((previous.body as Catalog).definitions).toHaveLength(19);
+    expect(
+      (previous.body as Catalog).definitions.some((definition) =>
+        ['self_curl_up', 'ymca_recovery_heart_rate'].includes(definition.code),
+      ),
+    ).toBe(false);
     await request(app.getHttpServer())
       .get('/api/v1/measurement-catalog?age=65')
       .expect(400);
@@ -241,9 +300,18 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
         value: '-3.25',
         unit: 'cm',
         reportedGrade: null,
+        evaluation: expect.objectContaining({
+          measurementId: record.id,
+          measurementCode: 'sit_and_reach',
+          status: 'insufficient_information',
+          reasonCode: 'sex_at_measurement_missing',
+          grade: null,
+          recordRevision: 1,
+        }),
       },
     ]);
-    expect(record.missingMeasurementCodes).toHaveLength(14);
+    expect(record.missingMeasurementCodes).toHaveLength(16);
+    expect(record.missingMeasurementCodes).not.toContain('self_curl_up');
     expect(record.missingMeasurementCodes).toContain('height');
     expect(record.missingMeasurementCodes).not.toContain('t_wall_coordination');
     expect(record.sexAtMeasurement).toBeNull();
@@ -512,6 +580,13 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
         value: '61.25',
         unit: 'kg',
         reportedGrade: null,
+        evaluation: expect.objectContaining({
+          measurementId: record.id,
+          measurementCode: 'weight',
+          status: 'criteria_unavailable',
+          grade: null,
+          recordRevision: 2,
+        }),
       },
     ]);
     expect(record.missingMeasurementCodes).toContain('sit_and_reach');
@@ -550,6 +625,8 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
   it.each([
     ['GET', 'PATCH'],
     ['GET', 'DELETE'],
+    ['GET latest', 'PATCH'],
+    ['GET latest', 'DELETE'],
     ['POST replay', 'PATCH'],
     ['POST replay', 'DELETE'],
   ] as const)(
@@ -568,14 +645,31 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
           items: [{ measurementCode: 'cross_sit_up', value: '21', unit: '회' }],
         }).expect(200);
       });
-      afterMeasurementRead = { id: original.id, run: change };
+      afterMeasurementRead = {
+        id: original.id,
+        latest: read === 'GET latest',
+        run: change,
+      };
       try {
         const response = await (
-          read === 'GET' ? get(original.id) : create(body, key)
+          read === 'GET'
+            ? get(original.id)
+            : read === 'GET latest'
+              ? get('latest-polygon')
+              : create(body, key)
         ).expect(200);
         expect(change).toHaveBeenCalledTimes(1);
-        expect(response.headers.etag).toBe('"1"');
-        expect(response.body).toEqual(original);
+        if (read === 'GET latest') {
+          expect(response.body).toEqual({
+            measurementId: original.id,
+            measuredOn: original.measuredOn,
+            revision: original.revision,
+            axes: original.axes,
+          });
+        } else {
+          expect(response.headers.etag).toBe('"1"');
+          expect(response.body).toEqual(original);
+        }
         if (read === 'POST replay') {
           expect(response.headers['idempotency-replayed']).toBe('true');
         }
@@ -682,6 +776,15 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
         centerName: 'updated center',
         revision: 3,
         updatedAt: (retried.body as RecordBody).updatedAt,
+        items: winner!.items.map((item) => ({
+          ...item,
+          evaluation: {
+            ...item.evaluation,
+            recordRevision: 3,
+            evaluatedAt: expect.any(String),
+          },
+        })),
+        axes: winner!.axes.map((axis) => ({ ...axis, recordRevision: 3 })),
       });
     } finally {
       afterMeasurementRead = undefined;
@@ -706,6 +809,15 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
       centerName: 'valid retry',
       revision: 2,
       updatedAt: (updated.body as RecordBody).updatedAt,
+      items: original.items.map((item) => ({
+        ...item,
+        evaluation: {
+          ...item.evaluation,
+          recordRevision: 2,
+          evaluatedAt: expect.any(String),
+        },
+      })),
+      axes: original.axes.map((axis) => ({ ...axis, recordRevision: 2 })),
     });
   });
 
@@ -747,7 +859,7 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
     }
   });
 
-  it('paginates by measurement date and ID without exposing another user records', async () => {
+  it('paginates by measurement date, creation time and ID without exposing another user records', async () => {
     const records: RecordBody[] = [];
     for (const measuredOn of [
       '2026-09-15',
@@ -786,6 +898,7 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
         .sort(
           (a, b) =>
             b.measuredOn.localeCompare(a.measuredOn) ||
+            b.createdAt.localeCompare(a.createdAt) ||
             a.id.localeCompare(b.id),
         )
         .map((record) => record.id),
@@ -800,6 +913,163 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
     await list({ cursor: 'invalid' }).expect(400);
     await list({ from: '2026-09-17', to: '2026-09-16' }).expect(400);
     await get('not-a-uuid').expect(400);
+  });
+
+  async function sameDayRecords() {
+    const records: RecordBody[] = [];
+    for (let index = 0; index < 4; index++) {
+      records.push((await create().expect(201)).body as RecordBody);
+    }
+    records.sort((a, b) => a.id.localeCompare(b.id));
+    // Creation order deliberately disagrees with ID order. The last three
+    // timestamps share one JS millisecond and the last two tie exactly.
+    const times = [
+      '2026-09-20T00:00:00.100000Z',
+      '2026-09-20T00:00:00.200123Z',
+      '2026-09-20T00:00:00.200456Z',
+      '2026-09-20T00:00:00.200456Z',
+    ];
+    for (const [index, record] of records.entries()) {
+      await database.$executeRaw`
+        UPDATE ${database.table('measurements')}
+        SET created_at = ${times[index]}::timestamptz
+        WHERE id = ${record.id}::uuid
+      `;
+    }
+    return records;
+  }
+
+  it.each([1, 2, 50])(
+    'matches the latest polygon and preserves sub-millisecond ties with page size %i',
+    async (limit) => {
+      const records = await sameDayRecords();
+      const olderDay = (
+        await create(payload({ measuredOn: '2026-09-16' })).expect(201)
+      ).body as RecordBody;
+      await create(payload(), randomUUID(), other).expect(201);
+      const expected = [
+        records[2],
+        records[3],
+        records[1],
+        records[0],
+        olderDay,
+      ].map(({ id }) => id);
+      const seen: string[] = [];
+      let cursor: string | null = null;
+      do {
+        const response = await list({
+          limit,
+          ...(cursor ? { cursor } : {}),
+        }).expect(200);
+        const page = response.body as ListBody;
+        seen.push(...page.items.map(({ id }) => id));
+        cursor = page.nextCursor;
+        expect(seen.length).toBeLessThanOrEqual(expected.length);
+      } while (cursor);
+      expect(seen).toEqual(expected);
+      const latest = await request(app.getHttpServer())
+        .get('/api/v1/measurements/latest-polygon')
+        .set('Authorization', `Bearer ${owner.access_token}`)
+        .expect(200);
+      expect((latest.body as { measurementId: string }).measurementId).toBe(
+        seen[0],
+      );
+      const filtered = (
+        await list({ from: '2026-09-17', to: '2026-09-17' }).expect(200)
+      ).body as ListBody;
+      expect(filtered.items.map(({ id }) => id)).toEqual(expected.slice(0, 4));
+    },
+  );
+
+  it('continues after a deleted cursor row and excludes newly inserted rows above its boundary', async () => {
+    const records = await sameDayRecords();
+    const first = (await list({ limit: 1 }).expect(200)).body as ListBody;
+    expect(first.items[0].id).toBe(records[2].id);
+    expect(
+      JSON.parse(Buffer.from(first.nextCursor!, 'base64url').toString()),
+    ).toMatchObject({
+      v: 2,
+      createdAt: '2026-09-20T00:00:00.200456Z',
+    });
+    await remove(records[2].id).expect(204);
+    await create().expect(201);
+    const rest = (
+      await list({ cursor: first.nextCursor!, limit: 50 }).expect(200)
+    ).body as ListBody;
+    expect(rest.items.map(({ id }) => id)).toEqual(
+      [records[3], records[1], records[0]].map(({ id }) => id),
+    );
+    expect(rest.nextCursor).toBeNull();
+  });
+
+  it('keeps page boundaries and summaries consistent during concurrent deletion', async () => {
+    const records = await sameDayRecords();
+    afterMeasurementRead = {
+      id: records[2].id,
+      latest: true,
+      run: () => remove(records[2].id).expect(204),
+    };
+    const first = (await list({ limit: 1 }).expect(200)).body as ListBody;
+    expect(afterMeasurementRead).toBeUndefined();
+    expect(first.items).toEqual([
+      expect.objectContaining({ id: records[2].id, itemCount: 1 }),
+    ]);
+    await get(records[2].id).expect(404);
+    const next = (await list({ cursor: first.nextCursor! }).expect(200))
+      .body as ListBody;
+    expect(next.items.map(({ id }) => id)).toEqual(
+      [records[3], records[1], records[0]].map(({ id }) => id),
+    );
+  });
+
+  it('does not promote an old record when only its values change', async () => {
+    const records = await sameDayRecords();
+    const first = (await list({ limit: 2 }).expect(200)).body as ListBody;
+    await patch(records[0].id, {
+      items: [{ measurementCode: 'sit_and_reach', value: '20', unit: 'cm' }],
+    }).expect(200);
+    const next = (
+      await list({ cursor: first.nextCursor!, limit: 2 }).expect(200)
+    ).body as ListBody;
+    expect(next.items.map(({ id }) => id)).toEqual([
+      records[1].id,
+      records[0].id,
+    ]);
+    const refreshed = (await list({ limit: 2 }).expect(200)).body as ListBody;
+    expect(refreshed.items.map(({ id }) => id)).toEqual(
+      first.items.map(({ id }) => id),
+    );
+  });
+
+  it('finishes legacy cursor chains in date/ID order while fresh requests use creation time', async () => {
+    const records = await sameDayRecords();
+    const originalCursor = Buffer.from(
+      JSON.stringify({
+        v: 1,
+        measuredOn: records[0].measuredOn,
+        id: records[0].id,
+      }),
+    ).toString('base64url');
+    await remove(records[0].id).expect(204);
+    const next = (await list({ limit: 1, cursor: originalCursor }).expect(200))
+      .body as ListBody;
+    expect(next.items[0].id).toBe(records[1].id);
+    expect(
+      JSON.parse(Buffer.from(next.nextCursor!, 'base64url').toString()),
+    ).toMatchObject({ v: 1 });
+    const rest = (await list({ cursor: next.nextCursor! }).expect(200))
+      .body as ListBody;
+    expect(rest.items.map(({ id }) => id)).toEqual([
+      records[2].id,
+      records[3].id,
+    ]);
+    expect(rest.nextCursor).toBeNull();
+    const refreshed = (await list().expect(200)).body as ListBody;
+    expect(refreshed.items.map(({ id }) => id)).toEqual([
+      records[2].id,
+      records[3].id,
+      records[1].id,
+    ]);
   });
 
   it('exposes revision and retry headers to the web frontend', async () => {

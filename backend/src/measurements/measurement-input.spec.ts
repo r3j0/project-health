@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { koreaDate, parseCreate, parseRevision } from './measurement-input.js';
+import {
+  decodeCursor,
+  encodeCursor,
+  koreaDate,
+  parseCreate,
+  parseRevision,
+} from './measurement-input.js';
 
 describe('Measurement date and precision boundaries', () => {
   const valid = {
@@ -49,5 +55,44 @@ describe('Measurement date and precision boundaries', () => {
     ]) {
       expect(() => parseRevision(revision)).toThrow();
     }
+  });
+});
+
+describe('Measurement list cursors', () => {
+  const cursor = {
+    v: 2 as const,
+    measuredOn: '2026-09-17',
+    createdAt: '2026-09-24T00:00:00.123456Z',
+    id: '00000000-0000-4000-8000-000000000001',
+  };
+
+  it('preserves the full PostgreSQL timestamp through a cursor round trip', () => {
+    expect(decodeCursor(encodeCursor(cursor))).toEqual(cursor);
+  });
+
+  it('continues to accept the original date/ID cursor format', () => {
+    const legacy = {
+      v: 1 as const,
+      measuredOn: cursor.measuredOn,
+      id: cursor.id,
+    };
+    expect(decodeCursor(encodeCursor(legacy))).toEqual(legacy);
+  });
+
+  it.each([
+    { createdAt: undefined },
+    { createdAt: '0000-09-24T00:00:00.123456Z' },
+    { createdAt: '2026-02-30T00:00:00.123456Z' },
+    { createdAt: '2026-09-24T00:00:00.123Z' },
+    { createdAt: '2026-09-24T00:00:00.1234567Z' },
+    { createdAt: '2026-09-24T00:00:00.123456+09:00' },
+    { createdAt: "2026-09-24'; SELECT 1; --" },
+    { v: 3 },
+    { userId: cursor.id },
+  ])('rejects a malformed versioned boundary: %j', (override) => {
+    const value = Buffer.from(
+      JSON.stringify({ ...cursor, ...override }),
+    ).toString('base64url');
+    expect(() => decodeCursor(value)).toThrow();
   });
 });

@@ -26,9 +26,9 @@ npm run start:dev
 | `POST /auth/login`    | 동일                                         | 200, 계정·access token·refresh 쿠키                      |
 | `POST /auth/refresh`  | refresh 쿠키                                 | 200, 계정·새 access token·새 refresh 쿠키                |
 | `POST /auth/logout`   | refresh 쿠키 또는 Bearer access token        | 204, 해당 세션 폐기·쿠키 삭제                            |
-| `GET /auth/me`        | `Authorization: Bearer <access_token>`       | 200, 내 계정 4개 공개 필드                               |
+| `GET /auth/me`        | `Authorization: Bearer <access_token>`       | 200, 기존 공개 필드와 확장 프로필                        |
 
-회원가입·로그인·갱신 응답은 `{ "user": { "id", "email", "created_at", "updated_at" }, "access_token", "token_type": "Bearer", "expires_in": 900 }` 형태다. `expires_in`은 초 단위이며 세션 만료가 가까우면 짧아진다. 비밀번호 원문·해시와 refresh token은 JSON 응답에 포함하지 않는다. `GET /auth/me`는 `user` 내부 객체를 반환한다.
+회원가입·로그인·갱신 응답은 `{ "user": { "id", "email", "created_at", "updated_at" }, "access_token", "token_type": "Bearer", "expires_in": 900 }` 형태다. `expires_in`은 초 단위이며 세션 만료가 가까우면 짧아진다. 비밀번호 원문·해시와 refresh token은 JSON 응답에 포함하지 않는다. `GET /auth/me`는 기존 공개 필드를 유지하고 온보딩·재화·현재 배정을 제공한다. 선호 운동·운동 목적·목표·currentFitness 응답은 최신 사용자 정정으로 폐기했다. 이메일·비밀번호 변경과 영구 탈퇴는 [사용자 API](users-api.md)를 따른다. 가입·로그인·갱신의 `user` 객체는 기존 형태를 유지한다.
 
 이메일은 앞뒤 공백 제거·소문자화·형식 검증 후 저장한다. 회원가입 비밀번호는 15~128자이며 공백을 제거하거나 문자열을 바꾸지 않는다. 숫자·특수문자 조합을 강제하지 않는다. 알 수 없는 요청 필드도 400으로 거절한다.
 
@@ -96,12 +96,13 @@ curl -i -X POST http://localhost:3001/api/v1/auth/logout \
 
 ## 저장과 운영
 
-- `users`의 실제 컬럼은 기존 5개를 유지한다. Prisma의 `sessions`는 관계 표시다.
+- `users`는 id·email·password·created_at·updated_at을 관리한다. 선호/목적·목표·currentFitness 응답은 2026-09-21 정정으로 폐기했다. 온보딩은 측정 기록 존재 여부로 계산하며 인증 가드에서 상세 관계를 로드하지 않는다. 신규 가입의 계정·재화(0)·세션·토큰은 동일한 nested write 트랜잭션으로 생성한다.
 - `auth_sessions`: 계정 연결, 생성 시각, 고정 만료 시각, 폐기 시각. 기본 7일이며 갱신으로 연장되지 않는다.
 - `auth_refresh_tokens`: 256비트 난수 토큰의 SHA-256 해시, 세션 연결, 사용 시각. 사용한 해시도 세션 만료까지 유지해 재사용을 탐지한다. 비밀번호에는 SHA-256을 쓰지 않는다.
 - `auth_rate_limits`: 서버 간 공유하는 DB 요청 횟수. IP·이메일은 키를 이용한 HMAC으로 처리한다. 인증 POST는 IP당 분당 60회, 회원가입은 이메일당 15분당 5회, 로그인은 이메일당 15분당 10회다. 성공·실패 모두 센다. 시간 구간이 바뀌면 다시 허용하며 경계 부근에는 두 구간의 요청이 인접할 수 있다.
 - 운영에서는 `npm run auth:cleanup`을 정기 실행해 만료 세션·토큰·요청 횟수 행을 정리한다. 이 명령은 만료되지 않은 세션이나 계정을 지우지 않는다. 스케줄은 배포 환경에서 설정하며 앱이 임의로 예약하지 않는다.
 - 비밀번호: Argon2id, memory 19,456 KiB, iteration 2, parallelism 1, 매번 임의 salt. 로그인 시 실제 해시를 검증한다.
+- 계정 이메일·비밀번호 변경은 현재 비밀번호 확인 후 원자적으로 저장하고 모든 기존 세션을 폐기한다. 로그인은 계정 행 잠금 아래 검증한 이메일·비밀번호 해시가 여전히 같은지 확인해 변경 전 자격증명으로 뒤늦게 세션을 만들지 못하게 한다. 변경/탈퇴 후 기존 access/refresh는 401이다.
 - access token: HS256으로 서명한 JWT, 기본 15분. 암호화된 데이터가 아니며 사용자 UUID·세션 UUID만 담는다. 알고리즘·서명·issuer·audience·만료를 확인하고 DB의 현재 세션 상태도 조회하므로 로그아웃 직후 차단된다.
 - 개발 refresh 쿠키는 `project_health_refresh`, 운영은 `__Host-project_health_refresh`이다. 운영은 Secure·HttpOnly·Path=/·Domain 없음이며 HTTPS가 필수다. `AUTH_COOKIE_SAME_SITE=lax`가 기본이다. 프론트/API가 서로 다른 사이트에 배포되면 운영에서 `none`을 검토하되 브라우저의 제3자 쿠키 제한도 고려한다. 같은 사이트의 서브도메인 구성이 권장된다.
 - 프록시 뒤에서는 `TRUST_PROXY_CIDRS`에 실제 프록시 주소/대역만 설정한다. 기본값은 전달된 IP 헤더를 신뢰하지 않는다. 별도 설정이 없으면 프록시에서 온 요청들이 같은 IP 제한을 공유한다. 프록시는 외부에서 전달된 헤더를 올바르게 처리해야 한다.

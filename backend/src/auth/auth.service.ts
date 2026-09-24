@@ -8,6 +8,7 @@ import { DatabaseService } from '../database/database.service.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { PasswordService } from './password.service.js';
 import { TokenService } from './token.service.js';
+import type { AccountUpdateInput } from './auth-input.js';
 
 const publicUserSelect = {
   id: true,
@@ -44,6 +45,7 @@ export class AuthService {
         data: {
           email,
           password: passwordHash,
+          currency: { create: {} },
           sessions: {
             create: {
               expiresAt,
@@ -77,14 +79,25 @@ export class AuthService {
         '이메일 또는 비밀번호가 올바르지 않습니다.',
       );
     const refreshToken = this.tokens.newRefreshToken();
-    const session = await this.database.authSession.create({
-      data: {
-        userId: user.id,
-        expiresAt: new Date(Date.now() + this.tokens.refreshTtl * 1000),
-        refreshTokens: {
-          create: { tokenHash: this.tokens.hashRefreshToken(refreshToken) },
+    const session = await this.database.$transaction(async (tx) => {
+      // Account changes and session creation share the owner lock. A login that
+      // verified old credentials cannot create a session after their revocation.
+      const current = await this.lockAccount(tx, user.id);
+      if (
+        !current ||
+        current.email !== user.email ||
+        current.password !== user.password
+      )
+        throw this.invalidSession();
+      return tx.authSession.create({
+        data: {
+          userId: user.id,
+          expiresAt: new Date(Date.now() + this.tokens.refreshTtl * 1000),
+          refreshTokens: {
+            create: { tokenHash: this.tokens.hashRefreshToken(refreshToken) },
+          },
         },
-      },
+      });
     });
     return this.result(user, session.id, session.expiresAt, refreshToken);
   }
@@ -155,6 +168,79 @@ export class AuthService {
         data: { revokedAt: new Date() },
       });
     }
+  }
+
+  async updateAccount(userId: string, input: AccountUpdateInput) {
+    const verified = await this.database.user.findUnique({
+      where: { id: userId },
+      select: { email: true, password: true },
+    });
+    const matches = await this.passwords.matches(
+      verified?.password,
+      input.currentPassword,
+    );
+    if (!verified || !matches)
+      throw new UnauthorizedException('본인 확인에 실패했습니다.');
+    const passwordHash =
+      input.newPassword === undefined
+        ? undefined
+        : await this.passwords.hash(input.newPassword);
+    try {
+      await this.database.$transaction(async (tx) => {
+        const current = await this.lockAccount(tx, userId);
+        if (
+          !current ||
+          current.email !== verified.email ||
+          current.password !== verified.password
+        )
+          throw new UnauthorizedException(
+            '계정 정보가 변경되었습니다. 다시 로그인해 주세요.',
+          );
+        // Never pass a request object or currentPassword to Prisma.
+        const data: Prisma.UserUpdateInput = {};
+        if (input.email !== undefined) data.email = input.email;
+        if (passwordHash !== undefined) data.password = passwordHash;
+        await tx.user.update({ where: { id: userId }, data });
+        // Roll back both credentials and revocation if either operation fails.
+        await tx.authSession.updateMany({
+          where: { userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      )
+        throw new ConflictException('이미 가입된 이메일입니다.');
+      throw error;
+    }
+  }
+
+  private async lockAccount(tx: Prisma.TransactionClient, userId: string) {
+    const rows = await tx.$queryRaw<
+      Array<{ id: string; email: string; password: string | null }>
+    >`
+      SELECT id, email, password FROM ${this.database.table('users')} WHERE id = ${userId}::uuid FOR UPDATE
+    `;
+    return rows[0];
+  }
+
+  async deleteAccount(userId: string, password: string) {
+    const user = await this.database.user.findUnique({
+      where: { id: userId },
+      select: { password: true },
+    });
+    const matches = await this.passwords.matches(user?.password, password);
+    if (!user || !matches)
+      throw new UnauthorizedException('본인 확인에 실패했습니다.');
+    // One DELETE is atomic with all FK cascades. The verified hash is a write
+    // precondition: a changed password or concurrent deletion cannot be bypassed.
+    const deleted = await this.database.user.deleteMany({
+      where: { id: userId, password: user.password },
+    });
+    if (!deleted.count)
+      throw new UnauthorizedException('본인 확인에 실패했습니다.');
   }
 
   async authenticate(authorization: string | undefined) {

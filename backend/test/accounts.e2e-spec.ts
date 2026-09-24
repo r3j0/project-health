@@ -20,7 +20,7 @@ describe('Account schema', () => {
     await database.onModuleDestroy();
   });
 
-  it('has exactly the five account columns requested by the user', async () => {
+  it('keeps only credential fields and account timestamps after the scope correction', async () => {
     const schema = new URL(process.env.DATABASE_URL!).searchParams.get(
       'schema',
     )!;

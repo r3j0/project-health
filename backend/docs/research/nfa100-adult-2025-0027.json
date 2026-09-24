@@ -1,0 +1,977 @@
+{
+  "internalVersion": "nfa100-adult-2025-0027-v1",
+  "officialVersion": "문화체육관광부 고시 제2025-0027호",
+  "officialEffectiveFrom": "2025-06-02",
+  "checkedOn": "2026-09-23",
+  "title": "국민체력100 성인기 인증기준 및 체력인증의 등급별 기준과 절차에 관한 규정 별표 3",
+  "sourceUrls": [
+    "https://nfa.kspo.or.kr/reserve/0/selectMeasureGradeItemListByAgeSe.kspo",
+    "https://www.mcst.go.kr/site/s_data/ordinance/instruction/instructionView.jsp?pSeq=3588",
+    "https://www.law.go.kr/LSW/flDownload.do?bylClsCd=200201&flSeq=153209715"
+  ],
+  "sourceHtmlSha256": "1e1950584a4af81aad12871455c407c879d5385473c7a2d122f171b081a0d521",
+  "columns": [
+    "shuttle_run_20m",
+    "treadmill_vo2max",
+    "relative_grip_strength",
+    "cross_sit_up",
+    "sit_and_reach",
+    "shuttle_run_10m_4",
+    "reaction_time",
+    "standing_long_jump",
+    "flight_time"
+  ],
+  "units": {
+    "shuttle_run_20m": "회",
+    "treadmill_vo2max": "ml/kg/min",
+    "relative_grip_strength": "%",
+    "cross_sit_up": "회",
+    "sit_and_reach": "cm",
+    "shuttle_run_10m_4": "초",
+    "reaction_time": "초",
+    "standing_long_jump": "cm",
+    "flight_time": "초",
+    "step_test_vo2max": "ml/kg/min"
+  },
+  "comparators": {
+    "shuttle_run_20m": "gte",
+    "treadmill_vo2max": "gte",
+    "relative_grip_strength": "gte",
+    "cross_sit_up": "gte",
+    "sit_and_reach": "gte",
+    "shuttle_run_10m_4": "lte",
+    "reaction_time": "lte",
+    "standing_long_jump": "gte",
+    "flight_time": "gte",
+    "step_test_vo2max": "gte"
+  },
+  "boundaryInclusive": true,
+  "rows": [
+    {
+      "grade": 1,
+      "sex": "male",
+      "minAge": 19,
+      "maxAge": 24,
+      "thresholds": {
+        "shuttle_run_20m": "62",
+        "treadmill_vo2max": "47.6",
+        "relative_grip_strength": "62.6",
+        "cross_sit_up": "55",
+        "sit_and_reach": "16.1",
+        "shuttle_run_10m_4": "9.9",
+        "reaction_time": "0.301",
+        "standing_long_jump": "229",
+        "flight_time": "0.605",
+        "step_test_vo2max": "47.6"
+      }
+    },
+    {
+      "grade": 1,
+      "sex": "male",
+      "minAge": 25,
+      "maxAge": 29,
+      "thresholds": {
+        "shuttle_run_20m": "54",
+        "treadmill_vo2max": "44.8",
+        "relative_grip_strength": "62.4",
+        "cross_sit_up": "51",
+        "sit_and_reach": "14.9",
+        "shuttle_run_10m_4": "10.3",
+        "reaction_time": "0.302",
+        "standing_long_jump": "223",
+        "flight_time": "0.591",
+        "step_test_vo2max": "44.8"
+      }
+    },
+    {
+      "grade": 1,
+      "sex": "male",
+      "minAge": 30,
+      "maxAge": 34,
+      "thresholds": {
+        "shuttle_run_20m": "49",
+        "treadmill_vo2max": "42.9",
+        "relative_grip_strength": "62.6",
+        "cross_sit_up": "47",
+        "sit_and_reach": "14.2",
+        "shuttle_run_10m_4": "10.6",
+        "reaction_time": "0.304",
+        "standing_long_jump": "219",
+        "flight_time": "0.583",
+        "step_test_vo2max": "42.9"
+      }
+    },
+    {
+      "grade": 1,
+      "sex": "male",
+      "minAge": 35,
+      "maxAge": 39,
+      "thresholds": {
+        "shuttle_run_20m": "45",
+        "treadmill_vo2max": "41.8",
+        "relative_grip_strength": "62.1",
+        "cross_sit_up": "45",
+        "sit_and_reach": "14.0",
+        "shuttle_run_10m_4": "10.9",
+        "reaction_time": "0.311",
+        "standing_long_jump": "214",
+        "flight_time": "0.581",
+        "step_test_vo2max": "41.8"
+      }
+    },
+    {
+      "grade": 1,
+      "sex": "male",
+      "minAge": 40,
+      "maxAge": 44,
+      "thresholds": {
+        "shuttle_run_20m": "42",
+        "treadmill_vo2max": "40.9",
+        "relative_grip_strength": "62.8",
+        "cross_sit_up": "44",
+        "sit_and_reach": "14.2",
+        "shuttle_run_10m_4": "11.0",
+        "reaction_time": "0.320",
+        "standing_long_jump": "209",
+        "flight_time": "0.547",
+        "step_test_vo2max": "40.9"
+      }
+    },
+    {
+      "grade": 1,
+      "sex": "male",
+      "minAge": 45,
+      "maxAge": 49,
+      "thresholds": {
+        "shuttle_run_20m": "40",
+        "treadmill_vo2max": "40.1",
+        "relative_grip_strength": "62.0",
+        "cross_sit_up": "41",
+        "sit_and_reach": "13.6",
+        "shuttle_run_10m_4": "11.3",
+        "reaction_time": "0.331",
+        "standing_long_jump": "202",
+        "flight_time": "0.524",
+        "step_test_vo2max": "40.1"
+      }
+    },
+    {
+      "grade": 1,
+      "sex": "male",
+      "minAge": 50,
+      "maxAge": 54,
+      "thresholds": {
+        "shuttle_run_20m": "35",
+        "treadmill_vo2max": "38.8",
+        "relative_grip_strength": "60.5",
+        "cross_sit_up": "38",
+        "sit_and_reach": "13.9",
+        "shuttle_run_10m_4": "11.8",
+        "reaction_time": "0.337",
+        "standing_long_jump": "192",
+        "flight_time": "0.527",
+        "step_test_vo2max": "38.8"
+      }
+    },
+    {
+      "grade": 1,
+      "sex": "male",
+      "minAge": 55,
+      "maxAge": 59,
+      "thresholds": {
+        "shuttle_run_20m": "31",
+        "treadmill_vo2max": "37.7",
+        "relative_grip_strength": "59.4",
+        "cross_sit_up": "35",
+        "sit_and_reach": "13.3",
+        "shuttle_run_10m_4": "12.3",
+        "reaction_time": "0.348",
+        "standing_long_jump": "183",
+        "flight_time": "0.508",
+        "step_test_vo2max": "37.7"
+      }
+    },
+    {
+      "grade": 1,
+      "sex": "male",
+      "minAge": 60,
+      "maxAge": 64,
+      "thresholds": {
+        "shuttle_run_20m": "26",
+        "treadmill_vo2max": "36.3",
+        "relative_grip_strength": "56.8",
+        "cross_sit_up": "31",
+        "sit_and_reach": "11.8",
+        "shuttle_run_10m_4": "13.1",
+        "reaction_time": "0.351",
+        "standing_long_jump": "170",
+        "flight_time": "0.474",
+        "step_test_vo2max": "36.3"
+      }
+    },
+    {
+      "grade": 1,
+      "sex": "female",
+      "minAge": 19,
+      "maxAge": 24,
+      "thresholds": {
+        "shuttle_run_20m": "30",
+        "treadmill_vo2max": "36.8",
+        "relative_grip_strength": "46.8",
+        "cross_sit_up": "36",
+        "sit_and_reach": "19.7",
+        "shuttle_run_10m_4": "12.3",
+        "reaction_time": "0.332",
+        "standing_long_jump": "162",
+        "flight_time": "0.479",
+        "step_test_vo2max": "36.8"
+      }
+    },
+    {
+      "grade": 1,
+      "sex": "female",
+      "minAge": 25,
+      "maxAge": 29,
+      "thresholds": {
+        "shuttle_run_20m": "28",
+        "treadmill_vo2max": "36.0",
+        "relative_grip_strength": "47.0",
+        "cross_sit_up": "33",
+        "sit_and_reach": "18.5",
+        "shuttle_run_10m_4": "12.7",
+        "reaction_time": "0.343",
+        "standing_long_jump": "156",
+        "flight_time": "0.466",
+        "step_test_vo2max": "36.0"
+      }
+    },
+    {
+      "grade": 1,
+      "sex": "female",
+      "minAge": 30,
+      "maxAge": 34,
+      "thresholds": {
+        "shuttle_run_20m": "26",
+        "treadmill_vo2max": "34.8",
+        "relative_grip_strength": "49.6",
+        "cross_sit_up": "31",
+        "sit_and_reach": "18.2",
+        "shuttle_run_10m_4": "12.9",
+        "reaction_time": "0.347",
+        "standing_long_jump": "154",
+        "flight_time": "0.464",
+        "step_test_vo2max": "34.8"
+      }
+    },
+    {
+      "grade": 1,
+      "sex": "female",
+      "minAge": 35,
+      "maxAge": 39,
+      "thresholds": {
+        "shuttle_run_20m": "25",
+        "treadmill_vo2max": "34.2",
+        "relative_grip_strength": "47.5",
+        "cross_sit_up": "31",
+        "sit_and_reach": "18.9",
+        "shuttle_run_10m_4": "13.0",
+        "reaction_time": "0.348",
+        "standing_long_jump": "155",
+        "flight_time": "0.453",
+        "step_test_vo2max": "34.2"
+      }
+    },
+    {
+      "grade": 1,
+      "sex": "female",
+      "minAge": 40,
+      "maxAge": 44,
+      "thresholds": {
+        "shuttle_run_20m": "24",
+        "treadmill_vo2max": "33.8",
+        "relative_grip_strength": "47.1",
+        "cross_sit_up": "30",
+        "sit_and_reach": "18.8",
+        "shuttle_run_10m_4": "13.1",
+        "reaction_time": "0.345",
+        "standing_long_jump": "153",
+        "flight_time": "0.442",
+        "step_test_vo2max": "33.8"
+      }
+    },
+    {
+      "grade": 1,
+      "sex": "female",
+      "minAge": 45,
+      "maxAge": 49,
+      "thresholds": {
+        "shuttle_run_20m": "23",
+        "treadmill_vo2max": "33.0",
+        "relative_grip_strength": "46.2",
+        "cross_sit_up": "28",
+        "sit_and_reach": "18.9",
+        "shuttle_run_10m_4": "13.4",
+        "reaction_time": "0.350",
+        "standing_long_jump": "148",
+        "flight_time": "0.431",
+        "step_test_vo2max": "33.0"
+      }
+    },
+    {
+      "grade": 1,
+      "sex": "female",
+      "minAge": 50,
+      "maxAge": 54,
+      "thresholds": {
+        "shuttle_run_20m": "21",
+        "treadmill_vo2max": "32.3",
+        "relative_grip_strength": "44.7",
+        "cross_sit_up": "24",
+        "sit_and_reach": "19.5",
+        "shuttle_run_10m_4": "13.8",
+        "reaction_time": "0.354",
+        "standing_long_jump": "138",
+        "flight_time": "0.407",
+        "step_test_vo2max": "32.3"
+      }
+    },
+    {
+      "grade": 1,
+      "sex": "female",
+      "minAge": 55,
+      "maxAge": 59,
+      "thresholds": {
+        "shuttle_run_20m": "18",
+        "treadmill_vo2max": "31.3",
+        "relative_grip_strength": "43.2",
+        "cross_sit_up": "20",
+        "sit_and_reach": "19.5",
+        "shuttle_run_10m_4": "14.5",
+        "reaction_time": "0.369",
+        "standing_long_jump": "129",
+        "flight_time": "0.402",
+        "step_test_vo2max": "31.3"
+      }
+    },
+    {
+      "grade": 1,
+      "sex": "female",
+      "minAge": 60,
+      "maxAge": 64,
+      "thresholds": {
+        "shuttle_run_20m": "15",
+        "treadmill_vo2max": "30.2",
+        "relative_grip_strength": "41.9",
+        "cross_sit_up": "17",
+        "sit_and_reach": "19.6",
+        "shuttle_run_10m_4": "15.3",
+        "reaction_time": "0.387",
+        "standing_long_jump": "120",
+        "flight_time": "0.393",
+        "step_test_vo2max": "30.2"
+      }
+    },
+    {
+      "grade": 2,
+      "sex": "male",
+      "minAge": 19,
+      "maxAge": 24,
+      "thresholds": {
+        "shuttle_run_20m": "52",
+        "treadmill_vo2max": "44.8",
+        "relative_grip_strength": "57.2",
+        "cross_sit_up": "48",
+        "sit_and_reach": "11.1",
+        "shuttle_run_10m_4": "10.9",
+        "reaction_time": "0.330",
+        "standing_long_jump": "213",
+        "flight_time": "0.568",
+        "step_test_vo2max": "44.8"
+      }
+    },
+    {
+      "grade": 2,
+      "sex": "male",
+      "minAge": 25,
+      "maxAge": 29,
+      "thresholds": {
+        "shuttle_run_20m": "44",
+        "treadmill_vo2max": "42.2",
+        "relative_grip_strength": "57.0",
+        "cross_sit_up": "45",
+        "sit_and_reach": "10.1",
+        "shuttle_run_10m_4": "11.2",
+        "reaction_time": "0.335",
+        "standing_long_jump": "208",
+        "flight_time": "0.559",
+        "step_test_vo2max": "42.2"
+      }
+    },
+    {
+      "grade": 2,
+      "sex": "male",
+      "minAge": 30,
+      "maxAge": 34,
+      "thresholds": {
+        "shuttle_run_20m": "40",
+        "treadmill_vo2max": "40.6",
+        "relative_grip_strength": "57.2",
+        "cross_sit_up": "41",
+        "sit_and_reach": "9.4",
+        "shuttle_run_10m_4": "11.6",
+        "reaction_time": "0.337",
+        "standing_long_jump": "204",
+        "flight_time": "0.548",
+        "step_test_vo2max": "40.6"
+      }
+    },
+    {
+      "grade": 2,
+      "sex": "male",
+      "minAge": 35,
+      "maxAge": 39,
+      "thresholds": {
+        "shuttle_run_20m": "37",
+        "treadmill_vo2max": "39.5",
+        "relative_grip_strength": "56.6",
+        "cross_sit_up": "39",
+        "sit_and_reach": "9.3",
+        "shuttle_run_10m_4": "11.9",
+        "reaction_time": "0.339",
+        "standing_long_jump": "199",
+        "flight_time": "0.551",
+        "step_test_vo2max": "39.5"
+      }
+    },
+    {
+      "grade": 2,
+      "sex": "male",
+      "minAge": 40,
+      "maxAge": 44,
+      "thresholds": {
+        "shuttle_run_20m": "35",
+        "treadmill_vo2max": "38.8",
+        "relative_grip_strength": "57.2",
+        "cross_sit_up": "38",
+        "sit_and_reach": "9.5",
+        "shuttle_run_10m_4": "12.1",
+        "reaction_time": "0.346",
+        "standing_long_jump": "195",
+        "flight_time": "0.521",
+        "step_test_vo2max": "38.8"
+      }
+    },
+    {
+      "grade": 2,
+      "sex": "male",
+      "minAge": 45,
+      "maxAge": 49,
+      "thresholds": {
+        "shuttle_run_20m": "32",
+        "treadmill_vo2max": "38.1",
+        "relative_grip_strength": "56.7",
+        "cross_sit_up": "36",
+        "sit_and_reach": "9.1",
+        "shuttle_run_10m_4": "12.5",
+        "reaction_time": "0.366",
+        "standing_long_jump": "188",
+        "flight_time": "0.497",
+        "step_test_vo2max": "38.1"
+      }
+    },
+    {
+      "grade": 2,
+      "sex": "male",
+      "minAge": 50,
+      "maxAge": 54,
+      "thresholds": {
+        "shuttle_run_20m": "28",
+        "treadmill_vo2max": "36.9",
+        "relative_grip_strength": "55.3",
+        "cross_sit_up": "32",
+        "sit_and_reach": "9.3",
+        "shuttle_run_10m_4": "13.0",
+        "reaction_time": "0.371",
+        "standing_long_jump": "177",
+        "flight_time": "0.486",
+        "step_test_vo2max": "36.9"
+      }
+    },
+    {
+      "grade": 2,
+      "sex": "male",
+      "minAge": 55,
+      "maxAge": 59,
+      "thresholds": {
+        "shuttle_run_20m": "25",
+        "treadmill_vo2max": "35.9",
+        "relative_grip_strength": "54.2",
+        "cross_sit_up": "29",
+        "sit_and_reach": "8.6",
+        "shuttle_run_10m_4": "13.7",
+        "reaction_time": "0.383",
+        "standing_long_jump": "168",
+        "flight_time": "0.475",
+        "step_test_vo2max": "35.9"
+      }
+    },
+    {
+      "grade": 2,
+      "sex": "male",
+      "minAge": 60,
+      "maxAge": 64,
+      "thresholds": {
+        "shuttle_run_20m": "20",
+        "treadmill_vo2max": "34.8",
+        "relative_grip_strength": "51.7",
+        "cross_sit_up": "25",
+        "sit_and_reach": "7.1",
+        "shuttle_run_10m_4": "14.6",
+        "reaction_time": "0.402",
+        "standing_long_jump": "154",
+        "flight_time": "0.443",
+        "step_test_vo2max": "34.8"
+      }
+    },
+    {
+      "grade": 2,
+      "sex": "female",
+      "minAge": 19,
+      "maxAge": 24,
+      "thresholds": {
+        "shuttle_run_20m": "25",
+        "treadmill_vo2max": "34.8",
+        "relative_grip_strength": "42.4",
+        "cross_sit_up": "30",
+        "sit_and_reach": "14.9",
+        "shuttle_run_10m_4": "13.2",
+        "reaction_time": "0.374",
+        "standing_long_jump": "149",
+        "flight_time": "0.447",
+        "step_test_vo2max": "34.8"
+      }
+    },
+    {
+      "grade": 2,
+      "sex": "female",
+      "minAge": 25,
+      "maxAge": 29,
+      "thresholds": {
+        "shuttle_run_20m": "23",
+        "treadmill_vo2max": "34.1",
+        "relative_grip_strength": "42.6",
+        "cross_sit_up": "27",
+        "sit_and_reach": "13.8",
+        "shuttle_run_10m_4": "13.6",
+        "reaction_time": "0.383",
+        "standing_long_jump": "144",
+        "flight_time": "0.442",
+        "step_test_vo2max": "34.1"
+      }
+    },
+    {
+      "grade": 2,
+      "sex": "female",
+      "minAge": 30,
+      "maxAge": 34,
+      "thresholds": {
+        "shuttle_run_20m": "21",
+        "treadmill_vo2max": "32.9",
+        "relative_grip_strength": "45.2",
+        "cross_sit_up": "25",
+        "sit_and_reach": "13.8",
+        "shuttle_run_10m_4": "13.9",
+        "reaction_time": "0.381",
+        "standing_long_jump": "142",
+        "flight_time": "0.437",
+        "step_test_vo2max": "32.9"
+      }
+    },
+    {
+      "grade": 2,
+      "sex": "female",
+      "minAge": 35,
+      "maxAge": 39,
+      "thresholds": {
+        "shuttle_run_20m": "20",
+        "treadmill_vo2max": "32.3",
+        "relative_grip_strength": "43.1",
+        "cross_sit_up": "25",
+        "sit_and_reach": "14.5",
+        "shuttle_run_10m_4": "13.9",
+        "reaction_time": "0.388",
+        "standing_long_jump": "144",
+        "flight_time": "0.425",
+        "step_test_vo2max": "32.3"
+      }
+    },
+    {
+      "grade": 2,
+      "sex": "female",
+      "minAge": 40,
+      "maxAge": 44,
+      "thresholds": {
+        "shuttle_run_20m": "20",
+        "treadmill_vo2max": "32.0",
+        "relative_grip_strength": "42.8",
+        "cross_sit_up": "25",
+        "sit_and_reach": "14.6",
+        "shuttle_run_10m_4": "14.0",
+        "reaction_time": "0.382",
+        "standing_long_jump": "142",
+        "flight_time": "0.417",
+        "step_test_vo2max": "32.0"
+      }
+    },
+    {
+      "grade": 2,
+      "sex": "female",
+      "minAge": 45,
+      "maxAge": 49,
+      "thresholds": {
+        "shuttle_run_20m": "18",
+        "treadmill_vo2max": "31.4",
+        "relative_grip_strength": "41.9",
+        "cross_sit_up": "22",
+        "sit_and_reach": "14.8",
+        "shuttle_run_10m_4": "14.4",
+        "reaction_time": "0.392",
+        "standing_long_jump": "136",
+        "flight_time": "0.404",
+        "step_test_vo2max": "31.4"
+      }
+    },
+    {
+      "grade": 2,
+      "sex": "female",
+      "minAge": 50,
+      "maxAge": 54,
+      "thresholds": {
+        "shuttle_run_20m": "16",
+        "treadmill_vo2max": "30.7",
+        "relative_grip_strength": "40.6",
+        "cross_sit_up": "19",
+        "sit_and_reach": "15.6",
+        "shuttle_run_10m_4": "14.9",
+        "reaction_time": "0.395",
+        "standing_long_jump": "126",
+        "flight_time": "0.381",
+        "step_test_vo2max": "30.7"
+      }
+    },
+    {
+      "grade": 2,
+      "sex": "female",
+      "minAge": 55,
+      "maxAge": 59,
+      "thresholds": {
+        "shuttle_run_20m": "14",
+        "treadmill_vo2max": "29.8",
+        "relative_grip_strength": "39.2",
+        "cross_sit_up": "15",
+        "sit_and_reach": "15.7",
+        "shuttle_run_10m_4": "15.8",
+        "reaction_time": "0.416",
+        "standing_long_jump": "117",
+        "flight_time": "0.374",
+        "step_test_vo2max": "29.8"
+      }
+    },
+    {
+      "grade": 2,
+      "sex": "female",
+      "minAge": 60,
+      "maxAge": 64,
+      "thresholds": {
+        "shuttle_run_20m": "12",
+        "treadmill_vo2max": "29.0",
+        "relative_grip_strength": "38.0",
+        "cross_sit_up": "12",
+        "sit_and_reach": "15.7",
+        "shuttle_run_10m_4": "16.8",
+        "reaction_time": "0.434",
+        "standing_long_jump": "107",
+        "flight_time": "0.366",
+        "step_test_vo2max": "29.0"
+      }
+    },
+    {
+      "grade": 3,
+      "sex": "male",
+      "minAge": 19,
+      "maxAge": 24,
+      "thresholds": {
+        "shuttle_run_20m": "41",
+        "treadmill_vo2max": "42.0",
+        "relative_grip_strength": "51.8",
+        "cross_sit_up": "42",
+        "sit_and_reach": "6.1",
+        "step_test_vo2max": "42.0"
+      }
+    },
+    {
+      "grade": 3,
+      "sex": "male",
+      "minAge": 25,
+      "maxAge": 29,
+      "thresholds": {
+        "shuttle_run_20m": "34",
+        "treadmill_vo2max": "39.6",
+        "relative_grip_strength": "51.6",
+        "cross_sit_up": "38",
+        "sit_and_reach": "5.3",
+        "step_test_vo2max": "39.6"
+      }
+    },
+    {
+      "grade": 3,
+      "sex": "male",
+      "minAge": 30,
+      "maxAge": 34,
+      "thresholds": {
+        "shuttle_run_20m": "31",
+        "treadmill_vo2max": "38.2",
+        "relative_grip_strength": "51.8",
+        "cross_sit_up": "35",
+        "sit_and_reach": "4.6",
+        "step_test_vo2max": "38.2"
+      }
+    },
+    {
+      "grade": 3,
+      "sex": "male",
+      "minAge": 35,
+      "maxAge": 39,
+      "thresholds": {
+        "shuttle_run_20m": "28",
+        "treadmill_vo2max": "37.2",
+        "relative_grip_strength": "51.1",
+        "cross_sit_up": "33",
+        "sit_and_reach": "4.6",
+        "step_test_vo2max": "37.2"
+      }
+    },
+    {
+      "grade": 3,
+      "sex": "male",
+      "minAge": 40,
+      "maxAge": 44,
+      "thresholds": {
+        "shuttle_run_20m": "27",
+        "treadmill_vo2max": "36.6",
+        "relative_grip_strength": "51.6",
+        "cross_sit_up": "32",
+        "sit_and_reach": "4.8",
+        "step_test_vo2max": "36.6"
+      }
+    },
+    {
+      "grade": 3,
+      "sex": "male",
+      "minAge": 45,
+      "maxAge": 49,
+      "thresholds": {
+        "shuttle_run_20m": "24",
+        "treadmill_vo2max": "36.0",
+        "relative_grip_strength": "51.4",
+        "cross_sit_up": "30",
+        "sit_and_reach": "4.6",
+        "step_test_vo2max": "36.0"
+      }
+    },
+    {
+      "grade": 3,
+      "sex": "male",
+      "minAge": 50,
+      "maxAge": 54,
+      "thresholds": {
+        "shuttle_run_20m": "21",
+        "treadmill_vo2max": "35.0",
+        "relative_grip_strength": "50.1",
+        "cross_sit_up": "26",
+        "sit_and_reach": "4.7",
+        "step_test_vo2max": "35.0"
+      }
+    },
+    {
+      "grade": 3,
+      "sex": "male",
+      "minAge": 55,
+      "maxAge": 59,
+      "thresholds": {
+        "shuttle_run_20m": "18",
+        "treadmill_vo2max": "34.1",
+        "relative_grip_strength": "49.0",
+        "cross_sit_up": "23",
+        "sit_and_reach": "3.9",
+        "step_test_vo2max": "34.1"
+      }
+    },
+    {
+      "grade": 3,
+      "sex": "male",
+      "minAge": 60,
+      "maxAge": 64,
+      "thresholds": {
+        "shuttle_run_20m": "15",
+        "treadmill_vo2max": "33.2",
+        "relative_grip_strength": "46.6",
+        "cross_sit_up": "19",
+        "sit_and_reach": "2.3",
+        "step_test_vo2max": "33.2"
+      }
+    },
+    {
+      "grade": 3,
+      "sex": "female",
+      "minAge": 19,
+      "maxAge": 24,
+      "thresholds": {
+        "shuttle_run_20m": "19",
+        "treadmill_vo2max": "32.8",
+        "relative_grip_strength": "38.0",
+        "cross_sit_up": "23",
+        "sit_and_reach": "10.1",
+        "step_test_vo2max": "32.8"
+      }
+    },
+    {
+      "grade": 3,
+      "sex": "female",
+      "minAge": 25,
+      "maxAge": 29,
+      "thresholds": {
+        "shuttle_run_20m": "17",
+        "treadmill_vo2max": "32.2",
+        "relative_grip_strength": "38.2",
+        "cross_sit_up": "21",
+        "sit_and_reach": "9.1",
+        "step_test_vo2max": "32.2"
+      }
+    },
+    {
+      "grade": 3,
+      "sex": "female",
+      "minAge": 30,
+      "maxAge": 34,
+      "thresholds": {
+        "shuttle_run_20m": "16",
+        "treadmill_vo2max": "31.0",
+        "relative_grip_strength": "40.8",
+        "cross_sit_up": "19",
+        "sit_and_reach": "9.4",
+        "step_test_vo2max": "31.0"
+      }
+    },
+    {
+      "grade": 3,
+      "sex": "female",
+      "minAge": 35,
+      "maxAge": 39,
+      "thresholds": {
+        "shuttle_run_20m": "15",
+        "treadmill_vo2max": "30.5",
+        "relative_grip_strength": "38.7",
+        "cross_sit_up": "19",
+        "sit_and_reach": "10.1",
+        "step_test_vo2max": "30.5"
+      }
+    },
+    {
+      "grade": 3,
+      "sex": "female",
+      "minAge": 40,
+      "maxAge": 44,
+      "thresholds": {
+        "shuttle_run_20m": "15",
+        "treadmill_vo2max": "30.3",
+        "relative_grip_strength": "38.5",
+        "cross_sit_up": "19",
+        "sit_and_reach": "10.4",
+        "step_test_vo2max": "30.3"
+      }
+    },
+    {
+      "grade": 3,
+      "sex": "female",
+      "minAge": 45,
+      "maxAge": 49,
+      "thresholds": {
+        "shuttle_run_20m": "14",
+        "treadmill_vo2max": "29.7",
+        "relative_grip_strength": "37.6",
+        "cross_sit_up": "16",
+        "sit_and_reach": "10.7",
+        "step_test_vo2max": "29.7"
+      }
+    },
+    {
+      "grade": 3,
+      "sex": "female",
+      "minAge": 50,
+      "maxAge": 54,
+      "thresholds": {
+        "shuttle_run_20m": "12",
+        "treadmill_vo2max": "29.1",
+        "relative_grip_strength": "36.5",
+        "cross_sit_up": "13",
+        "sit_and_reach": "11.7",
+        "step_test_vo2max": "29.1"
+      }
+    },
+    {
+      "grade": 3,
+      "sex": "female",
+      "minAge": 55,
+      "maxAge": 59,
+      "thresholds": {
+        "shuttle_run_20m": "11",
+        "treadmill_vo2max": "28.4",
+        "relative_grip_strength": "35.2",
+        "cross_sit_up": "9",
+        "sit_and_reach": "11.9",
+        "step_test_vo2max": "28.4"
+      }
+    },
+    {
+      "grade": 3,
+      "sex": "female",
+      "minAge": 60,
+      "maxAge": 64,
+      "thresholds": {
+        "shuttle_run_20m": "9",
+        "treadmill_vo2max": "27.7",
+        "relative_grip_strength": "34.1",
+        "cross_sit_up": "7",
+        "sit_and_reach": "11.8",
+        "step_test_vo2max": "27.7"
+      }
+    }
+  ],
+  "limitations": [
+    "Individual threshold comparison only; not an overall certification grade.",
+    "Adult self_curl_up and ymca_recovery_heart_rate thresholds are NOT present.",
+    "Motor fitness tests have only grade 1 and 2 thresholds in this source. No grade 3 thresholds are inferred.",
+    "BMI/body-fat ranges are composition prerequisites, not standalone fitness grades; excluded.",
+    "Male 60-64 grade 3 sit_and_reach is 2.3 on current NFA HTML; legal PDF renders comma 2,3.",
+    "No independent rounding policy verified; compare stored exact decimal input against published decimal thresholds without rounding."
+  ],
+  "sourcePdfSha256": "f65e9409745e4bc33d5161859911d4ea3a274cfd384d8b736e84951055076713",
+  "protocolSources": {
+    "cross_sit_up": "https://nfa.kspo.or.kr/measure/self/selectSelfMeasureItem.kspo",
+    "sit_and_reach": "https://nfa.kspo.or.kr/measure/self/selectSelfMeasureItem.kspo",
+    "otherAdultTests": "https://nfa.kspo.or.kr/reserve/3/selectMeasureItemListByAgeSe.kspo"
+  },
+  "unavailable": [
+    {
+      "measurementCode": "self_curl_up",
+      "unit": "회",
+      "reason": "Official adult self-assessment protocol verified; compatible official numeric grade thresholds could not be verified."
+    },
+    {
+      "measurementCode": "ymca_recovery_heart_rate",
+      "unit": "bpm",
+      "reason": "Official recovery-heart-rate protocol verified; compatible official bpm grade thresholds could not be verified. VO2max criteria are not applicable."
+    }
+  ]
+}

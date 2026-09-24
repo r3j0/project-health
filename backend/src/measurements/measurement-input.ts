@@ -37,23 +37,25 @@ const age = z.number().int().min(13).max(64);
 const text = (max: number) => z.string().trim().min(1).max(max);
 const version = text(100);
 
+// Strings retain all submitted digits through JSON parsing. This bound limits
+// input size, not a physiological range; values are never rounded.
+export const decimalValueSchema = z
+  .string()
+  .min(1)
+  .max(128)
+  .regex(
+    /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/,
+    '측정값은 지수 표기 없는 10진수 문자열로 입력해 주세요.',
+  )
+  .transform((value) => new Prisma.Decimal(value).toFixed());
+
 const itemSchema = z.strictObject({
   measurementCode: z
     .string()
     .min(1)
     .max(100)
     .regex(/^[a-z][a-z0-9_]*$/),
-  // Strings retain all submitted digits through JSON parsing. This bound limits
-  // input size, not a physiological range; values are never rounded.
-  value: z
-    .string()
-    .min(1)
-    .max(128)
-    .regex(
-      /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/,
-      '측정값은 지수 표기 없는 10진수 문자열로 입력해 주세요.',
-    )
-    .transform((value) => new Prisma.Decimal(value).toFixed()),
+  value: decimalValueSchema,
   unit: text(30),
   reportedGrade: text(100).nullable().optional().default(null),
 });
@@ -77,6 +79,7 @@ const items = z
 const mutableFields = {
   measuredOn,
   ageAtMeasurement: age,
+  entryMethod: z.enum(['manual', 'self_assessment']),
   sexAtMeasurement: z.enum(['male', 'female']).nullable(),
   reportKind: z.enum(['standard', 'simple', 'unknown']),
   centerName: text(200).nullable(),
@@ -84,9 +87,19 @@ const mutableFields = {
   items,
 };
 
+// Extraction validates each metadata field independently, using the save rules.
+export const measurementMetadataSchemas = {
+  measuredOn,
+  ageAtMeasurement: age,
+  sexAtMeasurement: mutableFields.sexAtMeasurement,
+  centerName: mutableFields.centerName,
+  reportedOverallGrade: mutableFields.reportedOverallGrade,
+};
+
 const createSchema = z.strictObject({
   ...mutableFields,
   catalogVersion: version,
+  entryMethod: mutableFields.entryMethod.optional().default('manual'),
   sexAtMeasurement: mutableFields.sexAtMeasurement.optional().default(null),
   reportKind: mutableFields.reportKind.optional().default('unknown'),
   centerName: mutableFields.centerName.optional().default(null),
@@ -128,11 +141,22 @@ const listQuerySchema = z
     path: ['to'],
     message: '종료일은 시작일보다 빠를 수 없습니다.',
   });
-const cursorSchema = z.strictObject({
+const legacyCursorSchema = z.strictObject({
   v: z.literal(1),
   measuredOn: date,
   id: z.uuid(),
 });
+const cursorSchema = z.discriminatedUnion('v', [
+  legacyCursorSchema,
+  legacyCursorSchema.extend({
+    v: z.literal(2),
+    // PostgreSQL stores microseconds; converting this to Date loses the boundary.
+    createdAt: z.iso
+      .datetime({ precision: 6 })
+      .refine((value) => !value.startsWith('0000')),
+  }),
+]);
+export type MeasurementCursor = z.output<typeof cursorSchema>;
 
 function parse<T>(schema: z.ZodType<T>, value: unknown, prefix = ''): T {
   const result = schema.safeParse(value);
@@ -175,14 +199,8 @@ export function parseRevision(value: unknown) {
   );
 }
 
-export function encodeCursor(record: { id: string; measuredOn: Date }) {
-  return Buffer.from(
-    JSON.stringify({
-      v: 1,
-      measuredOn: record.measuredOn.toISOString().slice(0, 10),
-      id: record.id,
-    }),
-  ).toString('base64url');
+export function encodeCursor(cursor: MeasurementCursor) {
+  return Buffer.from(JSON.stringify(cursor)).toString('base64url');
 }
 
 export function decodeCursor(value: string) {
