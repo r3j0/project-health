@@ -3,7 +3,7 @@ import {
   type StoredItemEvaluation,
 } from "@/lib/fitness-contract";
 
-import { displayConvertedValue } from "@/lib/grip-display";
+import { displayConvertedValue } from "@/lib/conversion-display";
 
 export function FitnessCriteria({
   evaluation,

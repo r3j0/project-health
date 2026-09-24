@@ -73,6 +73,13 @@ export function FitnessRadar({ axes }: { axes: FitnessAxis[] }) {
       <figcaption className="caption center">
         원점: 평가 없음 · 안쪽부터 기준 미달 → 3등급 → 2등급 → 1등급
       </figcaption>
+      {axes.some((axis) =>
+        axis.sourceMeasurementCodes.includes("ymca_recovery_heart_rate"),
+      ) && (
+        <p className="caption center">
+          심폐지구력은 자가측정 기반 참고 등급이에요.
+        </p>
+      )}
       <dl className="radar-legend">
         {fitnessFactors.map((f) => {
           const axis = axes.find((a) => a.factor === f.code)!;

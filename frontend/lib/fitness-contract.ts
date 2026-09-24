@@ -72,8 +72,22 @@ export interface GripConversion {
   inputs: { measurementCode: string; value: string; unit: "kg" }[];
   sourceUrl: string;
 }
+export interface StepConversion {
+  formulaVersion: "nfa100-adult-step-vo2max-v1";
+  measurementCode: "step_test_vo2max";
+  value: string;
+  unit: "ml/kg/min";
+  inputs: { measurementCode: string; value: string; unit: string }[];
+  ageAtMeasurement: number;
+  sexAtMeasurement: "male" | "female";
+  assessmentKind: "reference";
+  protocol: "nfa100-self-step-30cm-96bpm-180s-rest60s-pulse10s-v1";
+  sourceUrl: string;
+  protocolUrl: string;
+}
+export type MeasurementConversion = GripConversion | StepConversion;
 export interface StoredItemEvaluation {
-  conversion?: GripConversion;
+  conversion?: MeasurementConversion;
   measurementId: string;
   measurementCode: string;
   grade: TestGrade | null;
@@ -370,26 +384,52 @@ function parseConversion(
   value: unknown,
   record: Measurement,
   raw: Measurement["items"][number],
-): GripConversion | undefined {
+): MeasurementConversion | undefined {
   if (value === undefined) return undefined;
   if (
     !object(value) ||
-    raw.measurementCode !== "absolute_grip_strength" ||
-    raw.unit !== "kg" ||
-    value.formulaVersion !== "nfa100-relative-grip-v1" ||
-    value.measurementCode !== "relative_grip_strength" ||
-    value.unit !== "%" ||
     !decimal(value.value, 512) ||
     compareDecimal(value.value, "0") < 0 ||
     !safeSourceUrl(value.sourceUrl) ||
     !Array.isArray(value.inputs) ||
-    value.inputs.length !== 2 ||
     !unique(value.inputs, (input) =>
       object(input) ? input.measurementCode : null,
     )
   )
     return invalidFitness();
-  for (const code of ["absolute_grip_strength", "weight"]) {
+  let expected: Record<string, string>;
+  if (value.formulaVersion === "nfa100-relative-grip-v1") {
+    if (
+      raw.measurementCode !== "absolute_grip_strength" ||
+      raw.unit !== "kg" ||
+      value.measurementCode !== "relative_grip_strength" ||
+      value.unit !== "%"
+    )
+      return invalidFitness();
+    expected = { absolute_grip_strength: "kg", weight: "kg" };
+  } else if (value.formulaVersion === "nfa100-adult-step-vo2max-v1") {
+    if (
+      raw.measurementCode !== "ymca_recovery_heart_rate" ||
+      raw.unit !== "bpm" ||
+      value.measurementCode !== "step_test_vo2max" ||
+      value.unit !== "ml/kg/min" ||
+      compareDecimal(value.value, "0") <= 0 ||
+      value.ageAtMeasurement !== record.ageAtMeasurement ||
+      record.ageAtMeasurement < 19 ||
+      record.ageAtMeasurement > 64 ||
+      !["male", "female"].includes(value.sexAtMeasurement as string) ||
+      value.sexAtMeasurement !== record.sexAtMeasurement ||
+      value.assessmentKind !== "reference" ||
+      value.protocol !==
+        "nfa100-self-step-30cm-96bpm-180s-rest60s-pulse10s-v1" ||
+      !safeSourceUrl(value.protocolUrl)
+    )
+      return invalidFitness();
+    expected = { ymca_recovery_heart_rate: "bpm", height: "cm", weight: "kg" };
+  } else return invalidFitness();
+  if (value.inputs.length !== Object.keys(expected).length)
+    return invalidFitness();
+  for (const [code, unit] of Object.entries(expected)) {
     const input = value.inputs.find(
       (i: unknown) => object(i) && i.measurementCode === code,
     );
@@ -397,18 +437,18 @@ function parseConversion(
     if (
       !object(input) ||
       !decimal(input.value) ||
-      input.unit !== "kg" ||
+      input.unit !== unit ||
       !saved ||
-      saved.unit !== "kg" ||
+      saved.unit !== unit ||
       !decimal(saved.value) ||
       compareDecimal(input.value, saved.value) !== 0 ||
-      (code === "weight"
-        ? compareDecimal(input.value, "0") <= 0
-        : compareDecimal(input.value, "0") < 0)
+      (code === "absolute_grip_strength"
+        ? compareDecimal(input.value, "0") < 0
+        : compareDecimal(input.value, "0") <= 0)
     )
       return invalidFitness();
   }
-  return value as unknown as GripConversion;
+  return value as unknown as MeasurementConversion;
 }
 function parseItem(
   value: unknown,
@@ -479,7 +519,10 @@ function parseItem(
       !criterion(c) ||
       c.measurementCode !== evaluatedCode ||
       c.unit !== evaluatedUnit ||
-      (raw.measurementCode === "absolute_grip_strength" && !conversion) ||
+      (["absolute_grip_strength", "ymca_recovery_heart_rate"].includes(
+        raw.measurementCode,
+      ) &&
+        !conversion) ||
       c.sex !== record.sexAtMeasurement ||
       record.ageAtMeasurement < c.minAge ||
       record.ageAtMeasurement > c.maxAge ||

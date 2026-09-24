@@ -158,7 +158,7 @@ test("실제 API: 미측정·정보 부족·기준 미확보·0회·음수를 �
   });
   await page.goto(`/measurements/${saved.id}`);
   await expect(page.locator(".radar-legend dd")).toHaveText([
-    "평가 불가 · 기준 없음",
+    "평가 불가 · 정보 부족",
     "평가 미존재 · 미측정",
     "기준 미달",
     "기준 미달",
@@ -395,4 +395,94 @@ test("실제 API: 절대악력 저장·환산 리포트·체중 수정 및 제�
     headers,
   });
   expect((await saved.json()).items).toHaveLength(1);
+});
+
+test("실제 API: 스텝검사 완료부터 환산 리포트·메인·신체정보 수정까지 연결된다", async ({
+  page,
+}, info) => {
+  await page.goto("/workout?mode=assessment");
+  await page.getByLabel("성별", { exact: false }).selectOption("male");
+  await page.getByLabel("신장 (cm)").fill("170");
+  await page.getByLabel("체중 (kg)").fill("65");
+  await prepareAssessment(page);
+  await page.getByRole("button", { name: "이 항목 건너뛰기" }).click();
+  await page.clock.install();
+  await page.getByRole("button", { name: "측정 시작", exact: true }).click();
+  await page.clock.fastForward(253050);
+  await page.getByLabel("10초 동안 센 맥박 (회)").fill("15");
+  await expect(
+    page.getByText("분당 심박수 90 bpm으로 저장돼요."),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "입력하고 다음으로" }).click();
+  await page.getByRole("button", { name: "이 항목 건너뛰기" }).click();
+  const waiting = page.waitForResponse(
+    (r) => r.url() === `${api}/measurements` && r.request().method() === "POST",
+  );
+  await page
+    .getByRole("button", { name: "측정 기록 저장", exact: true })
+    .click();
+  const response = await waiting;
+  expect(response.status()).toBe(201);
+  const record = await response.json();
+  expect(
+    record.items.find(
+      (i: { measurementCode: string }) =>
+        i.measurementCode === "ymca_recovery_heart_rate",
+    ),
+  ).toMatchObject({
+    value: "90",
+    unit: "bpm",
+    evaluation: {
+      grade: 1,
+      conversion: { value: "49.877", assessmentKind: "reference" },
+    },
+  });
+  await page.getByRole("link", { name: "측정 기록 보기", exact: true }).click();
+  await expect(page.locator(".radar-legend dd").first()).toHaveText("1등급");
+  await page.getByText("심폐지구력 · 1등급", { exact: true }).click();
+  await expect(
+    page.getByText("추정 최대산소섭취량: 49.877 ml/kg/min"),
+  ).toBeVisible();
+  await page.screenshot({
+    path: info.outputPath("step-live-detail.png"),
+    fullPage: true,
+    animations: "disabled",
+  });
+  await page.goto("/");
+  await expect(
+    page.locator(".latest-fitness .radar-legend dd").first(),
+  ).toHaveText("1등급");
+  await expect(
+    page.getByText("심폐지구력은 자가측정 기반 참고 등급이에요."),
+  ).toBeVisible();
+  await page.goto(`/measurements/${record.id}/edit`);
+  await page.getByLabel("체중", { exact: true }).fill("100");
+  await page.getByRole("button", { name: "수정 내용 저장" }).click();
+  await expect(page).toHaveURL(/saved=1/);
+  await expect(page.locator(".radar-legend dd").first()).toHaveText("3등급");
+  await page.getByText("심폐지구력 · 3등급", { exact: true }).click();
+  await expect(
+    page.getByText("추정 최대산소섭취량: 42.107 ml/kg/min"),
+  ).toBeVisible();
+  await page.goto(`/measurements/${record.id}/edit`);
+  page.once("dialog", (dialog) => dialog.accept());
+  await page
+    .getByRole("button", { name: "신장 항목 삭제", exact: true })
+    .click();
+  await expect(
+    page.getByText(/스텝검사 평가에 필요한 정보: 신장/),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "수정 내용 저장" }).click();
+  await expect(page).toHaveURL(/saved=1/);
+  await page.reload();
+  await expect(page.locator(".radar-legend dd").first()).toHaveText(
+    "평가 불가 · 정보 부족",
+  );
+  await expect(
+    page.getByRole("definition").filter({ hasText: "90 bpm" }),
+  ).toBeVisible();
+  await page.goto("/");
+  await expect(
+    page.locator(".latest-fitness .radar-legend dd").first(),
+  ).toHaveText("평가 불가");
 });

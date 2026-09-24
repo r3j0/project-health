@@ -5,7 +5,7 @@ import {
   gripCatalogFixture,
 } from "../fixtures/grip-evaluation.ts";
 import { parseMeasurementEvaluation } from "../../lib/fitness-contract.ts";
-import { displayConvertedValue } from "../../lib/grip-display.ts";
+import { displayConvertedValue } from "../../lib/conversion-display.ts";
 import { buildInput, metadataFrom } from "../../lib/measurement-form.ts";
 
 test("absolute grip keeps kg while its criterion and next target use server-converted percent", () => {
