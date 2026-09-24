@@ -39,6 +39,7 @@ export function RecordForm({
   initial,
   initialCatalog,
   onboarding = false,
+  requireSex = false,
   reference,
   draftKey = "new",
   seed,
@@ -47,6 +48,7 @@ export function RecordForm({
   initial?: RecordResponse;
   initialCatalog?: Catalog;
   onboarding?: boolean;
+  requireSex?: boolean;
   reference?: React.ReactNode;
   draftKey?: string;
   onDiscard?: () => void;
@@ -228,7 +230,7 @@ export function RecordForm({
   async function advance(event: React.FormEvent) {
     event.preventDefault();
     if (guard.current) return;
-    const next = validateMetadata(meta, koreaDate());
+    const next = validateMetadata(meta, koreaDate(), { requireSex });
     if (selfAssessment && Number(meta.age) < 19)
       next.ageAtMeasurement = "성인 간이측정은 만 19~64세를 지원해요.";
     setErrors(next);
@@ -287,6 +289,8 @@ export function RecordForm({
       selfAssessment ? calculateBodyItems(items) : items,
       catalog,
       koreaDate(),
+      // Reconfirm an already-sent request with its original body and key.
+      { requireSex: requireSex && !uncertain },
     );
     if (selfAssessment) {
       const height = items.find((i) => i.code === "height")?.value ?? "";
@@ -300,6 +304,7 @@ export function RecordForm({
     setErrors(built.errors);
     setMessage("");
     if (Object.keys(built.errors).length) {
+      if (built.errors.sexAtMeasurement) setStep(1);
       setMessage("입력한 항목을 확인해 주세요.");
       scrollError();
       return;
@@ -491,6 +496,30 @@ export function RecordForm({
       <FieldError message={errors[field]} />
     </div>
   );
+  const sexField = (
+    <div className="field">
+      <label htmlFor="sex">
+        {requireSex
+          ? "성별"
+          : selfAssessment
+            ? "측정 당시 성별"
+            : "결과표의 성별"}
+      </label>
+      <select
+        id="sex"
+        required={requireSex}
+        value={meta.sex}
+        onChange={(e) => update("sex", e.target.value)}
+        aria-invalid={!!errors.sexAtMeasurement}
+        aria-describedby="sex-error"
+      >
+        <option value="">{requireSex ? "선택해 주세요" : "선택 안 함"}</option>
+        <option value="male">남성</option>
+        <option value="female">여성</option>
+      </select>
+      <FieldError id="sex-error" message={errors.sexAtMeasurement} />
+    </div>
+  );
   if (step === 2 && !catalog)
     return (
       <Shell>
@@ -634,6 +663,7 @@ export function RecordForm({
                 </p>
                 <FieldError id="age-error" message={errors.ageAtMeasurement} />
               </div>
+              {requireSex && sexField}
               <details className="accordion">
                 <summary>
                   추가 정보 <span className="optional-label">(선택)</span>
@@ -641,23 +671,12 @@ export function RecordForm({
                 <p className="caption summary-hint">
                   {selfAssessment
                     ? "측정 당시 성별"
-                    : "성별 · 측정 유형 · 센터 · 결과표 종합등급"}
+                    : requireSex
+                      ? "측정 유형 · 센터 · 결과표 종합등급"
+                      : "성별 · 측정 유형 · 센터 · 결과표 종합등급"}
                 </p>
                 <div className="stack">
-                  <div className="field">
-                    <label htmlFor="sex">
-                      {selfAssessment ? "측정 당시 성별" : "결과표의 성별"}
-                    </label>
-                    <select
-                      id="sex"
-                      value={meta.sex}
-                      onChange={(e) => update("sex", e.target.value)}
-                    >
-                      <option value="">선택 안 함</option>
-                      <option value="male">남성</option>
-                      <option value="female">여성</option>
-                    </select>
-                  </div>
+                  {!requireSex && sexField}
                   {!selfAssessment && (
                     <>
                       <div className="field">

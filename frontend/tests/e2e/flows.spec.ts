@@ -96,6 +96,7 @@ async function startRecord(page: Page, age = "25") {
   await openManualRecord(page);
   await page.getByLabel("측정일", { exact: true }).fill("2026-09-17");
   await page.getByLabel("측정 당시 만 나이", { exact: true }).fill(age);
+  await page.getByLabel("성별", { exact: true }).selectOption("male");
   await page.getByRole("button", { name: "측정값 입력하기" }).click();
   await expect(
     page.getByRole("heading", { name: "측정한 항목만 입력해요" }),
@@ -135,7 +136,7 @@ test("가입 → 정확한 부분 저장 → 새로고침 → 수정 → 삭제 
   await startRecord(page);
   await page.getByRole("button", { name: "변경", exact: true }).click();
   await page.getByText("추가 정보", { exact: false }).click();
-  await page.getByLabel("결과표의 성별").selectOption("female");
+  await page.getByLabel("성별", { exact: true }).selectOption("female");
   await page.getByLabel("측정 유형", { exact: true }).selectOption("standard");
   await page
     .getByLabel("측정 센터", { exact: true })
@@ -387,6 +388,7 @@ test("카탈로그 장애 시 기본 정보를 유지하며 다시 불러올 수
   await openManualRecord(page);
   await page.getByLabel("측정일", { exact: true }).fill("2026-09-17");
   await page.getByLabel("측정 당시 만 나이", { exact: true }).fill("25");
+  await page.getByLabel("성별", { exact: true }).selectOption("male");
   await page.route("**/api/v1/measurement-catalog", (route) =>
     failApi(route, 503),
   );

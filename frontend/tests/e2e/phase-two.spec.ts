@@ -170,6 +170,7 @@ test("온보딩 직접 입력은 기존 폼을 복원하고 실제 저장 후 �
     .click();
   await page.getByLabel("측정일", { exact: true }).fill("2026-09-17");
   await page.getByLabel("측정 당시 만 나이", { exact: true }).fill("25");
+  await page.getByLabel("성별", { exact: true }).selectOption("male");
   await page.reload();
   await expect(
     page.getByLabel("측정 당시 만 나이", { exact: true }),

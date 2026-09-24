@@ -32,7 +32,11 @@ export function metadataFrom(record: Measurement): FormMetadata {
     grade: record.reportedOverallGrade ?? "",
   };
 }
-export function validateMetadata(meta: FormMetadata, today: string) {
+export function validateMetadata(
+  meta: FormMetadata,
+  today: string,
+  { requireSex = false }: { requireSex?: boolean } = {},
+) {
   const errors: Record<string, string> = {};
   const date = new Date(`${meta.measuredOn}T00:00:00Z`);
   if (
@@ -50,6 +54,8 @@ export function validateMetadata(meta: FormMetadata, today: string) {
     Number(meta.age) > 64
   )
     errors.ageAtMeasurement = "측정 당시 만 나이를 13~64세로 입력해 주세요.";
+  if (requireSex && meta.sex !== "male" && meta.sex !== "female")
+    errors.sexAtMeasurement = "성별을 선택해 주세요.";
   if (meta.center.trim().length > 200)
     errors.centerName = "센터명은 200자까지 입력할 수 있어요.";
   if (meta.grade.trim().length > 100)
@@ -86,8 +92,9 @@ export function buildInput(
   items: FormItem[],
   catalog: Catalog,
   today: string,
+  options: { requireSex?: boolean } = {},
 ): { errors: Record<string, string>; input: MeasurementInput } {
-  const errors = validateMetadata(meta, today);
+  const errors = validateMetadata(meta, today, options);
   const saved = items.filter((i) => i.value !== "");
   if (!saved.length) errors.items = "측정값을 하나 이상 입력해 주세요.";
   const seen = new Set<string>();

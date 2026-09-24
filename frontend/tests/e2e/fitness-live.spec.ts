@@ -88,7 +88,7 @@ test("실제 API: 6종목 직접 입력·상세 등급·기준·수정 재평가
   await page.getByLabel("측정일", { exact: true }).fill(today());
   await page.getByLabel("측정 당시 만 나이", { exact: true }).fill("25");
   await page.getByText("추가 정보", { exact: false }).click();
-  await page.getByLabel("결과표의 성별").selectOption("male");
+  await page.getByLabel("성별", { exact: true }).selectOption("male");
   await page.getByRole("button", { name: "측정값 입력하기" }).click();
   for (const [label, value] of examples) await add(page, label, value);
   const waiting = page.waitForResponse(
@@ -333,7 +333,7 @@ test("실제 API: 절대악력 저장·환산 리포트·체중 수정 및 제�
   await page.getByLabel("측정일", { exact: true }).fill(today());
   await page.getByLabel("측정 당시 만 나이", { exact: true }).fill("25");
   await page.getByText("추가 정보", { exact: false }).click();
-  await page.getByLabel("결과표의 성별").selectOption("male");
+  await page.getByLabel("성별", { exact: true }).selectOption("male");
   await page.getByRole("button", { name: "측정값 입력하기" }).click();
   await add(page, "절대악력", "30");
   await page.getByRole("button", { name: "측정 당시 체중 추가" }).click();

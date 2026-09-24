@@ -67,6 +67,7 @@ test("저장 응답을 잃어도 메인은 실제 서버의 등록 상태를 반
     .click();
   await page.getByLabel("측정일", { exact: true }).fill("2026-09-17");
   await page.getByLabel("측정 당시 만 나이", { exact: true }).fill("25");
+  await page.getByLabel("성별", { exact: true }).selectOption("male");
   await page.getByRole("button", { name: "측정값 입력하기" }).click();
   await page
     .getByRole("button", { name: "측정 항목 추가", exact: true })
