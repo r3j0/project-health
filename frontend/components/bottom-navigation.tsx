@@ -17,7 +17,10 @@ export function BottomNavigation() {
   ];
 
   return (
-    <nav className="bottom-navigation" aria-label="하단 메뉴">
+    <nav
+      className={`bottom-navigation${pathname === "/account" ? " account-theme" : ""}`}
+      aria-label="하단 메뉴"
+    >
       {tabs.map(({ href, label, icon: Icon, active }) => (
         <Link
           key={href}

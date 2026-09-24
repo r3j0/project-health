@@ -14,3 +14,13 @@
   overflow: visible;
 }
 /* The engine reads prefers-reduced-motion and paints the rest pose. */
+
+/* Keep the same head rig and crop only its presentation for profile avatars. */
+.face {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  overflow: hidden;
+}
+.face .rig > :not([data-part="head"]) {
+  visibility: hidden;
+}

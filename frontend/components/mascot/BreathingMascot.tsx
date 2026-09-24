@@ -8,6 +8,7 @@ import styles from "./BreathingMascot.module.css";
 
 export type BreathingMascotProps = {
   motion?: "idle" | "walk";
+  framing?: "full" | "face";
   variant?: "cream" | "gray";
   /** Copy the two *-belly.svg assets into this public directory. Heads are live SVG paths. */
   assetBasePath?: string;
@@ -22,6 +23,7 @@ export type BreathingMascotProps = {
 
 export function BreathingMascot({
   variant = "cream",
+  framing = "full",
   assetBasePath = "/mascots",
   size = 240,
   motion = "idle",
@@ -59,7 +61,9 @@ export function BreathingMascot({
 
   return (
     <span
-      className={[styles.mascot, className].filter(Boolean).join(" ")}
+      className={[styles.mascot, framing === "face" && styles.face, className]
+        .filter(Boolean)
+        .join(" ")}
       style={style}
       role={description ? "img" : undefined}
       aria-label={description || undefined}
@@ -68,7 +72,7 @@ export function BreathingMascot({
       <svg
         ref={svg}
         className={styles.rig}
-        viewBox="0 0 800 1000"
+        viewBox={framing === "face" ? "0 -40 800 800" : "0 0 800 1000"}
         aria-hidden="true"
         focusable="false"
       >

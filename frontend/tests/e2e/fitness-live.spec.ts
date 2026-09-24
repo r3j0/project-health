@@ -195,22 +195,25 @@ test("실제 API: 내 프로필은 최신 한 회차만 표시하고 수정·삭
   await expect(
     page.locator('.latest-fitness .radar-point[cx="180"][cy="158"]'),
   ).toHaveCount(5);
-  await expect(page.locator(".latest-fitness .radar-legend dd")).toHaveText([
-    "평가 미존재 · 미측정",
-    "평가 미존재 · 미측정",
-    "평가 미존재 · 미측정",
+  await expect(page.locator(".latest-fitness .radar-grade")).toHaveText([
+    "평가 미존재",
+    "평가 미존재",
+    "평가 미존재",
     "2등급",
-    "평가 미존재 · 미측정",
-    "평가 미존재 · 미측정",
+    "평가 미존재",
+    "평가 미존재",
   ]);
   await expect(
     page.getByRole("link", { name: "이 기록의 상세 리포트 보기" }),
-  ).toHaveAttribute("href", `/measurements/${partial.id}`);
+  ).toHaveCount(0);
   await page.screenshot({
     path: info.outputPath("real-latest-partial.png"),
     fullPage: true,
   });
-  await page.getByRole("link", { name: "이 기록의 상세 리포트 보기" }).click();
+  await page.getByRole("link", { name: "내 측정 기록", exact: true }).click();
+  await page
+    .locator(`a.record-card[href="/measurements/${partial.id}"]`)
+    .click();
   await page.getByRole("link", { name: "기록 수정", exact: true }).click();
   await page.getByLabel("앉아윗몸앞으로굽히기", { exact: true }).fill("14.9");
   await page.getByRole("button", { name: "수정 내용 저장" }).click();
@@ -219,10 +222,13 @@ test("실제 API: 내 프로필은 최신 한 회차만 표시하고 수정·삭
     .getByRole("navigation", { name: "하단 메뉴" })
     .getByRole("link", { name: "내 프로필", exact: true })
     .click();
-  await expect(
-    page.locator(".latest-fitness .radar-legend dd").nth(3),
-  ).toHaveText("1등급");
-  await page.getByRole("link", { name: "이 기록의 상세 리포트 보기" }).click();
+  await expect(page.locator(".latest-fitness .radar-grade").nth(3)).toHaveText(
+    "1등급",
+  );
+  await page.getByRole("link", { name: "내 측정 기록", exact: true }).click();
+  await page
+    .locator(`a.record-card[href="/measurements/${partial.id}"]`)
+    .click();
   await page.getByRole("button", { name: "기록 삭제", exact: true }).click();
   await page
     .getByRole("dialog")
@@ -233,7 +239,7 @@ test("실제 API: 내 프로필은 최신 한 회차만 표시하고 수정·삭
     .getByRole("navigation", { name: "하단 메뉴" })
     .getByRole("link", { name: "내 프로필", exact: true })
     .click();
-  await expect(page.locator(".latest-fitness .radar-legend dd")).toHaveText([
+  await expect(page.locator(".latest-fitness .radar-grade")).toHaveText([
     "2등급",
     "3등급",
     "1등급",
@@ -243,7 +249,7 @@ test("실제 API: 내 프로필은 최신 한 회차만 표시하고 수정·삭
   ]);
   await expect(
     page.getByRole("link", { name: "이 기록의 상세 리포트 보기" }),
-  ).toHaveAttribute("href", `/measurements/${older.id}`);
+  ).toHaveCount(0);
   const removed = await page.request.delete(`${api}/measurements/${older.id}`, {
     headers: { ...headers, "If-Match": '"1"' },
   });
@@ -310,9 +316,9 @@ test("실제 API: 간이측정은 기관 결과표와 구분하고 부분 기록
     page.getByRole("heading", { name: "내 체력 기록부터 시작해요" }),
   ).toHaveCount(0);
   await page.getByRole("link", { name: "내 프로필", exact: true }).click();
-  await expect(
-    page.locator(".latest-fitness .radar-legend dd").nth(3),
-  ).toHaveText("2등급");
+  await expect(page.locator(".latest-fitness .radar-grade").nth(3)).toHaveText(
+    "2등급",
+  );
   const after = await page.request.get(`${api}/auth/me`, { headers });
   expect(await after.json()).toMatchObject({
     isOnboarded: true,
@@ -350,7 +356,9 @@ test("실제 API: 절대악력 저장·환산 리포트·체중 수정 및 제�
   });
   await expect(page).toHaveURL("/");
   await page.getByRole("link", { name: "내 프로필", exact: true }).click();
-  await expect(page.locator(".radar-legend dd").nth(1)).toHaveText("2등급");
+  await expect(page.locator(".latest-fitness .radar-grade").nth(1)).toHaveText(
+    "2등급",
+  );
   await page.goto(`/measurements/${record.id}`);
   await page.getByText("근력 · 2등급", { exact: true }).click();
   await expect(
@@ -449,12 +457,9 @@ test("실제 API: 스텝검사 완료부터 환산 리포트·내 프로필·신
     animations: "disabled",
   });
   await page.goto("/account");
-  await expect(
-    page.locator(".latest-fitness .radar-legend dd").first(),
-  ).toHaveText("1등급");
-  await expect(
-    page.getByText("심폐지구력은 자가측정 기반 참고 등급이에요."),
-  ).toBeVisible();
+  await expect(page.locator(".latest-fitness .radar-grade").first()).toHaveText(
+    "1등급 (참고)",
+  );
   await page.goto(`/measurements/${record.id}/edit`);
   await page.getByLabel("체중", { exact: true }).fill("100");
   await page.getByRole("button", { name: "수정 내용 저장" }).click();
@@ -482,7 +487,7 @@ test("실제 API: 스텝검사 완료부터 환산 리포트·내 프로필·신
     page.getByRole("definition").filter({ hasText: "90 bpm" }),
   ).toBeVisible();
   await page.goto("/account");
-  await expect(
-    page.locator(".latest-fitness .radar-legend dd").first(),
-  ).toHaveText("평가 불가");
+  await expect(page.locator(".latest-fitness .radar-grade").first()).toHaveText(
+    "평가 불가",
+  );
 });

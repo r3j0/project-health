@@ -1,13 +1,14 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { BreathingMascot } from "./mascot/BreathingMascot";
 import { LatestFitness } from "./latest-fitness";
 import { useRouter } from "next/navigation";
 import { ChevronRight, LogOut } from "lucide-react";
 import { logout } from "@/lib/session";
 import { errorMessage } from "@/lib/http";
 import { useUserProfile } from "./user-profile-provider";
-import { ArtworkSlot, Dialog, Loading, Notice, Shell } from "./ui";
+import { Dialog, Loading, Notice, Shell } from "./ui";
 export function Account() {
   const { data: user, error: profileError, reload } = useUserProfile();
   const [logoutError, setLogoutError] = useState(""),
@@ -28,14 +29,19 @@ export function Account() {
     }
   }
   return (
-    <Shell>
+    <Shell className="account-shell account-theme">
       <h1 className="sr-only">내 프로필</h1>
       <div className="content stack">
         {logoutError && <Notice>{logoutError}</Notice>}
         {user ? (
           <>
             <div className="profile-card">
-              <ArtworkSlot small />
+              <BreathingMascot
+                framing="face"
+                size={64}
+                label="편안하게 숨 쉬는 햄스터 얼굴"
+                className="profile-avatar"
+              />
               <div className="profile-copy">
                 <h2>나의 건강한 일상</h2>
                 <p className="muted" style={{ fontSize: 14, marginTop: 6 }}>

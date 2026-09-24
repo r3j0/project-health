@@ -1007,6 +1007,51 @@ fieldset:disabled select {
   font-size: 14px;
   margin-top: 10px;
 }
+/* KSPO Orange theme scoped to the profile page and its navigation. */
+.account-theme {
+  --navy: #a64900;
+  --navy-hover: #8c3e00;
+  --navy-pressed: #733200;
+  --sky: var(--accent);
+  --tint: #fff0e0;
+  --canvas: #fff8f1;
+  --border: #f0dac6;
+  --text: #33251c;
+  --text-secondary: #705039;
+  --muted: #85624a;
+}
+.account-shell {
+  color: var(--text);
+}
+.account-shell .profile-card {
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.account-shell .profile-copy h2 {
+  color: var(--navy);
+}
+.profile-avatar {
+  background: var(--surface);
+}
+.account-shell .menu-card {
+  background: var(--canvas);
+}
+.account-shell .menu-row + .menu-row {
+  border-top: 1px solid var(--border);
+}
+.account-shell a.menu-row:hover {
+  background: var(--tint);
+}
+.account-shell .menu-row > svg,
+.account-theme .bottom-tab[aria-current] > svg {
+  color: var(--accent);
+}
+.account-shell .radar-shape {
+  stroke: var(--accent);
+  fill: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.account-shell .radar-point {
+  fill: var(--accent);
+}
 .profile-card {
   display: flex;
   align-items: center;
@@ -1434,6 +1479,14 @@ fieldset:disabled select {
   font-size: 13px;
   font-weight: 600;
   fill: var(--text-secondary);
+}
+.fitness-radar-compact .radar-label {
+  font-size: 14px;
+}
+.radar-grade {
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--navy);
 }
 .radar-legend {
   display: grid;

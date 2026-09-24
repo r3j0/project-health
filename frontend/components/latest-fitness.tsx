@@ -1,5 +1,4 @@
 "use client";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, invalidateUserProfile } from "@/lib/session";
 import { ApiError, errorMessage } from "@/lib/http";
@@ -8,7 +7,6 @@ import {
   parseLatestFitness,
   type LatestFitnessProfile,
 } from "@/lib/latest-fitness";
-import { displayDate } from "@/lib/measurements";
 import { FitnessRadar } from "./fitness-radar";
 import { useSession } from "./session-provider";
 import { Loading, Notice } from "./ui";
@@ -51,9 +49,8 @@ export function LatestFitness() {
   return (
     <section
       className="stack latest-fitness"
-      aria-labelledby="latest-fitness-title"
+      aria-label="최근 측정 기록의 체력 등급"
     >
-      <h2 id="latest-fitness-title">나의 체력 프로필</h2>
       {!state ? (
         <Loading label="최근 체력 프로필을 확인하고 있어요" />
       ) : state.status !== "ready" ? (
@@ -71,19 +68,7 @@ export function LatestFitness() {
       ) : state.data === null ? (
         <p className="muted">아직 등록한 측정 기록이 없어요.</p>
       ) : (
-        <>
-          <p className="caption">
-            {displayDate(state.data.measurement.measuredOn)} · 최신 측정 기록
-            기준
-          </p>
-          <FitnessRadar axes={state.data.axes} />
-          <Link
-            className="text-link"
-            href={`/measurements/${state.data.measurement.id}`}
-          >
-            이 기록의 상세 리포트 보기
-          </Link>
-        </>
+        <FitnessRadar axes={state.data.axes} variant="compact" />
       )}
     </section>
   );
