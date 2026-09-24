@@ -1,4 +1,5 @@
 import { definitionValueErrors } from '../measurement-catalog.service.js';
+import { measurementUnavailabilityReason } from '../measurement-availability.js';
 import type { MeasurementCatalogService } from '../measurement-catalog.service.js';
 import {
   decimalValueSchema,
@@ -142,6 +143,11 @@ export function validateExtraction(raw: ModelExtraction, catalog: Catalog) {
       reason.toUpperCase(),
     );
     const def = measurementCode ? definitions.get(measurementCode) : undefined;
+    if (
+      measurementCode &&
+      measurementUnavailabilityReason(measurementCode) !== null
+    )
+      reasons.push('MEASUREMENT_RETIRED');
     if (!def) reasons.push('UNKNOWN_TEST');
     if (measurementCode && (counts.get(measurementCode) ?? 0) > 1)
       reasons.push('DUPLICATE_CODE');
@@ -232,6 +238,7 @@ export function validateExtraction(raw: ModelExtraction, catalog: Catalog) {
       : catalog.definitions
           .filter(
             (def) =>
+              measurementUnavailabilityReason(def.code) === null &&
               !counts.has(def.code) &&
               (session.ageAtMeasurement === null ||
                 (session.ageAtMeasurement >= def.minAge &&

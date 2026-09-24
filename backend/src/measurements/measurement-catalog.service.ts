@@ -8,6 +8,7 @@ import { DatabaseService } from '../database/database.service.js';
 import type { MeasurementDefinition } from '../generated/prisma/client.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { invalidInput } from './measurement-input.js';
+import { measurementUnavailabilityReason } from './measurement-availability.js';
 import type {
   CreateMeasurementInput,
   FieldError,
@@ -58,6 +59,9 @@ export class MeasurementCatalogService {
           minInclusive: def.minInclusive,
           maxValue: def.maxValue?.toFixed() ?? null,
           sourceUrls: def.sourceUrls,
+          availableForNewMeasurements:
+            measurementUnavailabilityReason(def.code) === null,
+          unavailabilityReason: measurementUnavailabilityReason(def.code),
         })),
     };
   }
@@ -69,7 +73,6 @@ export const SELF_ASSESSMENT_CODES = [
   'bmi',
   'waist_circumference',
   'cross_sit_up',
-  'self_curl_up',
   'ymca_recovery_heart_rate',
   'sit_and_reach',
 ] as const;
@@ -78,6 +81,7 @@ export function validateItems(
   input: Pick<CreateMeasurementInput, 'items' | 'ageAtMeasurement'> &
     Partial<Pick<CreateMeasurementInput, 'entryMethod'>>,
   definitions: MeasurementDefinition[],
+  existingMeasurementCodes: readonly string[] = [],
 ) {
   const byCode = new Map(definitions.map((def) => [def.code, def]));
   const errors: FieldError[] = [];
@@ -88,8 +92,21 @@ export function validateItems(
     });
   input.items.forEach((item, index) => {
     const field = `items.${index}`;
+    const retired = measurementUnavailabilityReason(item.measurementCode);
+    const preserved =
+      retired !== null &&
+      existingMeasurementCodes.includes(item.measurementCode);
+    if (retired !== null && !preserved) {
+      errors.push({
+        field: `${field}.measurementCode`,
+        message:
+          '공식 평가 기준이 확인되지 않아 신규 입력이 중단된 검사입니다.',
+      });
+      return;
+    }
     if (
       input.entryMethod === 'self_assessment' &&
+      !preserved &&
       !SELF_ASSESSMENT_CODES.some((code) => code === item.measurementCode)
     )
       errors.push({

@@ -11,6 +11,7 @@ import { DatabaseService } from '../database/database.service.js';
 import { Prisma } from '../generated/prisma/client.js';
 import type { MeasurementCreateRequest } from '../generated/prisma/client.js';
 import { validateItems } from './measurement-catalog.service.js';
+import { measurementUnavailabilityReason } from './measurement-availability.js';
 import {
   decodeCursor,
   encodeCursor,
@@ -101,6 +102,7 @@ export function serializeRecord(record: RecordWithItems) {
     missingMeasurementCodes: record.catalog.definitions
       .filter(
         (def) =>
+          measurementUnavailabilityReason(def.code) === null &&
           record.ageAtMeasurement >= def.minAge &&
           record.ageAtMeasurement <= def.maxAge &&
           !entered.has(def.code),
@@ -240,12 +242,16 @@ export class MeasurementsService {
   }
 
   async latestPolygon(userId: string) {
-    // Same ordering as list(), and one repeatable snapshot for all relations.
+    // The newest entry represents a measurement day; edits do not reorder it.
     const record = await this.database.$transaction(
       (tx) =>
         tx.measurement.findFirst({
           where: { userId },
-          orderBy: [{ measuredOn: 'desc' }, { id: 'asc' }],
+          orderBy: [
+            { measuredOn: 'desc' },
+            { createdAt: 'desc' },
+            { id: 'asc' },
+          ],
           include: includeRecord,
         }),
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
@@ -314,6 +320,7 @@ export class MeasurementsService {
           items,
         },
         current.catalog.definitions,
+        current.items.map((item) => item.code),
       );
       // Recompute every item at the claimed revision, including metadata-only
       // edits. Deferred constraints see only the final consistent state.

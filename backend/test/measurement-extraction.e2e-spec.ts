@@ -179,7 +179,10 @@ describe('Authenticated photo extraction with PostgreSQL and isolated OpenAI tra
       definitions: Array<{ code: string }>;
     };
     expect(prompt.catalogVersion).toBe(version);
-    expect(prompt.definitions).toHaveLength(21);
+    expect(prompt.definitions).toHaveLength(20);
+    expect(
+      prompt.definitions.map((definition) => definition.code),
+    ).not.toContain('self_curl_up');
     expect(
       prompt.definitions.some((def) => def.code === 'relative_grip_strength'),
     ).toBe(true);
@@ -190,9 +193,76 @@ describe('Authenticated photo extraction with PostgreSQL and isolated OpenAI tra
 
   it('supports explicit catalog versions and rejects an unknown version before calling OpenAI', async () => {
     await extract().field('catalogVersion', version).expect(200);
+    const historical = (
+      await extract().field('catalogVersion', 'nfa100-2026-09-23').expect(200)
+    ).body as ExtractionDraft;
+    expect(historical.notDetectedMeasurementCodes).not.toContain(
+      'self_curl_up',
+    );
+    expect(historical.notDetectedMeasurementCodes).toContain(
+      'ymca_recovery_heart_rate',
+    );
     fetcher.mockClear();
     await extract().field('catalogVersion', 'unknown').expect(404);
     expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('keeps a retired candidate out of saveable items even when extracting with its historical catalog', async () => {
+    fetcher.mockResolvedValue(
+      Response.json(
+        responseBody(
+          modelResult({
+            candidates: [
+              candidate({
+                measurementCode: 'self_curl_up',
+                value: '12',
+                unit: '회',
+                evidence: {
+                  label: '성인 윗몸말아올리기',
+                  value: '12',
+                  unit: '회',
+                },
+              }),
+              candidate({
+                measurementCode: 'ymca_recovery_heart_rate',
+                value: '80',
+                unit: 'bpm',
+                evidence: {
+                  label: 'YMCA 회복 심박수',
+                  value: '80',
+                  unit: 'bpm',
+                },
+              }),
+            ],
+          }),
+        ),
+      ),
+    );
+    const draft = (
+      await extract().field('catalogVersion', 'nfa100-2026-09-23').expect(200)
+    ).body as ExtractionDraft;
+    expect(draft.status).toBe('partial');
+    expect(draft.items).toEqual([
+      expect.objectContaining({
+        measurementCode: 'ymca_recovery_heart_rate',
+        value: '80',
+        unit: 'bpm',
+      }),
+    ]);
+    expect(draft.reviewItems).toEqual([
+      expect.objectContaining({
+        measurementCode: 'self_curl_up',
+        value: '12',
+        unit: '회',
+        reasons: ['MEASUREMENT_RETIRED'],
+      }),
+    ]);
+    expect(draft.notDetectedMeasurementCodes).not.toContain('self_curl_up');
+    expect(draft.notDetectedMeasurementCodes).toContain('cross_sit_up');
+    expect(
+      await database.measurement.count({ where: { userId: owner.user.id } }),
+    ).toBe(0);
+    expect((await profile()).body).toMatchObject({ isOnboarded: false });
   });
 
   it('returns all six readable fitness factors even when age is hidden', async () => {

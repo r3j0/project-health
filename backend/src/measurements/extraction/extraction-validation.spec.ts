@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { candidate, modelResult } from '../../../test/fixtures/extraction.js';
 import type { MeasurementCatalogService } from '../measurement-catalog.service.js';
 import { validateExtraction } from './extraction-validation.js';
+import { catalogPrompt } from './extraction.prompt.js';
 
 const catalog: Awaited<ReturnType<MeasurementCatalogService['get']>> = {
   version: 'test-catalog',
@@ -37,6 +38,8 @@ const catalog: Awaited<ReturnType<MeasurementCatalogService['get']>> = {
       minAge,
       maxAge,
       sourceUrls: [],
+      availableForNewMeasurements: true,
+      unavailabilityReason: null,
     }),
   ) as Awaited<ReturnType<MeasurementCatalogService['get']>>['definitions'],
 };
@@ -53,6 +56,25 @@ const validate = (extra: Parameters<typeof modelResult>[0] = {}) =>
   validateExtraction(modelResult(extra), catalog);
 
 describe('Extraction semantic validation', () => {
+  it('omits retired definitions from the provider prompt even for an old catalog', () => {
+    const retired = {
+      ...catalog.definitions[1],
+      code: 'self_curl_up',
+      availableForNewMeasurements: false,
+      unavailabilityReason: 'official_criteria_unverified' as const,
+    };
+    const previousCatalog = {
+      ...catalog,
+      definitions: [...catalog.definitions, retired],
+    };
+    const prompt = JSON.parse(catalogPrompt(previousCatalog)) as {
+      definitions: Array<{ code: string }>;
+    };
+    expect(prompt.definitions.map((definition) => definition.code)).toEqual(
+      catalog.definitions.map((definition) => definition.code),
+    );
+  });
+
   it('preserves negative, zero and arbitrarily precise decimals using existing Decimal rules', () => {
     const result = validate({
       candidates: [

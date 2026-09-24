@@ -32,8 +32,8 @@ export function catalogPrompt(
 ) {
   return JSON.stringify({
     catalogVersion: catalog.version,
-    definitions: catalog.definitions.map(
-      ({ sourceUrls: _sources, ...definition }) => definition,
-    ),
+    definitions: catalog.definitions
+      .filter((definition) => definition.availableForNewMeasurements)
+      .map(({ sourceUrls: _sources, ...definition }) => definition),
   });
 }

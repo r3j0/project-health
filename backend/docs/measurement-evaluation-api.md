@@ -4,16 +4,19 @@
 
 ## 저장과 프론트 요청
 
-`GET /api/v1/measurement-catalog?age=25`의 최신 버전은 `nfa100-2026-09-23`이다. 기존 버전 `nfa100-2026-09-19`의 19개 정의는 수정하지 않았으며 새 버전에는 다음 2개를 추가했다.
+`GET /api/v1/measurement-catalog?age=25`의 최신 버전은 `nfa100-2026-09-24`다. 전체 20개, 성인 16개, 청소년 15개 정의를 제공한다. 2026-09-24 사용자 결정으로 공식 수치 기준을 확보하지 못한 성인 자가측정 `self_curl_up`을 신규 입력에서 제외했다. 기존 `nfa100-2026-09-19`의 19개 정의와 `nfa100-2026-09-23`의 21개 정의는 변경하지 않았다. 다음 자가측정 추가 항목은 계속 지원한다.
 
 | 코드                       | 단위  | 입력 조건                | 검사 방법                                                          |
 | -------------------------- | ----- | ------------------------ | ------------------------------------------------------------------ |
-| `self_curl_up`             | `회`  | 만 19–64세, 0 이상 정수  | 성인 자가측정용 윗몸말아올리기. 3초 신호에 맞추는 별도 프로토콜    |
 | `ymca_recovery_heart_rate` | `bpm` | 만 19–64세, 양수 Decimal | 공식 자가측정 YMCA 스텝 후 회복 심박수. 프론트가 bpm으로 환산한 값 |
 
 생성·수정에 `entryMethod: "self_assessment"`를 지원한다. 생성 시 생략하면 `manual`, 수정 시 생략하면 저장된 값을 유지한다. 사진 초안 확인 저장도 기존처럼 `manual`이다. `reportKind: "simple"`은 기관의 공식 간편측정을 뜻하므로 자가측정에서 자동으로 설정하지 않는다. `sourceProgram: "nfa100"`은 기준 체계 식별자이며 기관 측정·인증 여부를 보증하지 않는다.
 
-간이측정은 측정 당시 만 19–64세, 다음 8개 코드만 허용한다: `height`, `weight`, `bmi`, `waist_circumference`, `cross_sit_up`, `self_curl_up`, `ymca_recovery_heart_rate`, `sit_and_reach`. 기존 manual은 만 13–64세 카탈로그 범위를 유지한다. 카탈로그 전체에는 manual용 검사도 있으므로 간이측정 화면은 이 허용 목록을 사용한다.
+간이측정 신규 입력은 측정 당시 만 19–64세, 다음 7개 코드만 허용한다: `height`, `weight`, `bmi`, `waist_circumference`, `cross_sit_up`, `ymca_recovery_heart_rate`, `sit_and_reach`. 기존 manual은 만 13–64세 카탈로그 범위를 유지한다. 카탈로그 전체에는 manual용 검사도 있으므로 간이측정 화면은 이 허용 목록을 사용한다.
+
+카탈로그 정의에는 `availableForNewMeasurements`와 `unavailabilityReason`을 추가한다. 신규 입력 가능한 항목은 각각 true와 null이다. 과거 카탈로그로 조회한 `self_curl_up`은 false와 `official_criteria_unverified`를 반환하므로 신규 입력 선택지에서 제외한다. 이 항목을 새 POST로 저장하면 등록 방식·카탈로그 버전에 관계없이 400(`items.<index>.measurementCode`)이다. 이미 저장된 생성 요청의 동일 키·동일 입력 재시도는 기존 기록을 반환하는 계약을 유지한다.
+
+기존 기록의 `self_curl_up`은 조회·유지·값 수정·제거할 수 있다. PATCH에 `items`를 생략하면 유지하며, 전체 교체할 때 유지할 항목은 함께 보낸다. 원래 없던 기록에 추가하거나 한 번 제거한 뒤 다시 추가할 수 없다. 저장된 과거 평가도 일괄 삭제·재평가하지 않는다. 청소년의 별도 종목 `curl_up`은 이 제외 대상이 아니다. 미입력 목록 `missingMeasurementCodes`에도 제외된 항목을 넣지 않는다.
 
 검사 코드는 **해당 공식 측정법을 수행했다는 입력의 선언**이다. 교차윗몸일으키기(1분), 성인 자가 윗몸말아올리기, 청소년 `curl_up`을 서로 변환하지 않는다. 같은 축·비슷한 이름만으로 코드를 선택하지 않는다. 공식 프로토콜은 [공식 성인 측정항목](https://nfa.kspo.or.kr/reserve/3/selectMeasureItemListByAgeSe.kspo)과 [자가측정 안내](https://nfa.kspo.or.kr/measure/self/selectSelfMeasureItem.kspo)를 따른다. 백엔드는 실제 수행 자세를 확인할 수 없으므로 프론트에서 해당 프로토콜을 안내해야 한다. YMCA는 30cm 스텝·96bpm·3분 수행 → 1분 휴식 → 10초 맥박 × 6을 완료한 bpm을 보낸다. 자가 앉아굽히기는 발뒤꿈치에 맞춘 줄자 30cm 기준을 빼서 부호 있는 cm를 보낸다. 서버는 다시 ×6 또는 −30cm를 적용하지 않는다.
 
@@ -28,9 +31,9 @@ Content-Type: application/json
 
 ```json
 {
-  "catalogVersion": "nfa100-2026-09-23",
+  "catalogVersion": "nfa100-2026-09-24",
   "entryMethod": "self_assessment",
-  "measuredOn": "2026-09-23",
+  "measuredOn": "2026-09-24",
   "ageAtMeasurement": 25,
   "sexAtMeasurement": "male",
   "items": [
@@ -40,7 +43,6 @@ Content-Type: application/json
       "unit": "회",
       "reportedGrade": "결과지 원문"
     },
-    { "measurementCode": "self_curl_up", "value": "0", "unit": "회" },
     {
       "measurementCode": "ymca_recovery_heart_rate",
       "value": "90",
@@ -85,7 +87,7 @@ Content-Type: application/json
 | `criteria_unavailable`     | null               | `self_curl_up_criteria_unverified`, `ymca_bpm_criteria_unverified`, `criteria_age_not_supported`, `criteria_not_applicable_date` 등 |
 | `not_evaluated`            | null               | `evaluation_not_stored` (기존 평가 데이터 없음)                                                                                     |
 
-미측정 검사는 행을 만들지 않는다. 신체구성의 수치가 있다는 이유로 임의 등급이나 6축 점수를 생성하지 않는다. 필요한 정보가 여러 개 부족하면 만 나이·성별 등 필수 정보 누락 사유가 먼저 반환될 수 있다.
+`self_curl_up_criteria_unverified`는 기존 기록을 수정해 평가할 때 유지하는 사유다. 신규 입력을 허용한다는 뜻은 아니다. 미측정 검사는 행을 만들지 않는다. 신체구성의 수치가 있다는 이유로 임의 등급이나 6축 점수를 생성하지 않는다. 필요한 정보가 여러 개 부족하면 만 나이·성별 등 필수 정보 누락 사유가 먼저 반환될 수 있다.
 
 종합 인증은 별개다. 기존 최상위 `evaluation.status`는 `not_evaluated`를 유지하되 사유는 `overall_certification_not_computed`로 변경했다. 종목 평가는 위 새 필드로 읽고, 원문 `reportedOverallGrade`를 서버 계산 인증으로 표시하지 않는다. 부분 측정을 완전한 체력인증서처럼 표시하지 않는다.
 
@@ -137,7 +139,7 @@ Authorization: Bearer <access_token>
 ```json
 {
   "measurementId": "<기록 ID>",
-  "measuredOn": "2026-09-23",
+  "measuredOn": "2026-09-24",
   "revision": 1,
   "axes": [
     {
@@ -166,7 +168,7 @@ Authorization: Bearer <access_token>
       "grade": 2,
       "status": "graded",
       "representativeMeasurementCode": "cross_sit_up",
-      "measuredMeasurementCodes": ["cross_sit_up", "self_curl_up"],
+      "measuredMeasurementCodes": ["cross_sit_up"],
       "reasonCode": "best_available_grade",
       "recordRevision": 1
     },
@@ -204,7 +206,7 @@ Authorization: Bearer <access_token>
 }
 ```
 
-기존 목록과 같은 `measuredOn DESC, id ASC`로 **한 회차만** 선택한다. 다른 회차의 항목을 끌어오지 않으며 `updatedAt`은 정렬에 사용하지 않는다. 수정 완료 후 조회는 새 평가/revision을, 삭제 완료 후 조회는 다음 회차를 반환한다. 동시 수정·삭제와 겹친 조회는 Repeatable Read의 일관된 이전 스냅샷을 반환할 수 있다.
+2026-09-24 사용자 결정으로 `measuredOn DESC, createdAt DESC, id ASC` 순서로 **한 회차만** 선택한다. 가장 최근 측정일에 여러 기록이 있으면 가장 나중에 생성한 기록의 등급·상태를 대표로 반환한다. 생성 시각까지 같을 때만 ID 오름차순으로 결정한다. 다른 회차의 항목을 끌어오지 않으며 `updatedAt`은 정렬에 사용하지 않는다. 따라서 이전 기록의 값만 수정해도 대표 회차가 바뀌지 않는다. 대표 회차 수정 완료 후 조회는 새 평가/revision을, 삭제 완료 후 조회는 같은 정렬 기준의 다음 회차를 반환한다. 동시 수정·삭제와 겹친 조회는 Repeatable Read의 일관된 이전 스냅샷을 반환할 수 있다. 목록 API의 정렬·커서 계약은 유지한다.
 
 기록이 없으면 200, measurementId/measuredOn/revision 모두 null과 6개 `not_measured` 축(grade/대표 검사/recordRevision null, 측정 코드 빈 배열)을 반환한다. 인증 없으면 401이며 다른 사용자의 기록은 조회 후보에 들어오지 않는다. 응답은 `Cache-Control: no-store`다.
 

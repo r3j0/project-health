@@ -36,7 +36,9 @@ npm run start:dev
 
 `age`는 선택 사항이며 13~64세 정수다. 생략하면 청소년·성인 합집합을 반환한다. `version`이 없으면 DB에서 확인일·버전 내림차순으로 최신 카탈로그를 선택한다. 지정한 버전이 없으면 404, 카탈로그가 준비되지 않았으면 503이며 임의 목록으로 대체하지 않는다.
 
-응답의 `version`을 생성 요청의 `catalogVersion`에 넣는다. `definitions`에는 `code`, `label`, `category`, `factor`, `unit`, `valueType`, `minAge`, `maxAge`, `minValue`, `minInclusive`, `maxValue`, `sourceUrls`가 있다. 숫자 경계는 문자열 또는 null이다. `checkedOn`은 자료 확인일이며 공식 시행일과 구분한다.
+응답의 `version`을 생성 요청의 `catalogVersion`에 넣는다. `definitions`에는 `code`, `label`, `category`, `factor`, `unit`, `valueType`, `minAge`, `maxAge`, `minValue`, `minInclusive`, `maxValue`, `sourceUrls`, `availableForNewMeasurements`, `unavailabilityReason`이 있다. 숫자 경계는 문자열 또는 null이다. `checkedOn`은 자료 확인일이며 공식 시행일과 구분한다.
+
+최신 `nfa100-2026-09-24`는 전체 20개(성인 16개·청소년 15개) 정의를 제공한다. 공식 수치 기준을 확보하지 못한 성인 `self_curl_up`을 제외했으며 청소년 `curl_up`은 유지한다. 과거 카탈로그는 그대로 조회되지만 `self_curl_up` 정의에는 `availableForNewMeasurements: false`, `unavailabilityReason: "official_criteria_unverified"`를 반환한다. 나머지는 true와 null이다. 신규 입력 화면은 사용 가능 여부를 확인한다.
 
 ### 생성 입력
 
@@ -52,6 +54,8 @@ npm run start:dev
 
 측정일은 한국 시간 기준 미래가 아니어야 하며 측정 당시 나이로 검사를 선택한다. 잘못된 항목이 하나라도 있으면 전체 요청을 거절한다. 오류는 `{ "statusCode": 400, "message": "...", "errors": [{ "field": "items.0.unit", "message": "..." }] }`처럼 필드별로 반환한다.
 
+`self_curl_up` 신규 생성은 등록 방식·카탈로그 버전에 관계없이 400(`items.<index>.measurementCode`)으로 거절한다. 제외 전에 성공한 생성 요청의 동일 키·동일 입력 재시도는 아래 재시도 계약을 유지한다.
+
 ### 생성 요청 재시도
 
 POST에는 UUID 형태의 **`Idempotency-Key` 헤더가 필수**다. 프론트는 한 번의 저장 작업에 키를 하나 생성하고 네트워크 재시도에서는 그대로 사용한다. 별도 회차를 저장하려면 새 키를 만든다. 같은 날의 회차도 서로 독립적이다.
@@ -66,17 +70,21 @@ POST에는 UUID 형태의 **`Idempotency-Key` 헤더가 필수**다. 프론트�
 
 ### 조회·수정·삭제
 
-상세는 저장한 메타데이터와 실제 입력 `items`만 반환한다. 적용 연령에 속하지만 입력하지 않은 코드는 `missingMeasurementCodes`에 나열한다. 다른 연령 전용 검사는 누락으로 계산하지 않는다. `items[].evaluation`은 저장된 종목별 평가, `axes`는 이 회차의 6축 대표값이다. 기존 최상위 `evaluation`은 종합 인증 미산출을 나타내며 `status = not_evaluated`, `reason = overall_certification_not_computed`다. 종목 등급으로 종합 인증을 만들지 않는다. 상세 필드와 과거 기록 미평가 상태는 [평가 계약](measurement-evaluation-api.md)을 따른다.
+상세는 저장한 메타데이터와 실제 입력 `items`만 반환한다. 적용 연령에 속하지만 입력하지 않은 코드는 `missingMeasurementCodes`에 나열한다. 다른 연령 전용 검사와 신규 입력에서 제외한 `self_curl_up`은 누락으로 계산하지 않는다. `items[].evaluation`은 저장된 종목별 평가, `axes`는 이 회차의 6축 대표값이다. 기존 최상위 `evaluation`은 종합 인증 미산출을 나타내며 `status = not_evaluated`, `reason = overall_certification_not_computed`다. 종목 등급으로 종합 인증을 만들지 않는다. 상세 필드와 과거 기록 미평가 상태는 [평가 계약](measurement-evaluation-api.md)을 따른다.
 
 상세 조회와 생성 재시도는 회차·항목·카탈로그를 Repeatable Read 트랜잭션의 같은 스냅샷에서 읽는다. 조회 도중 수정·삭제가 완료되더라도 응답의 메타데이터·items·누락 항목·revision·ETag는 같은 시점의 기록을 나타낸다. 조회와 겹친 삭제에서는 삭제 직전 기록이 반환될 수 있으며, 삭제 완료 후 시작한 상세 조회는 404, 생성 재시도는 410이다.
 
 목록은 `{ "items": [...], "nextCursor": "..." 또는 null }` 형태다. 각 행에 항목 개수 `itemCount`와 회차 정보가 있으며 값 전체는 상세 경로로 조회한다. 측정일 내림차순, 같은 날은 ID 오름차순으로 정렬한다. `limit` 기본 20·최대 50, `cursor`는 직전 응답의 nextCursor, `from`·`to`는 측정일 범위이며 양 끝을 포함한다. 빈 목록은 200과 빈 배열이다. 페이지 도중 기록 날짜가 변경되는 경우까지 고정된 스냅샷을 보장하지 않는다. 커서가 가리키는 행이 삭제되어도 날짜·ID 경계로 계속 조회할 수 있다.
+
+대표 등급은 `GET /measurements/latest-polygon`으로 조회한다. 가장 최근 측정일의 기록 중 생성 시각(`createdAt`)이 가장 늦은 회차 하나의 6축 등급·상태를 반환한다. 생성 시각까지 같으면 ID 오름차순으로 결정하며 수정 시각은 선택에 영향을 주지 않는다. 목록의 첫 행을 대표 회차로 간주하지 않는다.
 
 상세·생성·수정 응답에 `revision`과 `ETag: "1"` 형식의 헤더가 있다. PATCH·DELETE에는 **`If-Match: "조회한 revision"`**을 보낸다. 헤더 누락은 428, 형식 오류는 400, 오래된 버전은 412다. 프론트는 412를 받으면 다시 조회해 사용자 변경과 비교한 후 재요청한다. `*`나 약한 ETag로 무조건 덮어쓰는 동작은 허용하지 않는다.
 
 PATCH에서 생략한 필드는 유지하고, 선택 필드를 null로 보내면 지운다. `items`를 보내면 목록 전체를 교체하므로 유지하려는 항목도 함께 보내야 한다. 빈 items로 마지막 값을 없앨 수 없다. `catalogVersion`, 소유자, ID, sourceProgram, revision은 수정 입력에 넣지 않는다. `entryMethod`는 수정 가능하며 생략하면 유지한다. 나이·등록 방식을 바꾸면 기존 항목도 다시 검증한다. 매 수정에서 종목 평가를 새 revision으로 다시 계산하며, 항목·평가·revision을 같은 트랜잭션으로 반영한다. 성공한 PATCH는 같은 값을 다시 보내도 revision이 증가한다.
 
 PATCH는 revision 조건이 붙은 UPDATE로 회차를 잠근 뒤 현재 항목을 읽고 검증한다. 먼저 완료된 동시 수정은 412, 삭제는 404로 처리하며 이전 나이와 새 항목을 섞어 입력 오류로 판정하지 않는다. 항목 검증에 실패하면 같은 트랜잭션에서 변경한 메타데이터·revision도 모두 롤백된다.
+
+기존 기록에 이미 저장된 `self_curl_up`은 PATCH에서 유지·값 수정·제거할 수 있다. 원래 없던 기록에 추가하거나 제거한 항목을 다시 추가하면 400이다. 기존 기록·과거 카탈로그·저장된 평가는 자동 삭제하거나 일괄 재평가하지 않는다.
 
 ## 직접 테스트 순서
 
@@ -92,7 +100,7 @@ TOKEN='여기에_로그인_응답의_access_token'
 curl -sS 'http://localhost:3001/api/v1/measurement-catalog?age=25'
 ```
 
-다음 JSON의 `catalogVersion`은 위 응답의 version을 사용한다. 아래 버전·날짜·측정값은 재현용 예시이며, 운영 서비스가 생성하는 사용자 결과가 아니다. 최신 카탈로그는 `nfa100-2026-09-23`이다. 아래 기존 `nfa100-2026-09-19` 예시도 계속 지원한다. 직접 측정값으로 바꿔도 같은 검증·저장 경로를 거친다.
+다음 JSON의 `catalogVersion`은 위 응답의 version을 사용한다. 아래 버전·날짜·측정값은 재현용 예시이며, 운영 서비스가 생성하는 사용자 결과가 아니다. 최신 카탈로그는 `nfa100-2026-09-24`다. 아래 기존 `nfa100-2026-09-19` 예시도 계속 지원한다. 직접 측정값으로 바꿔도 같은 검증·저장 경로를 거친다.
 
 새 저장 요청 키를 한 번 생성하고 기록을 추가한다:
 

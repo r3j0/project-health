@@ -57,6 +57,8 @@ type Catalog = {
     factor: string;
     unit: string;
     sourceUrls: string[];
+    availableForNewMeasurements: boolean;
+    unavailabilityReason: string | null;
   }>;
 };
 
@@ -214,7 +216,7 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
         .expect(200);
       const catalog = response.body as Catalog;
       expect(catalog.version).toBe(version);
-      expect(catalog.definitions).toHaveLength(age >= 19 ? 17 : 15);
+      expect(catalog.definitions).toHaveLength(age >= 19 ? 16 : 15);
       expect(new Set(catalog.definitions.map((def) => def.factor)).size).toBe(
         factorCount,
       );
@@ -228,7 +230,43 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
     const all = await request(app.getHttpServer())
       .get('/api/v1/measurement-catalog')
       .expect(200);
-    expect((all.body as Catalog).definitions).toHaveLength(21);
+    const latestCatalog = all.body as Catalog;
+    expect(latestCatalog.version).toBe('nfa100-2026-09-24');
+    expect(latestCatalog.definitions).toHaveLength(20);
+    expect(
+      latestCatalog.definitions.map((definition) => definition.code),
+    ).not.toContain('self_curl_up');
+    expect(latestCatalog.definitions).toContainEqual(
+      expect.objectContaining({ code: 'curl_up' }),
+    );
+    expect(
+      latestCatalog.definitions.every(
+        (definition) =>
+          definition.availableForNewMeasurements &&
+          definition.unavailabilityReason === null,
+      ),
+    ).toBe(true);
+    const retired = await request(app.getHttpServer())
+      .get('/api/v1/measurement-catalog?version=nfa100-2026-09-23')
+      .expect(200);
+    const retiredCatalog = retired.body as Catalog;
+    expect(retiredCatalog.definitions).toHaveLength(21);
+    expect(retiredCatalog.definitions).toContainEqual(
+      expect.objectContaining({
+        code: 'self_curl_up',
+        availableForNewMeasurements: false,
+        unavailabilityReason: 'official_criteria_unverified',
+      }),
+    );
+    expect(
+      retiredCatalog.definitions
+        .filter((definition) => definition.code !== 'self_curl_up')
+        .every(
+          (definition) =>
+            definition.availableForNewMeasurements &&
+            definition.unavailabilityReason === null,
+        ),
+    ).toBe(true);
     const previous = await request(app.getHttpServer())
       .get('/api/v1/measurement-catalog?version=nfa100-2026-09-19')
       .expect(200);
@@ -268,7 +306,8 @@ describe('Authenticated measurement CRUD against PostgreSQL', () => {
         }),
       },
     ]);
-    expect(record.missingMeasurementCodes).toHaveLength(16);
+    expect(record.missingMeasurementCodes).toHaveLength(15);
+    expect(record.missingMeasurementCodes).not.toContain('self_curl_up');
     expect(record.missingMeasurementCodes).toContain('height');
     expect(record.missingMeasurementCodes).not.toContain('t_wall_coordination');
     expect(record.sexAtMeasurement).toBeNull();

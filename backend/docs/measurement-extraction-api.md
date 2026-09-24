@@ -58,6 +58,8 @@ curl -sS -X POST http://localhost:3001/api/v1/measurements/extract \
 
 특정 버전을 사용하려면 위 요청에 `-F 'catalogVersion=nfa100-2026-09-19'`를 추가한다. 버전은 실제 카탈로그 응답에서 선택한다. 이 명령의 사진 경로는 직접 준비한 결과지로 교체한다.
 
+최신 카탈로그는 `nfa100-2026-09-24`다. 신규 입력에서 제외한 성인 `self_curl_up`은 과거 카탈로그를 지정해도 저장 가능한 `items`에 넣지 않는다. 모델이 이 코드를 반환하면 `reviewItems`의 `MEASUREMENT_RETIRED` 사유로 안내한다. 사용자 확인으로 신규 저장을 허용하는 항목이 아니며 청소년 `curl_up`으로 바꾸지 않는다. `notDetectedMeasurementCodes`에서도 제외한다.
+
 브라우저에서는 `FormData`에 파일과 선택 버전을 넣는다. multipart boundary는 브라우저가 생성하도록 `Content-Type`을 직접 설정하지 않는다.
 
 ```ts
@@ -191,6 +193,7 @@ HTTP 200은 추출 처리가 끝났다는 의미다. 인식 결과가 저장 가
 - 단위: `UNIT_MISSING`, `UNIT_UNCLEAR`, `UNIT_MISMATCH`, `UNIT_CONVERSION_REQUIRED`.
 - 복수값·출처: `DUPLICATE_CODE`, `CONFLICTING_VALUES`, `MULTIPLE_ATTEMPTS`, `NOT_PERSONAL_VALUE`, `GRADES_ONLY`.
 - 연령: `AGE_NOT_APPLICABLE`, `UNSUPPORTED_AGE`.
+- 신규 입력 제외: `MEASUREMENT_RETIRED` (`self_curl_up`, 공식 수치 기준 미확보). 기존 기록은 보존하지만 새 저장에는 사용할 수 없음.
 
 동일 코드가 두 번 나오면 값이 같아도 양쪽 모두 확인 대상으로 이동한다. 서버는 최대·평균·첫 번째 값을 선택하지 않는다. 절대악력 kg과 상대악력 %는 다른 검사이며 변환하지 않는다. 원문 value·unit 근거와 모델 후보가 불일치하면 통과시키지 않는다.
 

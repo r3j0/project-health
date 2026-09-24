@@ -7,6 +7,7 @@ import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { DatabaseService } from '../src/database/database.service.js';
+import type { Prisma } from '../src/generated/prisma/client.js';
 import type {
   AxisEvaluation,
   ItemEvaluation,
@@ -22,6 +23,7 @@ type Measurement = {
   entryMethod: string;
   sourceProgram: string;
   revision: number;
+  missingMeasurementCodes: string[];
   items: Array<{
     measurementCode: string;
     value: string;
@@ -38,7 +40,8 @@ type Polygon = {
   revision: number | null;
   axes: AxisEvaluation[];
 };
-const version = 'nfa100-2026-09-23';
+const version = 'nfa100-2026-09-24';
+const retiredVersion = 'nfa100-2026-09-23';
 const axisOrder = [
   'cardiorespiratory_endurance',
   'strength',
@@ -149,6 +152,56 @@ describe('Stored measurement evaluation and latest polygon against PostgreSQL', 
       .get('/api/v1/auth/me')
       .set('Authorization', `Bearer ${owner.access_token}`);
 
+  async function seedRetiredMeasurement() {
+    const id = randomUUID();
+    // A frozen pre-retirement snapshot, independent of the current evaluator.
+    const evaluation: ItemEvaluation = {
+      measurementId: id,
+      measurementCode: 'self_curl_up',
+      grade: null,
+      status: 'criteria_unavailable',
+      reasonCode: 'self_curl_up_criteria_unverified',
+      message:
+        '성인 자가측정용 윗몸말아올리기의 공식 등급 기준을 확인하지 못했습니다. 교차윗몸일으키기 기준을 대신 적용하지 않습니다.',
+      ageAtMeasurement: 19,
+      ageBand: null,
+      sex: 'male',
+      criterion: null,
+      thresholds: [],
+      nextTarget: {
+        status: 'unavailable',
+        grade: null,
+        intervals: [],
+        adjustments: [],
+        reasonCode: 'self_curl_up_criteria_unverified',
+      },
+      evaluatedAt: '2026-09-23T00:00:00.000Z',
+      recordRevision: 1,
+    };
+    await database.measurement.create({
+      data: {
+        id,
+        userId: owner.user.id,
+        catalogVersion: retiredVersion,
+        entryMethod: 'self_assessment',
+        measuredOn: new Date('2026-09-17T00:00:00Z'),
+        ageAtMeasurement: 19,
+        sexAtMeasurement: 'male',
+        items: {
+          create: [
+            {
+              code: 'self_curl_up',
+              value: '0',
+              unit: '회',
+              evaluation: evaluation as Prisma.InputJsonValue,
+            },
+          ],
+        },
+      },
+    });
+    return { id, evaluation };
+  }
+
   function expectConsistentEvaluation(record: Measurement) {
     expect(record.axes.map((axis) => axis.axis)).toEqual(axisOrder);
     expect(
@@ -232,13 +285,256 @@ describe('Stored measurement evaluation and latest polygon against PostgreSQL', 
     },
   );
 
+  it.each(
+    ['nfa100-2026-09-19', retiredVersion, version].flatMap((catalogVersion) =>
+      ['manual', 'self_assessment'].map((entryMethod) => ({
+        catalogVersion,
+        entryMethod,
+      })),
+    ),
+  )(
+    'rejects new retired adult curl-up input atomically for %j',
+    async (extra) => {
+      const response = await create(
+        payload({
+          ...extra,
+          items: [{ measurementCode: 'self_curl_up', value: '0', unit: '회' }],
+        }),
+      ).expect(400);
+      expect(response.body).toMatchObject({
+        errors: expect.arrayContaining([
+          expect.objectContaining({ field: 'items.0.measurementCode' }),
+        ]),
+      });
+      expect(
+        await database.measurement.count({ where: { userId: owner.user.id } }),
+      ).toBe(0);
+      expect(
+        await database.measurementCreateRequest.count({
+          where: { userId: owner.user.id },
+        }),
+      ).toBe(0);
+      expect((await profile().expect(200)).body).toMatchObject({
+        isOnboarded: false,
+      });
+    },
+  );
+
+  it('keeps adolescent curl-up available for manual records', async () => {
+    const record = (
+      await create(
+        payload({
+          ageAtMeasurement: 18,
+          entryMethod: 'manual',
+          items: [{ measurementCode: 'curl_up', value: '30', unit: '회' }],
+        }),
+      ).expect(201)
+    ).body as Measurement;
+    expect(record.items).toEqual([
+      expect.objectContaining({
+        measurementCode: 'curl_up',
+        value: '30',
+        unit: '회',
+      }),
+    ]);
+    await detail(record.id).expect(200, record);
+  });
+
+  it('preserves stored retired values and evaluation snapshots in detail and latest polygon', async () => {
+    const legacy = await seedRetiredMeasurement();
+    const record = (await detail(legacy.id).expect(200)).body as Measurement;
+    expect(record.items).toEqual([
+      {
+        measurementCode: 'self_curl_up',
+        value: '0',
+        unit: '회',
+        reportedGrade: null,
+        evaluation: legacy.evaluation,
+      },
+    ]);
+    expect(record.axes[2]).toMatchObject({
+      axis: 'muscular_endurance',
+      status: 'unevaluable',
+      grade: null,
+      measuredMeasurementCodes: ['self_curl_up'],
+    });
+    await latest().expect(200, {
+      measurementId: legacy.id,
+      measuredOn: record.measuredOn,
+      revision: 1,
+      axes: record.axes,
+    });
+    const stored = await database.measurementItem.findUniqueOrThrow({
+      where: {
+        measurementId_code: { measurementId: legacy.id, code: 'self_curl_up' },
+      },
+    });
+    expect(stored.evaluation).toEqual(legacy.evaluation);
+    expect((await profile().expect(200)).body).toMatchObject({
+      isOnboarded: true,
+    });
+  });
+
+  it('allows retaining, correcting, and removing a previously stored retired item but never adding it back', async () => {
+    const legacy = await seedRetiredMeasurement();
+    const retained = (
+      await patch(legacy.id, { centerName: '기존 자가측정' }).expect(200)
+    ).body as Measurement;
+    expect(retained.items[0]).toMatchObject({
+      measurementCode: 'self_curl_up',
+      value: '0',
+      evaluation: { status: 'criteria_unavailable', grade: null },
+    });
+    expectConsistentEvaluation(retained);
+    await patch(
+      legacy.id,
+      {
+        items: [{ measurementCode: 'self_curl_up', value: '1.5', unit: '회' }],
+      },
+      2,
+    ).expect(400);
+    await detail(legacy.id).expect(200, retained);
+    const corrected = (
+      await patch(
+        legacy.id,
+        {
+          items: [{ measurementCode: 'self_curl_up', value: '12', unit: '회' }],
+        },
+        2,
+      ).expect(200)
+    ).body as Measurement;
+    expect(corrected.items[0]).toMatchObject({
+      value: '12',
+      evaluation: {
+        status: 'criteria_unavailable',
+        grade: null,
+        recordRevision: 3,
+      },
+    });
+    expectConsistentEvaluation(corrected);
+    await patch(legacy.id, { items: [] }, 3).expect(400);
+    const removed = (
+      await patch(
+        legacy.id,
+        {
+          items: [{ measurementCode: 'cross_sit_up', value: '48', unit: '회' }],
+        },
+        3,
+      ).expect(200)
+    ).body as Measurement;
+    expect(removed.items.map((item) => item.measurementCode)).toEqual([
+      'cross_sit_up',
+    ]);
+    expect(removed.missingMeasurementCodes).not.toContain('self_curl_up');
+    expect(removed.missingMeasurementCodes).toContain(
+      'ymca_recovery_heart_rate',
+    );
+    expectConsistentEvaluation(removed);
+    const rejected = await patch(
+      legacy.id,
+      {
+        items: [{ measurementCode: 'self_curl_up', value: '12', unit: '회' }],
+      },
+      4,
+    ).expect(400);
+    expect(rejected.body).toMatchObject({
+      errors: expect.arrayContaining([
+        expect.objectContaining({ field: 'items.0.measurementCode' }),
+      ]),
+    });
+    await detail(legacy.id).expect(200, removed);
+    await remove(legacy.id, 4).expect(204);
+    expect((await profile().expect(200)).body).toMatchObject({
+      isOnboarded: false,
+    });
+  });
+
+  it.each(['manual', 'self_assessment'])(
+    'does not add retired items to an existing %s record that never contained one',
+    async (entryMethod) => {
+      const record = (
+        await create(
+          payload({ catalogVersion: retiredVersion, entryMethod }),
+        ).expect(201)
+      ).body as Measurement;
+      expect(record.missingMeasurementCodes).not.toContain('self_curl_up');
+      const rejected = await patch(record.id, {
+        items: [
+          { measurementCode: 'cross_sit_up', value: '48', unit: '회' },
+          { measurementCode: 'self_curl_up', value: '12', unit: '회' },
+        ],
+      }).expect(400);
+      expect(rejected.body).toMatchObject({
+        errors: expect.arrayContaining([
+          expect.objectContaining({ field: 'items.1.measurementCode' }),
+        ]),
+      });
+      await detail(record.id).expect(200, record);
+    },
+  );
+
+  it('replays a pre-retirement create key without revalidating or reevaluating the retired item', async () => {
+    const key = randomUUID();
+    const legacy = await seedRetiredMeasurement();
+    // Exact published normalized hash order from before retirement.
+    const originalInput = {
+      measuredOn: '2026-09-17',
+      ageAtMeasurement: 19,
+      sexAtMeasurement: 'male',
+      reportKind: 'unknown',
+      centerName: null,
+      reportedOverallGrade: null,
+      items: [
+        {
+          measurementCode: 'self_curl_up',
+          value: '0',
+          unit: '회',
+          reportedGrade: null,
+        },
+      ],
+      catalogVersion: retiredVersion,
+      entryMethod: 'self_assessment',
+    };
+    await database.measurementCreateRequest.create({
+      data: {
+        userId: owner.user.id,
+        key,
+        measurementId: legacy.id,
+        requestHash: createHash('sha256')
+          .update(JSON.stringify(originalInput))
+          .digest('hex'),
+      },
+    });
+    const original = (await detail(legacy.id).expect(200)).body as Measurement;
+    const replay = await create(originalInput, key).expect(200, original);
+    expect(replay.headers['idempotency-replayed']).toBe('true');
+    expect((replay.body as Measurement).items[0].evaluation).toEqual(
+      legacy.evaluation,
+    );
+    await create(
+      {
+        ...originalInput,
+        items: [{ measurementCode: 'self_curl_up', value: '1', unit: '회' }],
+      },
+      key,
+    ).expect(409);
+    expect(
+      await database.measurement.count({ where: { userId: owner.user.id } }),
+    ).toBe(1);
+    await remove(legacy.id).expect(204);
+    await create(originalInput, key).expect(410);
+    expect(
+      await database.measurement.count({ where: { userId: owner.user.id } }),
+    ).toBe(0);
+  });
+
   it.each([
     { ageAtMeasurement: 18 },
     { ageAtMeasurement: 65 },
     { items: [] },
     { items: null },
-    { items: [{ measurementCode: 'self_curl_up', value: null, unit: '회' }] },
-    { items: [{ measurementCode: 'self_curl_up', value: '1.5', unit: '회' }] },
+    { items: [{ measurementCode: 'cross_sit_up', value: null, unit: '회' }] },
+    { items: [{ measurementCode: 'cross_sit_up', value: '1.5', unit: '회' }] },
     {
       items: [
         {
@@ -284,7 +580,6 @@ describe('Stored measurement evaluation and latest polygon against PostgreSQL', 
         payload({
           items: [
             { measurementCode: 'cross_sit_up', value: '0', unit: '회' },
-            { measurementCode: 'self_curl_up', value: '0', unit: '회' },
             {
               measurementCode: 'ymca_recovery_heart_rate',
               value: '80',
@@ -300,15 +595,6 @@ describe('Stored measurement evaluation and latest polygon against PostgreSQL', 
     expect(items.cross_sit_up).toMatchObject({
       value: '0',
       evaluation: { grade: null, status: 'below_standard' },
-    });
-    expect(items.self_curl_up).toMatchObject({
-      value: '0',
-      evaluation: {
-        grade: null,
-        status: 'criteria_unavailable',
-        reasonCode: 'self_curl_up_criteria_unverified',
-        criterion: null,
-      },
     });
     expect(items.ymca_recovery_heart_rate).toMatchObject({
       value: '80',
@@ -355,7 +641,7 @@ describe('Stored measurement evaluation and latest polygon against PostgreSQL', 
         grade: null,
       }),
     ]);
-    expect(record.items).toHaveLength(3);
+    expect(record.items).toHaveLength(2);
     expectConsistentEvaluation(record);
   });
 
@@ -496,14 +782,14 @@ describe('Stored measurement evaluation and latest polygon against PostgreSQL', 
           items: [
             { measurementCode: 'height', value: '170', unit: 'cm' },
             { measurementCode: 'weight', value: '60', unit: 'kg' },
-            { measurementCode: 'self_curl_up', value: '0', unit: '회' },
+            { measurementCode: 'cross_sit_up', value: '0', unit: '회' },
           ],
         }),
       ).expect(201)
     ).body as Measurement;
     expect(original.items.map((item) => item.measurementCode)).toEqual([
+      'cross_sit_up',
       'height',
-      'self_curl_up',
       'weight',
     ]);
     const replaced = (
@@ -596,7 +882,7 @@ describe('Stored measurement evaluation and latest polygon against PostgreSQL', 
     });
   });
 
-  it('uses one latest session ordered by measurement date and ascending ID through updates and deletion', async () => {
+  it('uses the latest created session on the latest measurement date through updates and deletion', async () => {
     const older = (
       await create(
         payload({
@@ -627,15 +913,35 @@ describe('Stored measurement evaluation and latest polygon against PostgreSQL', 
         }),
       ).expect(201)
     ).body as Measurement;
-    const [selected, following] = [first, second].sort((a, b) =>
+    const [following, selected] = [first, second].sort((a, b) =>
       a.id.localeCompare(b.id),
     );
+    // Force creation order to disagree with ID order, without relying on timing.
+    await database.measurement.update({
+      where: { id: following.id },
+      data: { createdAt: new Date('2026-09-20T00:00:00Z') },
+    });
+    await database.measurement.update({
+      where: { id: selected.id },
+      data: { createdAt: new Date('2026-09-21T00:00:00Z') },
+    });
+    // A later entry for an older measurement date must not become representative.
+    await database.measurement.update({
+      where: { id: older.id },
+      data: { createdAt: new Date('2026-09-22T00:00:00Z') },
+    });
     const polygonFor = (record: Measurement) => ({
       measurementId: record.id,
       measuredOn: record.measuredOn,
       revision: record.revision,
       axes: record.axes,
     });
+    await latest().expect(200, polygonFor(selected));
+    const followingUpdated = (
+      await patch(following.id, {
+        centerName: '같은 날짜의 이전 기록 수정',
+      }).expect(200)
+    ).body as Measurement;
     await latest().expect(200, polygonFor(selected));
     await patch(older.id, { centerName: '수정 시각이 가장 최근' }).expect(200);
     await latest().expect(200, polygonFor(selected));
@@ -650,16 +956,40 @@ describe('Stored measurement evaluation and latest polygon against PostgreSQL', 
     });
     const changed = (
       await patch(selected.id, {
-        items: [{ measurementCode: 'self_curl_up', value: '0', unit: '회' }],
+        items: [{ measurementCode: 'cross_sit_up', value: '0', unit: '회' }],
       }).expect(200)
     ).body as Measurement;
     await latest().expect(200, polygonFor(changed));
     await remove(selected.id, 2).expect(204);
-    await latest().expect(200, polygonFor(following));
-    await remove(following.id).expect(204);
+    await latest().expect(200, polygonFor(followingUpdated));
+    await remove(following.id, 2).expect(204);
     const olderUpdated = (await detail(older.id).expect(200))
       .body as Measurement;
     await latest().expect(200, polygonFor(olderUpdated));
+  });
+
+  it('uses ascending ID only when measurement date and creation time are both equal', async () => {
+    const first = (
+      await create(
+        payload({
+          items: [{ measurementCode: 'cross_sit_up', value: '55', unit: '회' }],
+        }),
+      ).expect(201)
+    ).body as Measurement;
+    const second = (await create().expect(201)).body as Measurement;
+    expect(first.axes[2].grade).toBe(1);
+    expect(second.axes[2].grade).toBe(2);
+    await database.measurement.updateMany({
+      where: { id: { in: [first.id, second.id] } },
+      data: { createdAt: new Date('2026-09-20T00:00:00Z') },
+    });
+    const [selected] = [first, second].sort((a, b) => a.id.localeCompare(b.id));
+    await latest().expect(200, {
+      measurementId: selected.id,
+      measuredOn: selected.measuredOn,
+      revision: selected.revision,
+      axes: selected.axes,
+    });
   });
 
   it('reads legacy records without fabricating stored evaluations or automatically backfilling them', async () => {
@@ -789,7 +1119,13 @@ describe('Stored measurement evaluation and latest polygon against PostgreSQL', 
     const record = (
       await create(
         payload({
-          items: [{ measurementCode: 'self_curl_up', value: '0', unit: '회' }],
+          items: [
+            {
+              measurementCode: 'ymca_recovery_heart_rate',
+              value: '80',
+              unit: 'bpm',
+            },
+          ],
         }),
       ).expect(201)
     ).body as Measurement;
@@ -821,7 +1157,7 @@ describe('Stored measurement evaluation and latest polygon against PostgreSQL', 
         database.measurement.create({
           data: {
             userId: owner.user.id,
-            catalogVersion: version,
+            catalogVersion: code === 'self_curl_up' ? retiredVersion : version,
             entryMethod: 'self_assessment',
             measuredOn: new Date('2026-09-17T00:00:00Z'),
             ageAtMeasurement: age,
