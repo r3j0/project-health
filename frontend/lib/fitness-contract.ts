@@ -64,7 +64,16 @@ export interface NextTarget {
   }[];
   reasonCode: string | null;
 }
+export interface GripConversion {
+  formulaVersion: "nfa100-relative-grip-v1";
+  measurementCode: "relative_grip_strength";
+  value: string;
+  unit: "%";
+  inputs: { measurementCode: string; value: string; unit: "kg" }[];
+  sourceUrl: string;
+}
 export interface StoredItemEvaluation {
+  conversion?: GripConversion;
   measurementId: string;
   measurementCode: string;
   grade: TestGrade | null;
@@ -115,9 +124,9 @@ const nullableText = (v: unknown) => v === null || text(v);
 const integer = (v: unknown): v is number =>
   Number.isSafeInteger(v) && (v as number) > 0;
 const grade = (v: unknown): v is TestGrade => v === 1 || v === 2 || v === 3;
-const decimal = (v: unknown): v is string =>
+const decimal = (v: unknown, maxLength = 128): v is string =>
   typeof v === "string" &&
-  v.length <= 128 &&
+  v.length <= maxLength &&
   /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(v);
 export const fitnessRecordId = (v: unknown): v is string =>
   typeof v === "string" &&
@@ -178,7 +187,12 @@ function sameIntervals(left: CriterionInterval[], right: CriterionInterval[]) {
     )
   );
 }
-function adjustment(v: unknown, bound: Boundary | null, unit: string): boolean {
+function adjustment(
+  v: unknown,
+  bound: Boundary | null,
+  unit: string,
+  derived: boolean,
+): boolean {
   if (bound === null) return v === null;
   return (
     object(v) &&
@@ -186,7 +200,7 @@ function adjustment(v: unknown, bound: Boundary | null, unit: string): boolean {
     compareDecimal(v.threshold, bound.value) === 0 &&
     v.inclusive === bound.inclusive &&
     v.unit === unit &&
-    decimal(v.difference) &&
+    decimal(v.difference, derived ? 512 : 128) &&
     compareDecimal(v.difference, "0") >= 0 &&
     ["increase", "decrease", "none"].includes(v.change as string) &&
     typeof v.requiresBeyondBoundary === "boolean" &&
@@ -195,7 +209,7 @@ function adjustment(v: unknown, bound: Boundary | null, unit: string): boolean {
       (compareDecimal(v.difference, "0") === 0 && !v.requiresBeyondBoundary))
   );
 }
-function target(v: unknown, unit: string): v is NextTarget {
+function target(v: unknown, unit: string, derived: boolean): v is NextTarget {
   if (
     !object(v) ||
     !intervals(v.intervals) ||
@@ -221,11 +235,13 @@ function target(v: unknown, unit: string): v is NextTarget {
           a.lower,
           (v.intervals as CriterionInterval[])[i].lower,
           unit,
+          derived,
         ) &&
         adjustment(
           a.upper,
           (v.intervals as CriterionInterval[])[i].upper,
           unit,
+          derived,
         ),
     )
   );
@@ -350,11 +366,59 @@ export function itemGradeResult(item: StoredItemEvaluation): GradeResult {
   } as const;
   return { status: states[item.status], grade: null, reason: item.message };
 }
+function parseConversion(
+  value: unknown,
+  record: Measurement,
+  raw: Measurement["items"][number],
+): GripConversion | undefined {
+  if (value === undefined) return undefined;
+  if (
+    !object(value) ||
+    raw.measurementCode !== "absolute_grip_strength" ||
+    raw.unit !== "kg" ||
+    value.formulaVersion !== "nfa100-relative-grip-v1" ||
+    value.measurementCode !== "relative_grip_strength" ||
+    value.unit !== "%" ||
+    !decimal(value.value, 512) ||
+    compareDecimal(value.value, "0") < 0 ||
+    !safeSourceUrl(value.sourceUrl) ||
+    !Array.isArray(value.inputs) ||
+    value.inputs.length !== 2 ||
+    !unique(value.inputs, (input) =>
+      object(input) ? input.measurementCode : null,
+    )
+  )
+    return invalidFitness();
+  for (const code of ["absolute_grip_strength", "weight"]) {
+    const input = value.inputs.find(
+      (i: unknown) => object(i) && i.measurementCode === code,
+    );
+    const saved = record.items.find((i) => i.measurementCode === code);
+    if (
+      !object(input) ||
+      !decimal(input.value) ||
+      input.unit !== "kg" ||
+      !saved ||
+      saved.unit !== "kg" ||
+      !decimal(saved.value) ||
+      compareDecimal(input.value, saved.value) !== 0 ||
+      (code === "weight"
+        ? compareDecimal(input.value, "0") <= 0
+        : compareDecimal(input.value, "0") < 0)
+    )
+      return invalidFitness();
+  }
+  return value as unknown as GripConversion;
+}
 function parseItem(
   value: unknown,
   record: Measurement,
   raw: Measurement["items"][number],
 ): StoredItemEvaluation {
+  if (!object(value)) return invalidFitness();
+  const conversion = parseConversion(value.conversion, record, raw);
+  const evaluatedUnit = conversion?.unit ?? raw.unit;
+  const evaluatedCode = conversion?.measurementCode ?? raw.measurementCode;
   if (
     !object(value) ||
     value.measurementId !== record.id ||
@@ -389,7 +453,7 @@ function parseItem(
         t.intervals.length > 0,
     ) ||
     !unique(value.thresholds, (t) => t.grade) ||
-    !target(value.nextTarget, raw.unit)
+    !target(value.nextTarget, evaluatedUnit, !!conversion)
   )
     return invalidFitness();
   if (
@@ -413,8 +477,9 @@ function parseItem(
     const c = value.criterion;
     if (
       !criterion(c) ||
-      c.measurementCode !== raw.measurementCode ||
-      c.unit !== raw.unit ||
+      c.measurementCode !== evaluatedCode ||
+      c.unit !== evaluatedUnit ||
+      (raw.measurementCode === "absolute_grip_strength" && !conversion) ||
       c.sex !== record.sexAtMeasurement ||
       record.ageAtMeasurement < c.minAge ||
       record.ageAtMeasurement > c.maxAge ||

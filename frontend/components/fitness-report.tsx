@@ -8,6 +8,7 @@ import {
 import { FitnessRadar } from "./fitness-radar";
 import { FitnessCriteria } from "./fitness-criteria";
 import { Notice } from "./ui";
+import { displayConvertedValue } from "@/lib/grip-display";
 
 function ItemReport({ item, label }: { item: ReportItem; label: string }) {
   const evaluation = item.evaluation;
@@ -17,6 +18,35 @@ function ItemReport({ item, label }: { item: ReportItem; label: string }) {
       <p>
         {item.value} {item.unit} · {gradeLabel(itemGradeResult(evaluation))}
       </p>
+      {evaluation.conversion && (
+        <div className="stack-sm">
+          <p>
+            등급 판정에 사용한 상대악력:{" "}
+            {displayConvertedValue(evaluation.conversion.value)} %
+          </p>
+          <p className="caption">
+            절대악력 {item.value} kg ÷ 같은 기록의 체중{" "}
+            {
+              evaluation.conversion.inputs.find(
+                (i) => i.measurementCode === "weight",
+              )!.value
+            }{" "}
+            kg × 100
+          </p>
+          <p className="caption">
+            환산값 표시는 소수점 6자리까지이며, 등급은 반올림하지 않은 원본
+            비율로 판정해요. 아래 등급 기준과 목표는 상대악력(%) 기준이에요.
+          </p>
+          <a
+            className="text-link"
+            href={evaluation.conversion.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            상대악력 환산 안내 (새 창)
+          </a>
+        </div>
+      )}
       <p className="muted">{evaluation.message}</p>
       <FitnessCriteria evaluation={evaluation} />
       {evaluation.evaluatedAt && (

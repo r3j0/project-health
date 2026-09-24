@@ -796,10 +796,53 @@ export function RecordForm({
                             updateItem(item.code, "value", e.target.value)
                           }
                           aria-invalid={!!errors[`item.${item.code}`]}
-                          aria-describedby={`error-${item.code}`}
+                          aria-describedby={`error-${item.code}${item.code === "absolute_grip_strength" ? " grip-help" : ""}`}
                         />
                         <span className="input-unit">{definition?.unit}</span>
                       </div>
+                      {item.code === "absolute_grip_strength" && (
+                        <div id="grip-help" className="stack-sm caption">
+                          <p>
+                            결과표의 대표 악력을 kg으로 입력해 주세요. 같은 측정
+                            기록의 체중으로 상대악력(%)을 환산해 근력 등급에
+                            반영해요.
+                          </p>
+                          {!items.some(
+                            (i) => i.code === "weight" && i.value !== "",
+                          ) && (
+                            <p>
+                              체중이 없으면 절대악력만 저장되고 이 항목의 등급은
+                              평가할 수 없어요.
+                            </p>
+                          )}
+                          {!items.some((i) => i.code === "weight") &&
+                            catalog?.definitions.some(
+                              (d) => d.code === "weight",
+                            ) && (
+                              <button
+                                type="button"
+                                className="text-link"
+                                onClick={() => {
+                                  setItems((old) =>
+                                    old.some((i) => i.code === "weight")
+                                      ? old
+                                      : [
+                                          ...old,
+                                          {
+                                            code: "weight",
+                                            value: "",
+                                            grade: "",
+                                          },
+                                        ],
+                                  );
+                                  setDirty(true);
+                                }}
+                              >
+                                측정 당시 체중 추가
+                              </button>
+                            )}
+                        </div>
+                      )}
                       <FieldError
                         id={`error-${item.code}`}
                         message={errors[`item.${item.code}`]}

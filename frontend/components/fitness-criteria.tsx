@@ -3,6 +3,8 @@ import {
   type StoredItemEvaluation,
 } from "@/lib/fitness-contract";
 
+import { displayConvertedValue } from "@/lib/grip-display";
+
 export function FitnessCriteria({
   evaluation,
 }: {
@@ -53,7 +55,11 @@ export function FitnessCriteria({
                 if (!adjustment || adjustment.change === "none") return null;
                 return (
                   <p className="caption" key={side}>
-                    현재 값과의 차이 {adjustment.difference} {adjustment.unit} ·{" "}
+                    현재 값과의 차이{" "}
+                    {evaluation.conversion
+                      ? displayConvertedValue(adjustment.difference)
+                      : adjustment.difference}{" "}
+                    {adjustment.unit} ·{" "}
                     {adjustment.change === "increase" ? "증가" : "감소"} 필요
                     {adjustment.requiresBeyondBoundary &&
                       ` (${adjustment.threshold} ${adjustment.unit} ${side === "lower" ? "초과" : "미만"} 필요)`}

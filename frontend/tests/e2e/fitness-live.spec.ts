@@ -320,3 +320,79 @@ test("실제 API: 간이측정은 기관 결과표와 구분하고 부분 기록
     currentCurriculum: profile.currentCurriculum,
   });
 });
+
+test("실제 API: 절대악력 저장·환산 리포트·체중 수정 및 제거를 검증한다", async ({
+  page,
+}, info) => {
+  await page.goto("/onboarding/manual");
+  await page.getByLabel("측정일", { exact: true }).fill(today());
+  await page.getByLabel("측정 당시 만 나이", { exact: true }).fill("25");
+  await page.getByText("추가 정보", { exact: false }).click();
+  await page.getByLabel("결과표의 성별").selectOption("male");
+  await page.getByRole("button", { name: "측정값 입력하기" }).click();
+  await add(page, "절대악력", "30");
+  await page.getByRole("button", { name: "측정 당시 체중 추가" }).click();
+  await page.locator("#value-weight").fill("50");
+  const waiting = page.waitForResponse(
+    (r) => r.url() === `${api}/measurements` && r.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "2개 항목 저장하기" }).click();
+  const response = await waiting;
+  expect(response.status()).toBe(201);
+  const record = await response.json();
+  const grip = record.items.find(
+    (i: { measurementCode: string }) =>
+      i.measurementCode === "absolute_grip_strength",
+  );
+  expect(grip).toMatchObject({
+    value: "30",
+    unit: "kg",
+    evaluation: { grade: 2, conversion: { value: "60", unit: "%" } },
+  });
+  await expect(page).toHaveURL("/");
+  await expect(page.locator(".radar-legend dd").nth(1)).toHaveText("2등급");
+  await page.goto(`/measurements/${record.id}`);
+  await page.getByText("근력 · 2등급", { exact: true }).click();
+  await expect(
+    page.getByText("등급 판정에 사용한 상대악력: 60 %"),
+  ).toBeVisible();
+  await expect(
+    page.getByText("현재 값과의 차이 2.4 % · 증가 필요"),
+  ).toBeVisible();
+  await page.screenshot({
+    path: info.outputPath("absolute-grip-report.png"),
+    fullPage: true,
+  });
+  await page.getByRole("link", { name: "기록 수정" }).click();
+  await page.locator("#value-weight").fill("100");
+  await page.getByRole("button", { name: "수정 내용 저장" }).click();
+  await expect(page).toHaveURL(/saved=1/);
+  await expect(page.locator(".radar-legend dd").nth(1)).toHaveText("기준 미달");
+  await page.reload();
+  await page.getByText("근력 · 기준 미달", { exact: true }).click();
+  await expect(
+    page.getByText("등급 판정에 사용한 상대악력: 30 %"),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "기록 수정" }).click();
+  page.once("dialog", (d) => d.accept());
+  await page
+    .getByRole("button", { name: "체중 항목 삭제", exact: true })
+    .click();
+  await expect(page.getByText(/체중이 없으면 절대악력만 저장/)).toBeVisible();
+  await page.getByRole("button", { name: "수정 내용 저장" }).click();
+  await expect(page).toHaveURL(/saved=1/);
+  await expect(page.locator(".radar-legend dd").nth(1)).toHaveText(
+    "평가 불가 · 정보 부족",
+  );
+  await page.getByText("근력 · 평가 불가 · 정보 부족", { exact: true }).click();
+  await expect(
+    page
+      .locator(".evaluation-item")
+      .getByText(/같은 측정 기록의 체중\(kg\)이 없습니다/),
+  ).toBeVisible();
+  await expect(page.getByText("30 kg", { exact: true })).toBeVisible();
+  const saved = await page.request.get(`${api}/measurements/${record.id}`, {
+    headers,
+  });
+  expect((await saved.json()).items).toHaveLength(1);
+});

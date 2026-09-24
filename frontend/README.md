@@ -2,7 +2,7 @@
 
 모바일 중심의 국민체력100 측정 기록 웹앱입니다. 계정 설정, 기록 CRUD, 사진 추출 확인, 성인 간이측정과 서버 평가를 표시하는 6축 체력 프로필·리포트를 제공합니다. 기존 디자인 토큰과 `메인 / 내 프로필` 하단 메뉴를 유지합니다.
 
-**실제 백엔드 계약은 [연동 문서](BACKEND-INTEGRATION.md)를 확인하세요.** PR #6의 `70fd83e`를 별도 체크아웃하여 간이측정 저장·종목별 평가·최신 다각형을 연결했습니다. 사진 추출 API도 연결했으며 실제 OpenAI 판독 성공 검증은 키·모델 설정 후 남아 있습니다. 프론트에 예시 평가를 넣거나 등급을 계산하는 fallback은 없습니다. 이 브랜치의 과거 백엔드 확장은 되돌렸으므로 마이그레이션을 가져오거나 병합할 대상이 아닙니다.
+**실제 백엔드 계약은 [연동 문서](BACKEND-INTEGRATION.md)를 확인하세요.** PR #6의 `3c9b91c`를 별도 체크아웃하여 간이측정 저장·종목별 평가·최신 다각형을 연결했습니다. 사진 추출 API도 연결했으며 이번 절대악력 변경의 사진 검증은 실제 유료 호출 없이 계약 응답과 서버 검증으로 수행합니다. 프론트에 예시 평가를 넣거나 등급을 계산하는 fallback은 없습니다. 이 브랜치의 과거 백엔드 확장은 되돌렸으므로 마이그레이션을 가져오거나 병합할 대상이 아닙니다.
 
 ## 화면과 흐름
 
@@ -58,7 +58,7 @@ npm run test:e2e
 
 - 기존 `flows`, `phase-two`, `phase-two-audit`, `phase-two-profile-recovery`, `self-assessment`는 **전용 로컬 DB/API**를 사용합니다. 테스트 계정·기록을 만들고 인증 제한을 유지합니다. 간이측정 E2E는 백엔드의 해당 저장 지원이 필요합니다.
 - `fitness-live`는 실제 API 응답으로 직접 입력·6축 등급·부분 간이측정·최신 회차·수정·삭제·온보딩을 검증하며 응답을 대체하지 않습니다. 테스트 계정은 각 시나리오 종료 시 삭제합니다.
-- `integration-ready`, `photo-extraction`, `fitness-report`, `latest-fitness`, `assessment-auth`는 Playwright HTTP 계약 대역으로 오류·경계·취소·동시성을 검증합니다. 평가 fixture는 실제 응답 구조를 따릅니다. 실제 OCR/서버 판정 검증을 대체하지 않습니다.
+- `integration-ready`, `photo-extraction`, `fitness-report`, `latest-fitness`, `assessment-auth`, `grip-strength`는 Playwright HTTP 계약 대역으로 오류·경계·취소·동시성을 검증합니다. 평가 fixture는 실제 응답 구조를 따릅니다. 실제 OCR/서버 판정 검증을 대체하지 않습니다.
 - `E2E_BASE_URL`로 프론트 주소, `E2E_API_BASE_URL`로 실제 테스트 API 주소를 지정합니다. API 주소는 프론트 빌드 설정과 같아야 합니다.
 - Chromium 모바일 320px 포함. 실제 iOS/Android 카메라·키보드·소리와 Safari는 별도 확인이 필요합니다.
 
@@ -74,3 +74,5 @@ npm run test:e2e
 - `lib/fitness-contract.ts`, `lib/latest-fitness.ts`: 실제 상세 평가·최신 다각형 응답의 검증과 UI 변환.
 - `lib/fitness-evaluation.ts`: 공통 표시 상태·범례·다각형 좌표. 등급 판정 규칙은 없습니다.
 - `components/fitness-radar.tsx`, `fitness-report.tsx`, `fitness-criteria.tsx`, `latest-fitness.tsx`: 공통 6축 표시·회차별 상세·최신 대표 조회.
+
+절대악력은 새 카탈로그의 `절대악력 (kg)` 항목으로 등록합니다. 같은 측정 기록의 체중을 함께 저장하면 서버가 상대악력으로 환산해 근력 등급을 반환합니다. 체중이 없어도 원본은 보존하며 평가 불가 사유를 표시합니다. 상세 리포트에서 원본·환산 근거·상대악력 기준을 확인할 수 있습니다. [환산 연동 계약](BACKEND-INTEGRATION.md#절대악력-입력과-환산-리포트-2026-09-24)을 참고하세요.
