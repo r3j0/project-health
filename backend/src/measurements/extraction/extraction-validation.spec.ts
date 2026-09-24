@@ -13,6 +13,7 @@ const catalog: Awaited<ReturnType<MeasurementCatalogService['get']>> = {
     ['cross_sit_up', '회', 'integer', '0', true, null, 19, 64],
     ['reaction_time', '초', 'decimal', '0', false, null, 19, 64],
     ['relative_grip_strength', '%', 'decimal', '0', true, null, 13, 64],
+    ['absolute_grip_strength', 'kg', 'decimal', '0', true, null, 13, 64],
     ['body_fat_percentage', '%', 'decimal', '0', true, '100', 13, 64],
     ['repeated_jump', '회', 'integer', '0', true, null, 13, 18],
   ].map(
@@ -56,6 +57,29 @@ const validate = (extra: Parameters<typeof modelResult>[0] = {}) =>
   validateExtraction(modelResult(extra), catalog);
 
 describe('Extraction semantic validation', () => {
+  it('keeps absolute kg separate from relative percent and never calculates during extraction', () => {
+    const result = validate({
+      candidates: [
+        row('absolute_grip_strength', '25', 'kg'),
+        row('relative_grip_strength', '50', '%'),
+      ],
+    });
+    expect(
+      result.items.map(({ measurementCode, value, unit }) => ({
+        measurementCode,
+        value,
+        unit,
+      })),
+    ).toEqual([
+      { measurementCode: 'absolute_grip_strength', value: '25', unit: 'kg' },
+      { measurementCode: 'relative_grip_strength', value: '50', unit: '%' },
+    ]);
+    const wrong = validate({
+      candidates: [row('absolute_grip_strength', '25', '%')],
+    });
+    expect(wrong.items).toHaveLength(0);
+    expect(wrong.reviewItems).toHaveLength(1);
+  });
   it('omits retired definitions from the provider prompt even for an old catalog', () => {
     const retired = {
       ...catalog.definitions[1],
@@ -159,7 +183,7 @@ describe('Extraction semantic validation', () => {
   );
 
   it.each([
-    ['absolute_grip_strength', '32', 'kg', 'UNKNOWN_TEST'],
+    ['unrecognized_test', '32', 'kg', 'UNKNOWN_TEST'],
     ['relative_grip_strength', '32', 'kg', 'UNIT_MISMATCH'],
     ['relative_grip_strength', '32', null, 'UNIT_MISSING'],
     ['reaction_time', '300', 'ms', 'UNIT_MISMATCH'],

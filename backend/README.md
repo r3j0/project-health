@@ -10,6 +10,7 @@ Project Health의 NestJS API 서버입니다. 백엔드 코드·설정·문서·
 - [측정 데이터 명세](docs/measurement-data-spec.md)
 - [측정 기록 CRUD API와 직접 테스트](docs/measurements-api.md)
 - [간이측정·공식 종목 평가·6축 조회 API](docs/measurement-evaluation-api.md)
+- [절대악력 원본 입력·상대악력 환산 및 평가 계약](docs/absolute-grip.md)
 - [공식 평가 기준 조사·적용 범위](docs/research-fitness-criteria.md)
 - [국민체력100 사진 추출 API·환경설정·프론트 연동](docs/measurement-extraction-api.md)
 - [DB 설계와 마이그레이션](docs/database.md)

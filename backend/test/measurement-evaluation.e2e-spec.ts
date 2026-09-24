@@ -202,6 +202,106 @@ describe('Stored measurement evaluation and latest polygon against PostgreSQL', 
     return { id, evaluation };
   }
 
+  it('stores absolute grip unchanged and re-evaluates same-record weight atomically', async () => {
+    const key = randomUUID();
+    const body = payload({
+      catalogVersion: 'nfa100-2026-09-24-grip-v1',
+      entryMethod: 'manual',
+      ageAtMeasurement: 25,
+      items: [
+        { measurementCode: 'absolute_grip_strength', value: '30', unit: 'kg' },
+        { measurementCode: 'weight', value: '50', unit: 'kg' },
+      ],
+    });
+    const response = await create(body, key).expect(201);
+    const record = response.body as Measurement;
+    const findGrip = (value: Measurement) =>
+      value.items.find((i) => i.measurementCode === 'absolute_grip_strength')!;
+    expect(findGrip(record)).toMatchObject({
+      value: '30',
+      unit: 'kg',
+      evaluation: {
+        status: 'graded',
+        conversion: { value: '60' },
+        criterion: { measurementCode: 'relative_grip_strength', unit: '%' },
+      },
+    });
+    expect((await detail(record.id).expect(200)).body).toEqual(record);
+    const replay = await create(body, key).expect(200);
+    expect(replay.body).toEqual(record);
+    await patch(record.id, {
+      items: [
+        { measurementCode: 'absolute_grip_strength', value: '30', unit: 'kg' },
+        { measurementCode: 'weight', value: '100', unit: 'kg' },
+      ],
+    }).expect(200);
+    const changed = (await detail(record.id).expect(200)).body as Measurement;
+    expect(findGrip(changed)).toMatchObject({
+      value: '30',
+      evaluation: {
+        recordRevision: 2,
+        status: 'below_standard',
+        conversion: { value: '30' },
+      },
+    });
+    expect(((await latest().expect(200)).body as Polygon).axes[1].status).toBe(
+      'below_standard',
+    );
+    const withoutWeight = await patch(
+      record.id,
+      {
+        items: [
+          {
+            measurementCode: 'absolute_grip_strength',
+            value: '30',
+            unit: 'kg',
+          },
+        ],
+      },
+      2,
+    ).expect(200);
+    expect(
+      findGrip(withoutWeight.body as Measurement).evaluation,
+    ).toMatchObject({
+      status: 'insufficient_information',
+      reasonCode: 'weight_at_measurement_missing',
+    });
+    await patch(
+      record.id,
+      {
+        items: [
+          {
+            measurementCode: 'absolute_grip_strength',
+            value: '30',
+            unit: 'kg',
+          },
+          { measurementCode: 'weight', value: '0', unit: 'kg' },
+        ],
+      },
+      3,
+    ).expect(400);
+    await patch(record.id, { sexAtMeasurement: 'female' }, 1).expect(412);
+    await detail(record.id, other).expect(404);
+    await remove(record.id, 3).expect(204);
+    await create(body, key).expect(410);
+  });
+
+  it('rejects wrong absolute-grip units, negative values and unsupported self-assessment entry', async () => {
+    for (const [value, unit, entryMethod] of [
+      ['-1', 'kg', 'manual'],
+      ['25', '%', 'manual'],
+      ['25', 'kg', 'self_assessment'],
+    ]) {
+      await create(
+        payload({
+          catalogVersion: 'nfa100-2026-09-24-grip-v1',
+          entryMethod,
+          items: [{ measurementCode: 'absolute_grip_strength', value, unit }],
+        }),
+      ).expect(400);
+    }
+  });
+
   function expectConsistentEvaluation(record: Measurement) {
     expect(record.axes.map((axis) => axis.axis)).toEqual(axisOrder);
     expect(

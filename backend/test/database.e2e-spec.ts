@@ -53,8 +53,8 @@ describe('PostgreSQL measurement storage', () => {
     const definitions = await database.measurementDefinition.findMany({
       where: { catalogVersion },
     });
-    expect(catalogVersion).toBe('nfa100-2026-09-24');
-    expect(definitions).toHaveLength(20);
+    expect(catalogVersion).toBe('nfa100-2026-09-24-grip-v1');
+    expect(definitions).toHaveLength(21);
     expect(definitions.map((item) => item.code)).not.toContain('self_curl_up');
     const retiredDefinitions = await database.measurementDefinition.findMany({
       where: { catalogVersion: 'nfa100-2026-09-23' },
@@ -77,7 +77,7 @@ describe('PostgreSQL measurement storage', () => {
       const applicable = definitions.filter(
         (item) => age >= item.minAge && age <= item.maxAge,
       );
-      expect(applicable).toHaveLength(age >= 19 ? 16 : 15);
+      expect(applicable).toHaveLength(age >= 19 ? 17 : 16);
       expect(new Set(applicable.map((item) => item.factor)).size).toBe(
         factorCount,
       );

@@ -72,6 +72,7 @@ export const OFFICIAL_CRITERIA: readonly Criterion[] = ADULT_THRESHOLDS.flatMap(
           'nfa100-2026-09-19',
           'nfa100-2026-09-23',
           'nfa100-2026-09-24',
+          'nfa100-2026-09-24-grip-v1',
         ],
         source: {
           url: 'https://nfa.kspo.or.kr/reserve/0/selectMeasureGradeItemListByAgeSe.kspo',

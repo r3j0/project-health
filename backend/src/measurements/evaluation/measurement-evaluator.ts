@@ -1,4 +1,5 @@
 import { Prisma } from '../../generated/prisma/client.js';
+import { convertAbsoluteGrip } from './grip-conversion.js';
 import type {
   AxisCode,
   AxisEvaluation,
@@ -36,6 +37,7 @@ export const MEASUREMENT_AXES: Readonly<Record<string, AxisCode>> = {
   step_test_vo2max: 'cardiorespiratory_endurance',
   ymca_recovery_heart_rate: 'cardiorespiratory_endurance',
   relative_grip_strength: 'strength',
+  absolute_grip_strength: 'strength',
   curl_up: 'muscular_endurance',
   self_curl_up: 'muscular_endurance',
   cross_sit_up: 'muscular_endurance',
@@ -116,15 +118,25 @@ function unavailable(
   };
 }
 
-function contains(value: Prisma.Decimal, interval: CriterionInterval) {
+function contains(
+  value: Prisma.Decimal,
+  interval: CriterionInterval,
+  ratio?: NonNullable<ReturnType<typeof convertAbsoluteGrip>>,
+) {
   const { lower, upper } = interval;
+  // Compare the original ratio by cross multiplication. A rounded quotient
+  // must never promote a value just below an official grade boundary.
+  const compare = (bound: string) =>
+    ratio
+      ? ratio.numerator.comparedTo(new Decimal(bound).times(ratio.denominator))
+      : value.comparedTo(bound);
   return (
     (!lower ||
-      value.greaterThan(lower.value) ||
-      (lower.inclusive && value.equals(lower.value))) &&
+      compare(lower.value) > 0 ||
+      (lower.inclusive && compare(lower.value) === 0)) &&
     (!upper ||
-      value.lessThan(upper.value) ||
-      (upper.inclusive && value.equals(upper.value)))
+      compare(upper.value) < 0 ||
+      (upper.inclusive && compare(upper.value) === 0))
   );
 }
 
@@ -220,6 +232,7 @@ function evaluateItem(
   item: EvaluationInput['items'][number],
   evaluatedAt: string,
   criteria: readonly Criterion[],
+  ratio?: NonNullable<ReturnType<typeof convertAbsoluteGrip>>,
 ): ItemEvaluation {
   const evaluation = baseEvaluation(input, item.measurementCode, evaluatedAt);
   if (!input.measuredOn)
@@ -346,7 +359,7 @@ function evaluateItem(
   const value = new Decimal(item.value);
   const grade =
     thresholds.find(({ intervals }) =>
-      intervals.some((interval) => contains(value, interval)),
+      intervals.some((interval) => contains(value, interval, ratio)),
     )?.grade ?? null;
   return {
     ...evaluation,
@@ -371,10 +384,43 @@ export function evaluateMeasurement(
   criteria: readonly Criterion[] = OFFICIAL_CRITERIA,
 ): { items: EvaluatedItem[]; axes: AxisEvaluation[] } {
   const timestamp = evaluatedAt.toISOString();
-  const items = input.items.map((item) => ({
-    measurementCode: item.measurementCode,
-    evaluation: evaluateItem(input, item, timestamp, criteria),
-  }));
+  const items = input.items.map((item) => {
+    if (item.measurementCode !== 'absolute_grip_strength')
+      return {
+        measurementCode: item.measurementCode,
+        evaluation: evaluateItem(input, item, timestamp, criteria),
+      };
+    const ratio = convertAbsoluteGrip(item, input.items);
+    if (!ratio)
+      return {
+        measurementCode: item.measurementCode,
+        evaluation: unavailable(
+          baseEvaluation(input, item.measurementCode, timestamp),
+          'weight_at_measurement_missing',
+          '상대악력 환산에 필요한 같은 측정 기록의 체중(kg)이 없습니다. 절대악력 원본만 저장했습니다.',
+          'insufficient_information',
+        ),
+      };
+    const evaluated = evaluateItem(
+      input,
+      {
+        measurementCode: 'relative_grip_strength',
+        value: ratio.conversion.value,
+        unit: '%',
+      },
+      timestamp,
+      criteria,
+      ratio,
+    );
+    return {
+      measurementCode: item.measurementCode,
+      evaluation: {
+        ...evaluated,
+        measurementCode: item.measurementCode,
+        conversion: ratio.conversion,
+      },
+    };
+  });
   return { items, axes: aggregateAxes(items, input.revision) };
 }
 

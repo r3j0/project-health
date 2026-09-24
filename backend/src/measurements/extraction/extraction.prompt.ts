@@ -12,7 +12,7 @@ export const EXTRACTION_INSTRUCTIONS = `국민체력100 결과지 한 사람·�
 측정값과 원문 등급은 구분한다. 새 점수·등급·운동 추천을 만들지 않는다.
 누락·공란·판독 불가를 0이나 평균으로 채우지 않는다. 실제 표시된 0, 소수점, 음수를 보존한다. 앉아윗몸앞으로굽히기의 음수를 제거하지 않는다.
 value는 원문 수치의 10진수 문자열이다. 반올림하지 않는다. evidence.value에도 보이는 원문을 그대로 담는다.
-절대악력(kg)을 상대악력(%)으로 매핑하지 않는다. 카탈로그에 없는 검사는 measurementCode=null, unknown_test로 남긴다.
+절대악력(kg)은 카탈로그의 absolute_grip_strength로, 상대악력(%)은 relative_grip_strength로 구분한다. kg 값을 %로 매핑하거나 상대악력을 계산하지 않는다. 절대악력은 결과표에 명시된 대표값만 자동 입력 대상으로 식별한다. 카탈로그에 없는 검사는 measurementCode=null, unknown_test로 남긴다.
 같은 체력요인이라도 검사 방법이 다르면 별도 항목이다. 애매한 검사명은 ambiguous_test로 남긴다.
 단위는 해당 항목이나 명확히 연결된 표 머리글에서만 확인한다. 카탈로그 기본 단위로 사진의 단위를 추정하지 않는다. 없으면 null과 unit_missing, 불분명하면 unit_unclear다.
 unit과 evidence.unit은 원문 단위다. 서버가 명시적 규칙으로 동의어만 정규화한다. 수치 환산이 필요하면 원문을 유지하고 unit_conversion_required로 남긴다.

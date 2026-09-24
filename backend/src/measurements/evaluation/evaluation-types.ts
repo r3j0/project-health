@@ -74,7 +74,17 @@ export type NextTarget = {
   }[];
   reasonCode: string | null;
 };
+export type GripConversion = {
+  formulaVersion: 'nfa100-relative-grip-v1';
+  measurementCode: 'relative_grip_strength';
+  value: string;
+  unit: '%';
+  inputs: { measurementCode: string; value: string; unit: 'kg' }[];
+  sourceUrl: string;
+};
 export type ItemEvaluation = {
+  // Optional for backwards compatibility. Raw MeasurementItem values stay in kg.
+  conversion?: GripConversion;
   measurementId: string;
   measurementCode: string;
   grade: number | null;

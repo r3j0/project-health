@@ -179,7 +179,7 @@ describe('Authenticated photo extraction with PostgreSQL and isolated OpenAI tra
       definitions: Array<{ code: string }>;
     };
     expect(prompt.catalogVersion).toBe(version);
-    expect(prompt.definitions).toHaveLength(20);
+    expect(prompt.definitions).toHaveLength(21);
     expect(
       prompt.definitions.map((definition) => definition.code),
     ).not.toContain('self_curl_up');
@@ -188,7 +188,7 @@ describe('Authenticated photo extraction with PostgreSQL and isolated OpenAI tra
     ).toBe(true);
     expect(
       prompt.definitions.some((def) => def.code === 'absolute_grip_strength'),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it('supports explicit catalog versions and rejects an unknown version before calling OpenAI', async () => {
