@@ -365,7 +365,7 @@ test("실제 API: 절대악력 저장·환산 리포트·체중 수정 및 제�
     page.getByText("등급 판정에 사용한 상대악력: 60 %"),
   ).toBeVisible();
   await expect(
-    page.getByText("현재 값과의 차이 2.4 % · 증가 필요"),
+    page.getByText("현재 값과의 차이 2.4 %p · 증가 필요"),
   ).toBeVisible();
   await page.screenshot({
     path: info.outputPath("absolute-grip-report.png"),

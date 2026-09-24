@@ -3,17 +3,18 @@ import {
   type StoredItemEvaluation,
 } from "@/lib/fitness-contract";
 
-import { displayConvertedValue } from "@/lib/conversion-display";
+import { FitnessGradeProgress } from "./fitness-grade-progress";
 
 export function FitnessCriteria({
   evaluation,
 }: {
   evaluation: StoredItemEvaluation;
 }) {
-  const { criterion, thresholds, nextTarget } = evaluation;
+  const { criterion, thresholds } = evaluation;
   if (!criterion) return null;
   return (
     <div className="stack-sm evaluation-criteria">
+      <FitnessGradeProgress evaluation={evaluation} />
       <p className="caption">
         만 {criterion.minAge}~{criterion.maxAge}세 ·{" "}
         {criterion.sex === "male" ? "남성" : "여성"} 기준 ·{" "}
@@ -39,39 +40,6 @@ export function FitnessCriteria({
             </div>
           ))}
       </dl>
-      {nextTarget.status === "highest_grade" ? (
-        <p>이 종목의 최고 등급에 도달했어요.</p>
-      ) : nextTarget.status === "available" ? (
-        <div className="stack-sm">
-          <p>다음 {nextTarget.grade}등급 목표</p>
-          {nextTarget.intervals.length > 1 && (
-            <p className="caption">아래 조건 중 하나를 충족하면 돼요.</p>
-          )}
-          {nextTarget.intervals.map((interval, index) => (
-            <div key={index} className="stack-sm">
-              <p>{formatInterval(interval, criterion.unit)}</p>
-              {(["lower", "upper"] as const).map((side) => {
-                const adjustment = nextTarget.adjustments[index][side];
-                if (!adjustment || adjustment.change === "none") return null;
-                return (
-                  <p className="caption" key={side}>
-                    현재 값과의 차이{" "}
-                    {evaluation.conversion
-                      ? displayConvertedValue(adjustment.difference)
-                      : adjustment.difference}{" "}
-                    {adjustment.unit} ·{" "}
-                    {adjustment.change === "increase" ? "증가" : "감소"} 필요
-                    {adjustment.requiresBeyondBoundary &&
-                      ` (${adjustment.threshold} ${adjustment.unit} ${side === "lower" ? "초과" : "미만"} 필요)`}
-                  </p>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="caption">다음 등급 목표를 제공할 수 없어요.</p>
-      )}
       <p className="caption">
         적용 기간: {criterion.effectiveFrom ?? "시작일 미지정"} ~{" "}
         {criterion.effectiveUntil ?? "종료일 미지정"}

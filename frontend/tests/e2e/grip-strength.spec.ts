@@ -53,7 +53,7 @@ test("근력 리포트는 원본 kg, 환산 %, 적용 기준과 다음 목표를
     page.getByText("절대악력 30 kg ÷ 같은 기록의 체중 50 kg × 100"),
   ).toBeVisible();
   await expect(
-    page.getByText("현재 값과의 차이 2.4 % · 증가 필요"),
+    page.getByText("현재 값과의 차이 2.4 %p · 증가 필요"),
   ).toBeVisible();
   await expect(
     page.getByText("평가 정보를 확인하지 못했어요.", { exact: false }),
