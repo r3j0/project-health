@@ -38,7 +38,7 @@ export function Account() {
             <div className="profile-card">
               <BreathingMascot
                 framing="face"
-                size={64}
+                size={80}
                 label="편안하게 숨 쉬는 햄스터 얼굴"
                 className="profile-avatar"
               />

@@ -1029,7 +1029,9 @@ fieldset:disabled select {
 .account-shell .profile-copy h2 {
   color: var(--navy);
 }
-.profile-avatar {
+.account-shell .profile-avatar {
+  padding: 4px;
+  border-radius: var(--radius-card);
   background: var(--surface);
 }
 .account-shell .menu-card {
