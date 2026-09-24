@@ -141,11 +141,22 @@ const listQuerySchema = z
     path: ['to'],
     message: '종료일은 시작일보다 빠를 수 없습니다.',
   });
-const cursorSchema = z.strictObject({
+const legacyCursorSchema = z.strictObject({
   v: z.literal(1),
   measuredOn: date,
   id: z.uuid(),
 });
+const cursorSchema = z.discriminatedUnion('v', [
+  legacyCursorSchema,
+  legacyCursorSchema.extend({
+    v: z.literal(2),
+    // PostgreSQL stores microseconds; converting this to Date loses the boundary.
+    createdAt: z.iso
+      .datetime({ precision: 6 })
+      .refine((value) => !value.startsWith('0000')),
+  }),
+]);
+export type MeasurementCursor = z.output<typeof cursorSchema>;
 
 function parse<T>(schema: z.ZodType<T>, value: unknown, prefix = ''): T {
   const result = schema.safeParse(value);
@@ -188,14 +199,8 @@ export function parseRevision(value: unknown) {
   );
 }
 
-export function encodeCursor(record: { id: string; measuredOn: Date }) {
-  return Buffer.from(
-    JSON.stringify({
-      v: 1,
-      measuredOn: record.measuredOn.toISOString().slice(0, 10),
-      id: record.id,
-    }),
-  ).toString('base64url');
+export function encodeCursor(cursor: MeasurementCursor) {
+  return Buffer.from(JSON.stringify(cursor)).toString('base64url');
 }
 
 export function decodeCursor(value: string) {

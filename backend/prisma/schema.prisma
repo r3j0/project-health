@@ -157,6 +157,7 @@ model Measurement {
 
   @@unique([id, catalogVersion])
   @@index([userId, measuredOn(sort: Desc), id])
+  @@index([userId, measuredOn(sort: Desc), createdAt(sort: Desc), id], map: "measurements_latest_idx")
   @@map("measurements")
 }
 

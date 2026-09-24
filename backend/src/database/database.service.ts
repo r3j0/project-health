@@ -20,8 +20,8 @@ export class DatabaseService
     this.dbSchema = schema;
   }
 
-  // Raw row locks must use the same schema as generated Prisma queries.
-  table(name: 'users' | 'user_curriculum_assignments') {
+  // Raw queries must use the same schema as generated Prisma queries.
+  table(name: 'users' | 'user_curriculum_assignments' | 'measurements') {
     return Prisma.raw(`"${this.dbSchema.replaceAll('"', '""')}"."${name}"`);
   }
 

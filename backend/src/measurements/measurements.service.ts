@@ -200,39 +200,67 @@ export class MeasurementsService {
 
   async list(userId: string, query: ReturnType<typeof parseListQuery>) {
     const cursor = query.cursor ? decodeCursor(query.cursor) : null;
-    const measuredOn: Prisma.DateTimeFilter<'Measurement'> = {};
-    if (query.from) measuredOn.gte = new Date(`${query.from}T00:00:00.000Z`);
-    if (query.to) measuredOn.lte = new Date(`${query.to}T00:00:00.000Z`);
-    const cursorDate = cursor
-      ? new Date(`${cursor.measuredOn}T00:00:00.000Z`)
-      : null;
-    const rows = await this.database.measurement.findMany({
-      where: {
-        userId,
-        measuredOn,
-        ...(cursor && cursorDate
-          ? {
-              OR: [
-                { measuredOn: { lt: cursorDate } },
-                { measuredOn: cursorDate, id: { gt: cursor.id } },
-              ],
-            }
-          : {}),
+    const filters = [Prisma.sql`user_id = ${userId}::uuid`];
+    if (query.from)
+      filters.push(Prisma.sql`measured_on >= ${query.from}::date`);
+    if (query.to) filters.push(Prisma.sql`measured_on <= ${query.to}::date`);
+    if (cursor) {
+      const sameDayBoundary =
+        cursor.v === 1
+          ? Prisma.sql`id > ${cursor.id}::uuid`
+          : Prisma.sql`(created_at < ${cursor.createdAt}::timestamptz OR
+              (created_at = ${cursor.createdAt}::timestamptz AND id > ${cursor.id}::uuid))`;
+      filters.push(Prisma.sql`(measured_on < ${cursor.measuredOn}::date OR
+        (measured_on = ${cursor.measuredOn}::date AND ${sameDayBoundary}))`);
+    }
+    // Finish pre-upgrade cursor chains in their original order. Fresh lists
+    // use the same full-precision ordering as latestPolygon().
+    const order =
+      cursor?.v === 1
+        ? Prisma.sql`measured_on DESC, id ASC`
+        : Prisma.sql`measured_on DESC, created_at DESC, id ASC`;
+    return this.database.$transaction(
+      async (tx) => {
+        // Date/Prisma's pg adapter truncate timestamps to milliseconds. Keep
+        // the cursor comparison in SQL and serialize all six fractional digits.
+        const boundaries = await tx.$queryRaw<
+          Array<{ id: string; measuredOn: string; createdAt: string }>
+        >`
+          SELECT id, to_char(measured_on, 'YYYY-MM-DD') AS "measuredOn",
+            to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "createdAt"
+          FROM ${this.database.table('measurements')}
+          WHERE ${Prisma.join(filters, ' AND ')}
+          ORDER BY ${order}
+          LIMIT ${query.limit + 1}
+        `;
+        const page = boundaries.slice(0, query.limit);
+        const rows = await tx.measurement.findMany({
+          where: { userId, id: { in: page.map(({ id }) => id) } },
+          select: summarySelect,
+        });
+        const byId = new Map(rows.map((row) => [row.id, row]));
+        const last = page[page.length - 1];
+        return {
+          items: page.map(({ id }) => {
+            const { _count, measuredOn, ...row } = byId.get(id)!;
+            return {
+              ...row,
+              measuredOn: measuredOn.toISOString().slice(0, 10),
+              itemCount: _count.items,
+            };
+          }),
+          nextCursor:
+            boundaries.length > query.limit
+              ? encodeCursor(
+                  cursor?.v === 1
+                    ? { v: 1, id: last.id, measuredOn: last.measuredOn }
+                    : { v: 2, ...last },
+                )
+              : null,
+        };
       },
-      orderBy: [{ measuredOn: 'desc' }, { id: 'asc' }],
-      take: query.limit + 1,
-      select: summarySelect,
-    });
-    const page = rows.slice(0, query.limit);
-    return {
-      items: page.map(({ _count, measuredOn, ...row }) => ({
-        ...row,
-        measuredOn: measuredOn.toISOString().slice(0, 10),
-        itemCount: _count.items,
-      })),
-      nextCursor:
-        rows.length > query.limit ? encodeCursor(page[page.length - 1]) : null,
-    };
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
   }
 
   async get(userId: string, id: string) {
