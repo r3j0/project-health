@@ -427,6 +427,13 @@ h3 {
   text-transform: uppercase;
   margin-bottom: 12px;
 }
+.authenticated-app .onboarding-shell {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.onboarding-shell .choice-card > svg,
+.onboarding-shell .feature-card > svg {
+  color: var(--accent);
+}
 .onboarding-footer {
   align-items: center;
 }
@@ -1015,8 +1022,8 @@ fieldset:disabled select {
   font-size: 14px;
   margin-top: 10px;
 }
-/* KSPO Orange theme scoped to the profile page and its navigation. */
-.account-theme {
+/* Shared KSPO Orange tokens, applied only by themed screens. */
+.kspo-orange-theme {
   --navy: #a64900;
   --navy-hover: #8c3e00;
   --navy-pressed: #733200;
@@ -1028,7 +1035,8 @@ fieldset:disabled select {
   --text-secondary: #705039;
   --muted: #85624a;
 }
-.account-shell {
+.account-shell,
+.onboarding-shell {
   color: var(--text);
 }
 .account-shell .profile-card {
@@ -1052,7 +1060,7 @@ fieldset:disabled select {
   background: var(--tint);
 }
 .account-shell .menu-row > svg,
-.account-theme .bottom-tab[aria-current] > svg {
+.kspo-orange-theme .bottom-tab[aria-current] > svg {
   color: var(--accent);
 }
 .account-shell .radar-shape {

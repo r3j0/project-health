@@ -60,10 +60,20 @@ async function signup(page: Page, destination: "records" | "main" = "records") {
     ).toBeEnabled({ timeout: 65000 });
     await page.getByRole("button", { name: "가입하고 시작하기" }).click();
   }
-  await expect(page).toHaveURL(new URL("/", page.url()).href);
+  await expect(page).toHaveURL("/onboarding");
+  await expect(page.getByRole("navigation", { name: "하단 메뉴" })).toHaveCount(
+    0,
+  );
   if (destination === "records") {
-    await openRecords(page);
+    await page
+      .getByRole("link", { name: "내 측정 기록 보기", exact: true })
+      .click();
     await expect(page.getByText("첫 기록을 기다리고 있어요")).toBeVisible();
+  } else {
+    await page
+      .getByRole("link", { name: "나중에 등록하기", exact: true })
+      .click();
+    await expect(page).toHaveURL("/");
   }
   return email;
 }

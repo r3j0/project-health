@@ -29,7 +29,7 @@ export function Account() {
     }
   }
   return (
-    <Shell className="account-shell account-theme">
+    <Shell className="account-shell kspo-orange-theme">
       <h1 className="sr-only">내 프로필</h1>
       <div className="content stack">
         {logoutError && <Notice>{logoutError}</Notice>}

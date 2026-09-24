@@ -107,6 +107,6 @@ test("프로필은 얼굴 모션과 축 아래 등급을 표시하고 기록 상
   await expect(fullBody.locator('[data-part="torso"]')).toBeVisible();
   await expect(
     page.getByRole("navigation", { name: "하단 메뉴" }),
-  ).not.toHaveClass(/account-theme/);
+  ).not.toHaveClass(/kspo-orange-theme/);
   expect(errors).toEqual([]);
 });

@@ -8,7 +8,7 @@ import { useUserProfile } from "./user-profile-provider";
 export function Onboarding() {
   const profile = useUserProfile();
   return (
-    <Shell>
+    <Shell className="onboarding-shell kspo-orange-theme">
       <Header title="체력 기록 시작하기" back="/" />
       <div className="content stack">
         <div className="intro">
@@ -42,7 +42,7 @@ export function Onboarding() {
           <p className="muted">
             안내를 따라 직접 측정하고, 측정한 항목만 기록해 보세요.
           </p>
-          <Link href={assessmentHref} className="button secondary">
+          <Link href={assessmentHref} className="button primary">
             간이측정 시작하기
           </Link>
           <p className="caption">

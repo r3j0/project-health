@@ -6,6 +6,7 @@ import { House, UserRound } from "lucide-react";
 
 export function BottomNavigation() {
   const pathname = usePathname();
+  if (pathname === "/onboarding") return null;
   const tabs = [
     { href: "/", label: "메인", icon: House, active: pathname === "/" },
     {
@@ -18,7 +19,7 @@ export function BottomNavigation() {
 
   return (
     <nav
-      className={`bottom-navigation${pathname === "/account" ? " account-theme" : ""}`}
+      className={`bottom-navigation${pathname === "/account" ? " kspo-orange-theme" : ""}`}
       aria-label="하단 메뉴"
     >
       {tabs.map(({ href, label, icon: Icon, active }) => (
