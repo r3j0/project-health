@@ -6,14 +6,8 @@ import { Eye, EyeOff } from "lucide-react";
 import { authDestination } from "@/lib/auth-destination";
 import { authenticate } from "@/lib/session";
 import { ApiError, errorMessage } from "@/lib/http";
-import {
-  ArtworkSlot,
-  Brand,
-  FieldError,
-  Notice,
-  Shell,
-  SubmitLabel,
-} from "./ui";
+import { Brand, FieldError, Notice, Shell, SubmitLabel } from "./ui";
+import { BreathingMascot } from "./mascot/BreathingMascot";
 import { useSession } from "./session-provider";
 function destination() {
   const next = new URLSearchParams(window.location.search).get("next") ?? "";
@@ -80,7 +74,11 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         <Brand />
       </header>
       <div className="auth-content">
-        {!register && <ArtworkSlot />}
+        {!register && (
+          <div className="login-mascot">
+            <BreathingMascot size={192} label="편안하게 숨 쉬는 햄스터" />
+          </div>
+        )}
         <div className="intro">
           <h1>{register ? "가볍게 시작해요" : "다시 만나 반가워요"}</h1>
           <p>

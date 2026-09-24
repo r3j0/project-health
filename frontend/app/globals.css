@@ -478,6 +478,14 @@ h3 {
 .auth-content {
   padding: 24px 24px 36px;
 }
+.login-mascot {
+  display: flex;
+  justify-content: center;
+  margin: 12px auto 0;
+}
+.login-mascot > span {
+  width: min(192px, 24svh);
+}
 .auth-content .intro {
   margin: 28px 0 30px;
 }
