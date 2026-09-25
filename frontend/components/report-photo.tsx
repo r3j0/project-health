@@ -168,6 +168,7 @@ export function ReportPhoto() {
     return (
       <RecordForm
         onboarding
+        requireSex
         draftKey="photo"
         onDiscard={() => {
           setDraft(null);

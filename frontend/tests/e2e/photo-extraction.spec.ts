@@ -259,3 +259,39 @@ test("서버 처리 제한 안의 느린 사진 분석도 조기 취소하지 �
   ).toBeVisible({ timeout: 65000 });
   await expect(page.locator(".notice[role=alert]")).toHaveCount(0);
 });
+
+test("사진을 보며 직접 입력해도 성별을 선택해야 측정값으로 진행한다", async ({
+  page,
+}) => {
+  const server = await installApi(page);
+  await page.goto("/onboarding/photo");
+  await page.getByLabel("결과표 파일 선택").setInputFiles(png);
+  await page.getByRole("button", { name: "이 사진을 보며 직접 입력" }).click();
+  await page.getByLabel("측정일", { exact: true }).fill("2026-09-01");
+  await page.getByLabel("측정 당시 만 나이", { exact: true }).fill("25");
+  const sex = page.getByLabel("성별", { exact: true });
+  await expect(sex).toBeVisible();
+  await expect(sex).toHaveAttribute("required", "");
+  await expect(page.locator("details #sex")).toHaveCount(0);
+  await page.getByRole("button", { name: "측정값 입력하기" }).click();
+  await expect(sex).toBeFocused();
+  await expect(page.getByRole("progressbar")).toHaveAttribute(
+    "aria-valuenow",
+    "2",
+  );
+  await page.locator("form").evaluate((form: HTMLFormElement) => {
+    form.noValidate = true;
+    form.requestSubmit();
+  });
+  await expect(
+    page.getByText("성별을 선택해 주세요.", { exact: true }),
+  ).toBeVisible();
+  expect(server.mutations).toHaveLength(0);
+  await sex.selectOption("female");
+  await page.reload();
+  await expect(sex).toHaveValue("female");
+  await page.getByRole("button", { name: "측정값 입력하기" }).click();
+  await expect(
+    page.getByRole("heading", { name: "측정한 항목만 입력해요" }),
+  ).toBeVisible();
+});
