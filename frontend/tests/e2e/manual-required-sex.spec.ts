@@ -125,7 +125,7 @@ for (const uncertain of [false, true]) {
         );
         await page.getByRole("button", { name: "1개 항목 저장하기" }).click();
       }
-      await expect(page).toHaveURL("/");
+      await expect(page).toHaveURL(/\/onboarding\/complete\?record=/);
       expect(server.record?.sexAtMeasurement).toBe(uncertain ? null : "male");
       expect(server.record?.items[0].value).toBe("170");
       expect(server.mutations.filter((m) => m.method === "POST")).toHaveLength(

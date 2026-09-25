@@ -101,7 +101,7 @@ test("실제 API: 6종목 직접 입력·상세 등급·기준·수정 재평가
   expect(saved.axes.map((a: { grade: number }) => a.grade)).toEqual([
     2, 3, 1, 2, 2, 1,
   ]);
-  await expect(page).toHaveURL("/");
+  await expect(page).toHaveURL(/\/onboarding\/complete\?record=/);
   await page.goto(`/measurements/${saved.id}`);
   await expect(page.locator(".radar-legend dd")).toHaveText([
     "2등급",
@@ -354,7 +354,8 @@ test("실제 API: 절대악력 저장·환산 리포트·체중 수정 및 제�
     unit: "kg",
     evaluation: { grade: 2, conversion: { value: "60", unit: "%" } },
   });
-  await expect(page).toHaveURL("/");
+  await expect(page).toHaveURL(/\/onboarding\/complete\?record=/);
+  await page.getByRole("link", { name: "메인으로", exact: true }).click();
   await page.getByRole("link", { name: "내 프로필", exact: true }).click();
   await expect(page.locator(".latest-fitness .radar-grade").nth(1)).toHaveText(
     "2등급",

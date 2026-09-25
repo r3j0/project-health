@@ -47,6 +47,14 @@ test("간이측정 등록은 기존 사용자 커리큘럼을 보존한다", asy
     "aria-valuetext",
     "3단계 중 3단계, 체력 기록 완료",
   );
+  await expect(page).toHaveURL(/\/onboarding\/complete\?record=/);
+  await expect(
+    page.getByRole("link", { name: "새 체력 기록 시작" }),
+  ).toHaveCount(0);
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "나의 체력을 기록했어요" }),
+  ).toBeVisible();
   await page.getByRole("link", { name: "측정 기록 보기", exact: true }).click();
   await expect(page).toHaveURL(/measurements\/.+saved=1/);
   await expect(progress).toHaveCount(0);

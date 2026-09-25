@@ -28,7 +28,7 @@ test("절대악력은 kg으로 입력하고 측정 당시 체중을 추가해 �
   await page.locator("#value-weight").fill("50");
   await expect(page.getByText(/체중이 없으면 절대악력만 저장/)).toHaveCount(0);
   await page.getByRole("button", { name: "2개 항목 저장하기" }).click();
-  await expect(page).toHaveURL("/");
+  await expect(page).toHaveURL(/\/onboarding\/complete\?record=/);
   expect(server.mutations.find((m) => m.method === "POST")?.body).toMatchObject(
     {
       items: [
@@ -116,7 +116,7 @@ test("사진 추출의 절대악력 kg과 체중을 검토하고 원본 단위�
   await expect(page.locator("#value-weight")).toHaveValue("50");
   expect(server.mutations).toHaveLength(0);
   await page.getByRole("button", { name: "2개 항목 저장하기" }).click();
-  await expect(page).toHaveURL("/");
+  await expect(page).toHaveURL(/\/onboarding\/complete\?record=/);
   expect(
     server.record?.items.map((i) => [i.measurementCode, i.value, i.unit]),
   ).toEqual([

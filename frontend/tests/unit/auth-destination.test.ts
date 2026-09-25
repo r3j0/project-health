@@ -30,3 +30,19 @@ test("외부 주소·중복 모드·임의 커리큘럼은 인증 후 실행하�
   ])
     assert.equal(authDestination(path), "/");
 });
+
+test("저장 완료 화면은 하나의 내부 기록 ID만 재인증 후 복원한다", () => {
+  const id = "00000000-0000-4000-8000-000000000004";
+  assert.equal(
+    authDestination(`/onboarding/complete?record=${id}`),
+    `/onboarding/complete?record=${id}`,
+  );
+  for (const suffix of [
+    "",
+    "record=https://example.test",
+    `record=${id}&record=${id}`,
+    `record=${id}&next=/account`,
+    `record=${id}#fragment`,
+  ])
+    assert.equal(authDestination(`/onboarding/complete?${suffix}`), "/");
+});

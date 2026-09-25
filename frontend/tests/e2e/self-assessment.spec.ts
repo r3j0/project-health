@@ -424,7 +424,7 @@ test("서버에서 삭제된 저장 요청은 재전송을 멈추고 새 측정�
   await expect(page.getByLabel("만 나이", { exact: true })).toHaveValue("");
 });
 
-test("저장 완료 화면에서 새 측정을 시작하면 이전 값 없이 별도 기록을 만든다", async ({
+test("저장 완료 후 메인에서 다시 시작하면 이전 값 없이 별도 기록을 만든다", async ({
   page,
 }) => {
   const account = await register(page);
@@ -443,7 +443,11 @@ test("저장 완료 화면에서 새 측정을 시작하면 이전 값 없이 �
       page.getByRole("heading", { name: "나의 체력을 기록했어요" }),
     ).toBeVisible();
     if (value === "1") {
-      await page.getByRole("link", { name: "새 체력 기록 시작" }).click();
+      await expect(
+        page.getByRole("link", { name: "새 체력 기록 시작" }),
+      ).toHaveCount(0);
+      await page.getByRole("link", { name: "메인으로", exact: true }).click();
+      await page.goto("/onboarding");
       await expect(page).toHaveURL(/\/onboarding$/);
       await expect(
         page.getByRole("heading", { name: "체력 기록 시작", exact: true }),

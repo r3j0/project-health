@@ -14,6 +14,18 @@ export function authDestination(next: string): string {
     ].includes(next)
   )
     return next;
+  if (next.startsWith("/onboarding/complete?") && !next.includes("#")) {
+    const query = new URLSearchParams(
+      next.slice("/onboarding/complete?".length),
+    );
+    const ids = query.getAll("record");
+    if (
+      [...query.keys()].every((key) => key === "record") &&
+      ids.length === 1 &&
+      /^[a-f0-9-]+$/.test(ids[0])
+    )
+      return `/onboarding/complete?record=${encodeURIComponent(ids[0])}`;
+  }
   if (next.startsWith("/workout?") && !next.includes("#")) {
     const query = new URLSearchParams(next.slice("/workout?".length));
     if ([...query.keys()].some((key) => !["mode", "curriculum"].includes(key)))

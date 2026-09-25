@@ -83,10 +83,8 @@ async function openManualRecord(page: Page) {
   await page.getByRole("link", { name: "직접 입력하기" }).click();
 }
 async function openSavedRecord(page: Page) {
-  await expect(page).toHaveURL(new URL("/", page.url()).href);
-  await openRecords(page);
-  await expect(page.locator(".record-card")).toHaveCount(1);
-  await page.locator(".record-card").click();
+  await expect(page).toHaveURL(/\/onboarding\/complete\?record=/);
+  await page.getByRole("link", { name: "측정 기록 보기", exact: true }).click();
   await expect(page.getByRole("link", { name: "기록 수정" })).toBeVisible();
 }
 async function startRecord(page: Page, age = "25") {
@@ -752,7 +750,7 @@ for (const outcome of ["success", "network", "server"] as const) {
     await page.getByRole("button", { name: "1개 항목 저장하기" }).click();
     await held.ready;
     page.on("dialog", (dialog) => dialog.accept());
-    await page.getByRole("link", { name: "이전 화면", exact: true }).click();
+    await page.goBack();
     await expect(page).toHaveURL(/\/onboarding$/);
     await page.getByRole("link", { name: "직접 입력하기" }).click();
     await expect(page.getByLabel("신장", { exact: true })).toBeDisabled();
@@ -952,15 +950,21 @@ test("메인과 내 프로필 탭을 오가며 기록을 관리하고 입력 이
   await page.getByRole("link", { name: "내 측정 기록", exact: true }).click();
   await startRecord(page);
   await add(page, "신장", "170");
+  await expect(nav).toBeHidden();
+  await page.getByRole("button", { name: "이전 단계", exact: true }).click();
   page.once("dialog", (dialog) => dialog.dismiss());
-  await mainTab.click();
+  await page.getByRole("link", { name: "이전 화면", exact: true }).click();
   await expect(page).toHaveURL(/\/onboarding\/manual$/);
-  await expect(page.getByLabel("신장", { exact: true })).toHaveValue("170");
+  await expect(
+    page.getByLabel("측정 당시 만 나이", { exact: true }),
+  ).toHaveValue("25");
   page.once("dialog", (dialog) => dialog.accept());
-  await mainTab.click();
+  await page.getByRole("link", { name: "이전 화면", exact: true }).click();
+  await page.getByRole("link", { name: "이전 화면", exact: true }).click();
   await expect(mainTab).toHaveAttribute("aria-current", "page");
   await openRecords(page);
   await openManualRecord(page);
+  await page.getByRole("button", { name: "측정값 입력하기" }).click();
   await expect(page.getByLabel("신장", { exact: true })).toHaveValue("170");
   await save(page);
 

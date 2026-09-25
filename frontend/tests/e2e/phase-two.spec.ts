@@ -188,7 +188,7 @@ test("온보딩 직접 입력은 기존 폼을 복원하고 실제 저장 후 �
     .click();
   await page.getByLabel("교차윗몸일으키기", { exact: true }).fill("0");
   await page.getByRole("button", { name: "1개 항목 저장하기" }).click();
-  await expect(page).toHaveURL(new URL("/", page.url()).href);
+  await expect(page).toHaveURL(/\/onboarding\/complete\?record=/);
   await page.goto("/onboarding");
   await expect(
     page.getByText("이미 등록한 기록이 있어요.", { exact: false }),

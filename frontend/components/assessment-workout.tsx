@@ -1,7 +1,8 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Activity, ArrowRight, CheckCircle2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Activity, ArrowRight } from "lucide-react";
 import {
   adultAssessment,
   assessmentInput,
@@ -54,6 +55,7 @@ const freshDraft = (): WorkoutDraft => ({
 });
 /** Registration adapter: never assigns or completes a user curriculum. */
 export function AssessmentWorkout() {
+  const router = useRouter();
   const [owner] = useState(() => getSession().user!.id);
   const [generation] = useState(() => getSession().generation);
   const [draft, setDraft] = useState(
@@ -145,6 +147,7 @@ export function AssessmentWorkout() {
   async function save() {
     if (
       guard.current ||
+      saved.current ||
       saveBlocked ||
       !catalog ||
       draft.state.phase !== "review"
@@ -192,6 +195,9 @@ export function AssessmentWorkout() {
       saved.current = true;
       clearWorkoutProgress();
       setComplete(result.data.id);
+      router.replace(
+        `/onboarding/complete?record=${encodeURIComponent(result.data.id)}`,
+      );
     } catch (error) {
       if (!isCurrent()) return;
       setMessage(errorMessage(error));
@@ -388,33 +394,7 @@ export function AssessmentWorkout() {
           </Notice>
         )}
         {complete ? (
-          <section className="feature-card stack assessment-complete">
-            <CheckCircle2 size={44} />
-            <h2>나의 체력을 기록했어요</h2>
-            <p className="muted">
-              측정한 항목만 저장했어요. 최근 기록에서 언제든 확인할 수 있어요.
-            </p>
-            <Link
-              className="button primary"
-              href={`/measurements/${complete}?saved=1`}
-            >
-              측정 기록 보기
-            </Link>
-            <Link className="button secondary" href="/">
-              메인으로
-            </Link>
-            <Link
-              className="text-link"
-              href="/onboarding"
-              onNavigate={() => {
-                saved.current = false;
-                setComplete(null);
-                resetSession();
-              }}
-            >
-              새 체력 기록 시작
-            </Link>
-          </section>
+          <Loading label="저장 결과를 확인하고 있어요" />
         ) : loadError ? (
           <>
             <Notice>{loadError}</Notice>

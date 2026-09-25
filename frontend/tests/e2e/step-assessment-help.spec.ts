@@ -46,7 +46,7 @@ test("직접 입력은 심박수 원본을 유지하고 환산에 필요한 신�
   await page.locator("#value-weight").fill("65");
   await expect(page.getByText(/스텝검사 평가에 필요한 정보:/)).toHaveCount(0);
   await page.getByRole("button", { name: "3개 항목 저장하기" }).click();
-  await expect(page).toHaveURL("/");
+  await expect(page).toHaveURL(/\/onboarding\/complete\?record=/);
   expect(server.mutations.find((m) => m.method === "POST")?.body).toMatchObject(
     {
       sexAtMeasurement: "male",

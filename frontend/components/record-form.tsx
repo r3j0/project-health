@@ -284,7 +284,7 @@ export function RecordForm({
   }
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (guard.current || !catalog || gone) return;
+    if (guard.current || savedRef.current || !catalog || gone) return;
     const built = buildInput(
       meta,
       selfAssessment ? calculateBodyItems(items) : items,
@@ -346,7 +346,9 @@ export function RecordForm({
       setDirty(false);
       setUncertain(false);
       router.replace(
-        onboarding ? "/" : `/measurements/${result.data.id}?saved=1`,
+        onboarding
+          ? `/onboarding/complete?record=${encodeURIComponent(result.data.id)}`
+          : `/measurements/${result.data.id}?saved=1`,
       );
     } catch (e) {
       if (!isCurrent()) return;

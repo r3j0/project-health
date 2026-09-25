@@ -347,7 +347,7 @@ test("사진 추출로 돌아온 성인 윗몸말아올리기도 신규 입력�
     0,
   );
   await page.getByRole("button", { name: "1개 항목 저장하기" }).click();
-  await expect(page).toHaveURL("/");
+  await expect(page).toHaveURL(/\/onboarding\/complete\?record=/);
   expect(server.record?.items.map((i) => i.measurementCode)).toEqual([
     "sit_and_reach",
   ]);

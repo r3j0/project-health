@@ -100,8 +100,11 @@ test("사진 추출은 저장하지 않고 확인한 값만 기존 API로 저장
   await page
     .getByRole("button", { name: "1개 항목 저장하기", exact: true })
     .click();
-  await expect(page).toHaveURL("/");
-  await expect(progress).toHaveCount(0);
+  await expect(page).toHaveURL(/\/onboarding\/complete\?record=/);
+  await expect(progress).toHaveAttribute(
+    "aria-valuetext",
+    "3단계 중 3단계, 체력 기록 완료",
+  );
   expect(extractions).toBe(1);
   expect(server.mutations).toHaveLength(1);
   expect(server.record?.items).toEqual([
