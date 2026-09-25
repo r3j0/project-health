@@ -49,9 +49,6 @@ export function Onboarding() {
             <br />
             결과표가 있나요?
           </h2>
-          <p className={styles.description}>
-            지금 가진 정보에 맞는 가장 빠른 시작 방법을 선택해 주세요.
-          </p>
         </div>
         <div className="stack">
           {profile.data?.isOnboarded && (
@@ -66,22 +63,18 @@ export function Onboarding() {
             href="/onboarding/photo"
             className={`${styles.choice} ${styles.primaryChoice}`}
             aria-labelledby="photo-choice-title"
-            aria-describedby="photo-choice-description"
           >
             <span className={styles.iconBox}>
               <Image
                 src="/onboarding/camera.png"
                 alt=""
-                width={22}
-                height={22}
+                width={28}
+                height={28}
               />
             </span>
-            <div className={styles.choiceCopy}>
-              <h3 id="photo-choice-title">결과표가 있어요</h3>
-              <p id="photo-choice-description">
-                사진 한 장이면 측정값을 자동으로 읽어요.
-              </p>
-            </div>
+            <h3 id="photo-choice-title" className={styles.choiceTitle}>
+              결과표가 있어요
+            </h3>
             <Image
               className={styles.chevron}
               src="/onboarding/chevron.svg"
@@ -94,22 +87,18 @@ export function Onboarding() {
             href={assessmentHref}
             className={styles.choice}
             aria-labelledby="assessment-choice-title"
-            aria-describedby="assessment-choice-description"
           >
             <span className={styles.iconBox}>
               <Image
                 src="/onboarding/activity.svg"
                 alt=""
-                width={22}
-                height={22}
+                width={28}
+                height={28}
               />
             </span>
-            <div className={styles.choiceCopy}>
-              <h3 id="assessment-choice-title">결과표가 없어요</h3>
-              <p id="assessment-choice-description">
-                몇 가지 간이측정으로 바로 시작할 수 있어요.
-              </p>
-            </div>
+            <h3 id="assessment-choice-title" className={styles.choiceTitle}>
+              결과표가 없어요
+            </h3>
             <Image
               className={styles.chevron}
               src="/onboarding/chevron.svg"
