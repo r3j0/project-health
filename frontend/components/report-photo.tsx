@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, ImagePlus } from "lucide-react";
 import { Header, Notice, Shell } from "./ui";
 import { RecordForm } from "./record-form";
+import photoStyles from "./photo-input-workspace.module.css";
 import { OnboardingProgress } from "./onboarding-progress";
 import { useOperationScope } from "./use-operation-scope";
 import { api, getSession } from "@/lib/session";
@@ -154,7 +155,7 @@ export function ReportPhoto() {
     <details className="accordion" open>
       <summary>선택한 결과표 보기</summary>
       <Image
-        className="report-preview"
+        className={`report-preview ${photoStyles.preview}`}
         src={photo.url}
         alt="선택한 국민체력100 결과표"
         width={photo.width}
@@ -182,13 +183,37 @@ export function ReportPhoto() {
             : undefined
         }
         reference={
-          <div className="stack" style={{ marginBottom: 20 }}>
-            {preview}
-            <Notice tone="info">
-              사진에서 읽은 값은 틀릴 수 있어요. 실제 결과표와 비교하고 기본
-              정보·측정값을 확인한 뒤 저장해 주세요.
-            </Notice>
-          </div>
+          photo ? (
+            <Image
+              className={photoStyles.reportImage}
+              src={photo.url}
+              alt="선택한 국민체력100 결과표"
+              width={photo.width}
+              height={photo.height}
+              unoptimized
+            />
+          ) : (
+            <div className={photoStyles.placeholder}>
+              <p>
+                입력한 값은 유지되어 있어요. 사진을 다시 연결하면 결과표를 보며
+                이어서 입력할 수 있어요.
+              </p>
+              <label className="button secondary file-button">
+                <ImagePlus size={18} /> 사진 다시 연결
+                <input
+                  aria-label="결과표 사진 다시 연결"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  disabled={!!busy}
+                  onChange={(event) => {
+                    void select(event.target.files?.[0]);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+              {error && <Notice>{error}</Notice>}
+            </div>
+          )
         }
       />
     );
@@ -249,11 +274,10 @@ export function ReportPhoto() {
             요청 제한 시간이 지나면 사진 분석을 다시 시도할 수 있어요.
           </p>
         )}
-        {preview}
         {photo && (
           <>
             <button
-              className="button primary"
+              className={`button ${draft && canReviewExtraction(draft) ? "secondary" : "primary"}`}
               disabled={!!busy || !!cooldown}
               onClick={() => void extract()}
             >
@@ -285,6 +309,7 @@ export function ReportPhoto() {
                 )}
               </section>
             )}
+            {preview}
             <button
               className="text-button"
               disabled={!!busy}

@@ -34,6 +34,8 @@ import { StepAssessmentHelp } from "./step-assessment-help";
 import { CatalogPicker } from "./catalog-picker";
 import { RecordValues } from "./record-values";
 import { OnboardingProgress } from "./onboarding-progress";
+import { PhotoInputWorkspace } from "./photo-input-workspace";
+import photoStyles from "./photo-input-workspace.module.css";
 import { useUnsaved } from "./use-unsaved";
 import { useOperationScope } from "./use-operation-scope";
 export function RecordForm({
@@ -530,7 +532,9 @@ export function RecordForm({
   );
   if (step === 2 && !catalog)
     return (
-      <Shell className={onboarding ? "onboarding-shell" : ""}>
+      <Shell
+        className={`${onboarding ? "onboarding-shell" : ""} ${reference ? photoStyles.shell : ""}`}
+      >
         <Header
           title="입력 복원"
           back="/measurements"
@@ -538,7 +542,11 @@ export function RecordForm({
           backDisabled={locked}
         />
         {onboarding && <OnboardingProgress step={3} label="측정값 확인" />}
-        <div className="content stack">
+        <RecordFormContent
+          reference={reference}
+          step={step}
+          attention={message}
+        >
           {message ? (
             <>
               <Notice>{message}</Notice>
@@ -555,11 +563,13 @@ export function RecordForm({
           ) : (
             <Loading label="작성 중이던 입력을 불러오고 있어요" />
           )}
-        </div>
+        </RecordFormContent>
       </Shell>
     );
   return (
-    <Shell className={onboarding ? "onboarding-shell" : ""}>
+    <Shell
+      className={`${onboarding ? "onboarding-shell" : ""} ${reference ? photoStyles.shell : ""}`}
+    >
       <Header
         onBack={onboarding && step === 2 ? backToMetadata : undefined}
         backDisabled={locked}
@@ -580,8 +590,12 @@ export function RecordForm({
           label={step === 1 ? "기본 정보 입력" : "측정값 확인"}
         />
       )}
-      <div className="content">
-        {reference}
+      <RecordFormContent reference={reference} step={step} attention={message}>
+        {reference && (
+          <p className="caption" style={{ marginBottom: 20 }}>
+            결과표와 기본 정보·측정값을 비교하고 저장해 주세요.
+          </p>
+        )}
         {removedRetiredItems && (
           <Notice tone="info">
             성인 윗몸말아올리기는 새 기록에서 지원하지 않아 임시 입력에서
@@ -1071,7 +1085,28 @@ export function RecordForm({
             </div>
           </Dialog>
         )}
-      </div>
+      </RecordFormContent>
     </Shell>
+  );
+}
+
+function RecordFormContent({
+  reference,
+  step,
+  attention,
+  children,
+}: {
+  reference?: React.ReactNode;
+  step: number;
+  attention: string;
+  children: React.ReactNode;
+}) {
+  const content = <div className="content">{children}</div>;
+  return reference ? (
+    <PhotoInputWorkspace photo={reference} step={step} attention={attention}>
+      {content}
+    </PhotoInputWorkspace>
+  ) : (
+    content
   );
 }
