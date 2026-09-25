@@ -70,8 +70,14 @@ test("사진 추출은 저장하지 않고 확인한 값만 기존 API로 저장
   });
   await page.goto("/onboarding/photo");
   await expect(progress).toHaveAttribute("aria-valuenow", "2");
+  await expect(page.getByLabel("결과표 촬영")).toHaveCount(0);
   await page.getByLabel("결과표 파일 선택").setInputFiles(png);
-  await page.getByRole("button", { name: "사진에서 측정값 읽기" }).click();
+  await expect(page.getByLabel("결과표 파일 선택")).toHaveCount(0);
+  await expect(page.getByText("선택한 결과표 보기")).toHaveCount(0);
+  await expect(
+    page.getByRole("img", { name: "선택한 국민체력100 결과표" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "측정값 읽기" }).click();
   await expect(
     page.getByText("읽은 측정값 1개 · 확인할 항목 1개"),
   ).toBeVisible();
@@ -144,14 +150,14 @@ test("사진 분석 실패 후 직접 입력 가능하며 여러 사람 결과�
   );
   await page.goto("/onboarding/photo");
   await page.getByLabel("결과표 파일 선택").setInputFiles(png);
-  await page.getByRole("button", { name: "사진에서 측정값 읽기" }).click();
+  await page.getByRole("button", { name: "측정값 읽기" }).click();
   await expect(page.locator(".notice[role=alert]")).toContainText(
     "아직 사용할 수 없어요",
   );
   await expect(
     page.getByRole("button", { name: "이 사진을 보며 직접 입력" }),
   ).toBeEnabled();
-  await page.getByRole("button", { name: "사진에서 측정값 읽기" }).click();
+  await page.getByRole("button", { name: "측정값 읽기" }).click();
   await expect(page.getByText(/여러 사람의 결과가 섞여/)).toBeVisible();
   await expect(
     page.getByRole("button", { name: "추출값 확인·수정" }),
@@ -172,7 +178,7 @@ test("분석 취소 후 늦은 응답으로 입력 화면이 바뀌지 않는다
   await page.goto("/onboarding/photo");
   await page.getByLabel("결과표 파일 선택").setInputFiles(png);
   const sent = page.waitForRequest("**/measurements/extract");
-  await page.getByRole("button", { name: "사진에서 측정값 읽기" }).click();
+  await page.getByRole("button", { name: "측정값 읽기" }).click();
   await sent;
   await page.getByRole("button", { name: "분석 취소" }).click();
   release();
@@ -180,9 +186,7 @@ test("분석 취소 후 늦은 응답으로 입력 화면이 바뀌지 않는다
   await expect(
     page.getByRole("button", { name: "추출값 확인·수정" }),
   ).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { name: "사진에서 측정값 읽기" }),
-  ).toBeEnabled();
+  await expect(page.getByRole("button", { name: "측정값 읽기" })).toBeEnabled();
 });
 
 test("사진을 다시 선택해도 서버의 재요청 제한을 유지한다", async ({ page }) => {
@@ -198,12 +202,13 @@ test("사진을 다시 선택해도 서버의 재요청 제한을 유지한다",
   });
   await page.goto("/onboarding/photo");
   await page.getByLabel("결과표 파일 선택").setInputFiles(png);
-  const analyze = page.getByRole("button", { name: "사진에서 측정값 읽기" });
+  const analyze = page.getByRole("button", { name: "측정값 읽기" });
   await analyze.click();
   await expect(page.locator(".notice[role=alert]")).toContainText(
     "요청이 많아요",
   );
   await expect(analyze).toBeDisabled();
+  await page.getByRole("button", { name: "사진 지우기" }).click();
   await page
     .getByLabel("결과표 파일 선택")
     .setInputFiles({ ...png, name: "another.png" });
@@ -258,7 +263,7 @@ test("서버 처리 제한 안의 느린 사진 분석도 조기 취소하지 �
   });
   await page.goto("/onboarding/photo");
   await page.getByLabel("결과표 파일 선택").setInputFiles(png);
-  await page.getByRole("button", { name: "사진에서 측정값 읽기" }).click();
+  await page.getByRole("button", { name: "측정값 읽기" }).click();
   await expect(
     page.getByRole("button", { name: "추출값 확인·수정" }),
   ).toBeVisible({ timeout: 65000 });

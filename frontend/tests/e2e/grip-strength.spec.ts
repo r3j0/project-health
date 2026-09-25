@@ -109,7 +109,7 @@ test("사진 추출의 절대악력 kg과 체중을 검토하고 원본 단위�
       "base64",
     ),
   });
-  await page.getByRole("button", { name: "사진에서 측정값 읽기" }).click();
+  await page.getByRole("button", { name: "측정값 읽기" }).click();
   await page.getByRole("button", { name: "추출값 확인·수정" }).click();
   await page.getByRole("button", { name: "측정값 입력하기" }).click();
   await expect(page.locator("#value-absolute_grip_strength")).toHaveValue("30");

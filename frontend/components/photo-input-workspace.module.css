@@ -137,10 +137,6 @@
 .open[hidden] {
   display: none;
 }
-.preview:global(.report-preview) {
-  max-height: 200px;
-  object-fit: contain;
-}
 @media (min-width: 640px) {
   .shell:global(.app-shell) {
     height: calc(100dvh - 48px);

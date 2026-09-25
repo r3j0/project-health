@@ -1,0 +1,39 @@
+.selection {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 12px;
+}
+.preview {
+  position: relative;
+  min-height: 180px;
+  margin: 0;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  background: var(--canvas);
+}
+.previewImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+}
+.actions :global(.button),
+.actions :global(.text-button) {
+  min-height: 44px;
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+.actions :global(.text-button) {
+  color: var(--muted);
+}

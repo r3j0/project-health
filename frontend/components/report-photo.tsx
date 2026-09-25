@@ -2,10 +2,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Camera, ImagePlus } from "lucide-react";
+import { ImagePlus } from "lucide-react";
 import { Header, Notice, Shell } from "./ui";
 import { RecordForm } from "./record-form";
 import photoStyles from "./photo-input-workspace.module.css";
+import styles from "./report-photo.module.css";
 import { OnboardingProgress } from "./onboarding-progress";
 import { useOperationScope } from "./use-operation-scope";
 import { api, getSession } from "@/lib/session";
@@ -151,20 +152,6 @@ export function ReportPhoto() {
     setBusy(null);
     setError("사진 분석을 취소했어요.");
   }
-  const preview = photo ? (
-    <details className="accordion" open>
-      <summary>선택한 결과표 보기</summary>
-      <Image
-        className={`report-preview ${photoStyles.preview}`}
-        src={photo.url}
-        alt="선택한 국민체력100 결과표"
-        width={photo.width}
-        height={photo.height}
-        unoptimized
-      />
-      <p className="caption photo-name">{photo.file.name}</p>
-    </details>
-  ) : null;
   if (entering)
     return (
       <RecordForm
@@ -235,28 +222,69 @@ export function ReportPhoto() {
           <h2>결과표가 잘 보이게 선택해 주세요</h2>
           <p>측정값과 단위가 선명하게 보이는 사진이 좋아요.</p>
         </div>
-        <div className="button-row">
-          {[
-            ["사진 촬영", "결과표 촬영", true],
-            ["사진 선택", "결과표 파일 선택", false],
-          ].map(([label, aria, capture]) => (
-            <label className="button secondary file-button" key={String(label)}>
-              {capture ? <Camera size={18} /> : <ImagePlus size={18} />}
-              {label}
-              <input
-                aria-label={String(aria)}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                capture={capture ? "environment" : undefined}
-                disabled={!!busy}
-                onChange={(event) => {
-                  void select(event.target.files?.[0]);
-                  event.target.value = "";
-                }}
+        {photo ? (
+          <div className={styles.selection}>
+            <figure className={styles.preview}>
+              <Image
+                className={styles.previewImage}
+                src={photo.url}
+                alt="선택한 국민체력100 결과표"
+                width={photo.width}
+                height={photo.height}
+                unoptimized
               />
-            </label>
-          ))}
-        </div>
+            </figure>
+            <div className={styles.actions}>
+              <button
+                className={`button ${draft && canReviewExtraction(draft) ? "secondary" : "primary"}`}
+                disabled={!!busy || !!cooldown}
+                onClick={() => void extract()}
+              >
+                {draft ? "사진 다시 분석" : "측정값 읽기"}
+              </button>
+              {busy === "extract" && (
+                <button className="button secondary" onClick={cancel}>
+                  분석 취소
+                </button>
+              )}
+              <button
+                className="button secondary"
+                disabled={!!busy}
+                onClick={() => {
+                  setDraft(null);
+                  setEntering(true);
+                }}
+              >
+                이 사진을 보며 직접 입력
+              </button>
+              <button
+                className="text-button"
+                disabled={!!busy}
+                onClick={() => {
+                  setPhoto(null);
+                  setDraft(null);
+                  setError("");
+                }}
+              >
+                사진 지우기
+              </button>
+            </div>
+          </div>
+        ) : (
+          <label className="button secondary file-button">
+            <ImagePlus size={18} /> 사진 선택
+            <input
+              aria-label="결과표 파일 선택"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              disabled={!!busy}
+              onChange={(event) => {
+                void select(event.target.files?.[0]);
+                event.target.value = "";
+              }}
+            />
+          </label>
+        )}
         <p className="caption">
           JPG, PNG, WEBP · 최대 10MB. 사진 분석을 요청하면 OpenAI에 사진이
           전송됩니다.
@@ -274,64 +302,24 @@ export function ReportPhoto() {
             요청 제한 시간이 지나면 사진 분석을 다시 시도할 수 있어요.
           </p>
         )}
-        {photo && (
-          <>
-            <button
-              className={`button ${draft && canReviewExtraction(draft) ? "secondary" : "primary"}`}
-              disabled={!!busy || !!cooldown}
-              onClick={() => void extract()}
-            >
-              {draft ? "사진 다시 분석" : "사진에서 측정값 읽기"}
-            </button>
-            {busy === "extract" && (
-              <button className="button secondary" onClick={cancel}>
-                분석 취소
-              </button>
+        {photo && draft && (
+          <section className="feature-card stack">
+            <Notice tone="info">{extractionStatusText[draft.status]}</Notice>
+            {canReviewExtraction(draft) && (
+              <>
+                <p>
+                  읽은 측정값 {draft.items.length}개 · 확인할 항목{" "}
+                  {draft.reviewItems.length}개
+                </p>
+                <button
+                  className="button primary"
+                  onClick={() => setEntering(true)}
+                >
+                  추출값 확인·수정
+                </button>
+              </>
             )}
-            {draft && (
-              <section className="feature-card stack">
-                <Notice tone="info">
-                  {extractionStatusText[draft.status]}
-                </Notice>
-                {canReviewExtraction(draft) && (
-                  <>
-                    <p>
-                      읽은 측정값 {draft.items.length}개 · 확인할 항목{" "}
-                      {draft.reviewItems.length}개
-                    </p>
-                    <button
-                      className="button primary"
-                      onClick={() => setEntering(true)}
-                    >
-                      추출값 확인·수정
-                    </button>
-                  </>
-                )}
-              </section>
-            )}
-            {preview}
-            <button
-              className="text-button"
-              disabled={!!busy}
-              onClick={() => {
-                setDraft(null);
-                setEntering(true);
-              }}
-            >
-              이 사진을 보며 직접 입력
-            </button>
-            <button
-              className="text-button"
-              disabled={!!busy}
-              onClick={() => {
-                setPhoto(null);
-                setDraft(null);
-                setError("");
-              }}
-            >
-              사진 지우기
-            </button>
-          </>
+          </section>
         )}
         <Link className="text-link" href="/onboarding/manual">
           사진 없이 직접 입력하기
