@@ -65,11 +65,11 @@ async function signup(page: Page, destination: "records" | "main" = "records") {
     0,
   );
   if (destination === "records") {
-    await page.getByRole("link", { name: "건너뛰기", exact: true }).click();
+    await page.getByRole("link", { name: "이전 화면", exact: true }).click();
     await openRecords(page);
     await expect(page.getByText("첫 기록을 기다리고 있어요")).toBeVisible();
   } else {
-    await page.getByRole("link", { name: "건너뛰기", exact: true }).click();
+    await page.getByRole("link", { name: "이전 화면", exact: true }).click();
     await expect(page).toHaveURL("/");
   }
   return email;
@@ -127,7 +127,7 @@ test("가입 → 정확한 부분 저장 → 새로고침 → 수정 → 삭제 
   await expect(
     page.getByRole("link", { name: "결과표가 없어요" }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "건너뛰기", exact: true }).click();
+  await page.getByRole("link", { name: "이전 화면", exact: true }).click();
   await openRecords(page);
   await startRecord(page);
   await page.getByRole("button", { name: "변경", exact: true }).click();

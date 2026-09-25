@@ -62,6 +62,9 @@ test("가입 실패는 폼을 유지하고 성공하면 메인 경유 없이 온
   await expect(page.getByRole("navigation", { name: "하단 메뉴" })).toHaveCount(
     0,
   );
+  await expect(
+    page.getByRole("link", { name: "건너뛰기", exact: true }),
+  ).toHaveCount(0);
   expect(destinations).not.toContain("/");
   expect(destinations).not.toContain("/account");
   expect(attempts).toBe(2);
@@ -98,7 +101,7 @@ test("가입 실패는 폼을 유지하고 성공하면 메인 경유 없이 온
       page.getByRole("navigation", { name: "하단 메뉴" }),
     ).toHaveCount(0);
   }
-  await page.getByRole("link", { name: "건너뛰기", exact: true }).click();
+  await page.getByRole("link", { name: "이전 화면", exact: true }).click();
   await expect(page).toHaveURL("/");
   await expect(
     page.getByRole("navigation", { name: "하단 메뉴" }),
@@ -106,12 +109,7 @@ test("가입 실패는 폼을 유지하고 성공하면 메인 경유 없이 온
   expect(server.mutations).toEqual([]);
   await page.goBack();
   await page.getByRole("link", { name: "이전 화면", exact: true }).focus();
-  for (const name of [
-    "건너뛰기",
-    "결과표가 있어요",
-    "결과표가 없어요",
-    "직접 입력하기",
-  ]) {
+  for (const name of ["결과표가 있어요", "결과표가 없어요", "직접 입력하기"]) {
     await page.keyboard.press("Tab");
     const link = page.getByRole("link", { name, exact: true });
     await expect(link).toBeFocused();

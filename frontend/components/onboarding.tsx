@@ -19,11 +19,6 @@ export function Onboarding() {
           <Image src="/onboarding/back.svg" alt="" width={20} height={20} />
         </Link>
         <h1>체력 기록 시작</h1>
-        <div className="header-right">
-          <Link href="/" className={`header-link ${styles.skip}`}>
-            건너뛰기
-          </Link>
-        </div>
       </header>
       <div className={`content ${styles.progress}`}>
         <div className={styles.progressLabel} aria-hidden="true">

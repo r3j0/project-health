@@ -12,7 +12,6 @@
   letter-spacing: normal;
   text-align: center;
 }
-.skip,
 .manual {
   border-radius: var(--radius-control);
   color: var(--muted);
@@ -131,7 +130,6 @@
     background: color-mix(in srgb, var(--tint) 92%, var(--sky));
   }
   .back:hover,
-  .skip:hover,
   .manual:hover {
     background: var(--tint);
     color: var(--navy);
@@ -142,7 +140,6 @@
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--sky) 35%, transparent);
 }
 .back:active,
-.skip:active,
 .manual:active {
   background: var(--border);
   color: var(--navy);
