@@ -452,12 +452,20 @@ export function RecordForm({
       busy ||
       uncertain ||
       !window.confirm(
-        "작성 중인 임시 입력을 지울까요? 서버에 저장된 기록은 바뀌지 않아요.",
+        onDiscard
+          ? "저장하지 않은 입력을 버리고 사진 선택 화면으로 돌아갈까요?"
+          : "작성 중인 임시 입력을 지울까요? 서버에 저장된 기록은 바뀌지 않아요.",
       )
     )
       return;
     if (!removeDraft()) return;
     pending.current = null;
+    if (onDiscard) {
+      // Do not let the departing form restore the discarded photo draft.
+      savedRef.current = true;
+      onDiscard();
+      return;
+    }
     setRestored(undefined);
     setBase(initial);
     setMeta(
@@ -480,7 +488,6 @@ export function RecordForm({
     setGone(false);
     setMessage("");
     setErrors({});
-    onDiscard?.();
   }
   function backToMetadata() {
     setStep(1);
@@ -571,7 +578,13 @@ export function RecordForm({
       className={`${onboarding ? "onboarding-shell" : ""} ${reference ? photoStyles.shell : ""}`}
     >
       <Header
-        onBack={onboarding && step === 2 ? backToMetadata : undefined}
+        onBack={
+          onboarding && step === 2
+            ? backToMetadata
+            : onDiscard
+              ? discardDraft
+              : undefined
+        }
         backDisabled={locked}
         title={
           base ? "측정 기록 수정" : step === 1 ? "새 측정 기록" : "측정값 입력"

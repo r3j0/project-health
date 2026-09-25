@@ -212,3 +212,53 @@ test("패널을 닫은 동안 저장 응답이 유실되면 다시 열고 같은
   expect(requests[1]).toEqual(requests[0]);
   expect(server.mutations).toHaveLength(1);
 });
+
+for (const restored of [false, true]) {
+  test(`사진 입력 이탈을 취소하면 유지하고 확정하면 사진 선택으로 돌아간다 (복원: ${restored})`, async ({
+    page,
+  }) => {
+    const server = await installApi(page);
+    const photo = await openForm(page);
+    await addHeight(page);
+    if (restored) await page.reload();
+    await expect(page.getByLabel("신장", { exact: true })).toHaveValue("170");
+    const back = page.getByRole("button", { name: "이전 단계", exact: true });
+    await back.click();
+    page.once("dialog", async (dialog) => {
+      expect(dialog.type()).toBe("confirm");
+      expect(dialog.message()).toContain("사진 선택 화면");
+      await dialog.dismiss();
+    });
+    await back.click();
+    await expect(
+      page.getByLabel("측정 당시 만 나이", { exact: true }),
+    ).toHaveValue("25");
+    await expect(page.getByLabel("성별", { exact: true })).toHaveValue(
+      "female",
+    );
+    await page.getByRole("button", { name: "측정값 입력하기" }).click();
+    await expect(page.getByLabel("신장", { exact: true })).toHaveValue("170");
+    await back.click();
+    page.once("dialog", (dialog) => dialog.accept());
+    await back.click();
+    await expect(page).toHaveURL(/\/onboarding\/photo$/);
+    await expect(
+      page.getByRole("heading", { name: "결과표 사진 선택", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("img", { name: "선택한 국민체력100 결과표" }),
+    ).toHaveCount(0);
+    await page.reload();
+    await page
+      .getByLabel("결과표 파일 선택")
+      .setInputFiles({ ...photo, name: "new-report.png" });
+    await page
+      .getByRole("button", { name: "이 사진을 보며 직접 입력" })
+      .click();
+    await expect(
+      page.getByLabel("측정 당시 만 나이", { exact: true }),
+    ).toHaveValue("");
+    await expect(page.getByLabel("성별", { exact: true })).toHaveValue("");
+    expect(server.mutations).toHaveLength(0);
+  });
+}

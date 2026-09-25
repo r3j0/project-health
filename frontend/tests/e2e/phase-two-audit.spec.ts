@@ -47,7 +47,7 @@ test("진행 중인 측정에서 이전 단계로 돌아오면 해당 항목을 
   await expect(page.getByRole("timer")).toHaveCount(0);
 });
 
-test("사진은 이탈 시 지우고 입력 초안은 사진 없이 이어갈 수 있다", async ({
+test("사진 입력을 버리면 새 사진을 등록할 수 있고 초안이 복원되지 않는다", async ({
   page,
 }) => {
   await register(page);
@@ -63,14 +63,22 @@ test("사진은 이탈 시 지우고 입력 초안은 사진 없이 이어갈 �
   await expect(
     page.getByRole("navigation", { name: "하단 메뉴" }),
   ).toBeHidden();
-  await page.getByRole("link", { name: "이전 화면", exact: true }).click();
-  await expect(page).toHaveURL(/\/onboarding$/);
-  await page.goBack();
+  await page.getByRole("button", { name: "이전 단계", exact: true }).click();
+  await expect(page).toHaveURL(/\/onboarding\/photo$/);
+  await expect(
+    page.getByRole("heading", { name: "결과표 사진 선택", exact: true }),
+  ).toBeVisible();
   await expect(preview).toHaveCount(0);
-  // The photo draft now resumes directly in its own form namespace.
+  await page.reload();
+  await page.getByLabel("결과표 파일 선택").setInputFiles({
+    name: "new-report.png",
+    mimeType: "image/png",
+    buffer: png,
+  });
+  await page.getByRole("button", { name: "이 사진을 보며 직접 입력" }).click();
   await expect(
     page.getByLabel("측정 당시 만 나이", { exact: true }),
-  ).toHaveValue("25");
+  ).toHaveValue("");
 });
 
 test("설정 요청 중 화면을 떠났다가 돌아와도 재시도할 수 있다", async ({

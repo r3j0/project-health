@@ -237,6 +237,8 @@ test("사진 초안을 지우고 다시 선택해도 직접 입력 초안은 유
   await expect(
     page.getByLabel("측정 당시 만 나이", { exact: true }),
   ).toHaveValue("");
+  await page.getByRole("button", { name: "이전 단계", exact: true }).click();
+  await expect(page.getByLabel("결과표 파일 선택")).toBeAttached();
   await page.getByRole("link", { name: "이전 화면", exact: true }).click();
   await page.getByRole("link", { name: "직접 입력하기" }).click();
   await expect(
