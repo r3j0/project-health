@@ -64,7 +64,10 @@ export function WorkoutPreferenceFields({
           {exerciseGoalOptions.map((option) => {
             const Icon = goalIcons[option.value];
             return (
-              <label key={option.value} className={styles.choice}>
+              <label
+                key={option.value}
+                className={`${styles.choice} ${styles.goalChoice}`}
+              >
                 <input
                   className="sr-only"
                   type="radio"
@@ -78,17 +81,19 @@ export function WorkoutPreferenceFields({
                   }
                 />
                 <Icon size={22} aria-hidden="true" />
-                <span
-                  id={`${id}-${option.value}-label`}
-                  className={`${styles.label} ${styles.goalLabel}`}
-                >
-                  {option.label}
-                </span>
-                <span
-                  id={`${id}-${option.value}-description`}
-                  className={styles.description}
-                >
-                  {option.description}
+                <span className={styles.goalCopy}>
+                  <span
+                    id={`${id}-${option.value}-label`}
+                    className={styles.goalLabel}
+                  >
+                    {option.label}
+                  </span>
+                  <span
+                    id={`${id}-${option.value}-description`}
+                    className={styles.description}
+                  >
+                    {option.description}
+                  </span>
                 </span>
               </label>
             );

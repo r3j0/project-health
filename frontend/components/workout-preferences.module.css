@@ -70,14 +70,19 @@
   justify-content: center;
   min-height: 42px;
 }
+.goalChoice {
+  justify-content: flex-start;
+}
+.goalCopy {
+  display: grid;
+  gap: 4px;
+}
 .goalLabel {
   font-size: 13px;
+  line-height: 1.5;
 }
 .description {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 36px;
+  line-height: 1.5;
   font-size: 12px;
   font-weight: 400;
   color: var(--text-secondary);
