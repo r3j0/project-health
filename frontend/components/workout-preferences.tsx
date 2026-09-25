@@ -1,7 +1,14 @@
 "use client";
 
 import { useId, useState } from "react";
-import { Activity, Equal, Minus, Plus, Scale, Trophy } from "lucide-react";
+import {
+  BicepsFlexed,
+  Dumbbell,
+  Equal,
+  Minus,
+  Plus,
+  Trophy,
+} from "lucide-react";
 import {
   exerciseGoalOptions,
   exerciseVolumeOptions,
@@ -13,8 +20,8 @@ import styles from "./workout-preferences.module.css";
 const volumeIcons = { less: Minus, standard: Equal, more: Plus };
 const goalIcons = {
   fitness_grade_improvement: Trophy,
-  body_composition_management: Scale,
-  general_fitness_improvement: Activity,
+  body_composition_management: BicepsFlexed,
+  general_fitness_improvement: Dumbbell,
 };
 
 /** Controlled fields can be connected to the preferences API without changing the UI. */
