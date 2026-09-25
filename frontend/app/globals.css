@@ -427,6 +427,10 @@ h3 {
   text-transform: uppercase;
   margin-bottom: 12px;
 }
+.authenticated-app:has(.onboarding-shell),
+.authenticated-app:has(.assessment-shell) {
+  --bottom-navigation-height: 0px;
+}
 .authenticated-app .onboarding-shell {
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -1425,7 +1429,7 @@ fieldset:disabled select {
   width: 100%;
 }
 
-.authenticated-app:has(.assessment-shell.is-running) .bottom-navigation {
+.authenticated-app:has(.assessment-shell) .bottom-navigation {
   display: none;
 }
 .authenticated-app .assessment-shell.is-running {

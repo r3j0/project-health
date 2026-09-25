@@ -46,15 +46,29 @@ export function Shell({
 export function Header({
   title,
   back,
+  onBack,
+  backDisabled = false,
   right,
 }: {
   title: string;
   back?: string;
+  onBack?: () => void;
+  backDisabled?: boolean;
   right?: React.ReactNode;
 }) {
   return (
     <header className="page-header">
-      {back ? (
+      {onBack ? (
+        <button
+          type="button"
+          className="icon-button"
+          onClick={onBack}
+          disabled={backDisabled}
+          aria-label="이전 단계"
+        >
+          <ArrowLeft size={22} />
+        </button>
+      ) : back ? (
         <Link className="icon-button" href={back} aria-label="이전 화면">
           <ArrowLeft size={22} />
         </Link>

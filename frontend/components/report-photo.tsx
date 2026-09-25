@@ -193,7 +193,7 @@ export function ReportPhoto() {
       />
     );
   return (
-    <Shell>
+    <Shell className="onboarding-shell">
       <Header title="결과표 사진 선택" back="/onboarding" />
       <OnboardingProgress
         step={2}

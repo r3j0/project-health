@@ -6,10 +6,10 @@ import { House, UserRound } from "lucide-react";
 
 export function BottomNavigation() {
   const pathname = usePathname();
-  if (pathname === "/onboarding") return null;
-  const theme = pathname.startsWith("/onboarding/")
-    ? " kspo-sky-theme"
-    : pathname === "/account" || pathname === "/account/preferences"
+  if (pathname === "/onboarding" || pathname.startsWith("/onboarding/"))
+    return null;
+  const theme =
+    pathname === "/account" || pathname === "/account/preferences"
       ? " kspo-orange-theme"
       : "";
   const tabs = [

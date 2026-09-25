@@ -16,6 +16,9 @@ test("간이측정 등록은 기존 사용자 커리큘럼을 보존한다", asy
   await expect(progress).toHaveAttribute("aria-valuenow", "1");
   await page.getByRole("link", { name: "결과표가 없어요" }).click();
   await expect(progress).toHaveAttribute("aria-valuenow", "2");
+  await expect(
+    page.getByRole("navigation", { name: "하단 메뉴" }),
+  ).toBeHidden();
   await prepareAssessment(page);
   await expect(progress).toHaveAttribute(
     "aria-valuetext",
@@ -28,7 +31,7 @@ test("간이측정 등록은 기존 사용자 커리큘럼을 보존한다", asy
     "aria-valuetext",
     "3단계 중 3단계, 측정 결과 확인",
   );
-  await page.getByRole("button", { name: "수정", exact: true }).click();
+  await page.getByRole("button", { name: "이전 단계", exact: true }).click();
   await expect(progress).toHaveAttribute("aria-valuenow", "2");
   await page.getByRole("button", { name: "변경 완료", exact: true }).click();
   await expect(progress).toHaveAttribute("aria-valuenow", "3");

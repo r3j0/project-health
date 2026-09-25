@@ -478,6 +478,11 @@ export function RecordForm({
     setErrors({});
     onDiscard?.();
   }
+  function backToMetadata() {
+    setStep(1);
+    setMessage("");
+    window.scrollTo({ top: 0 });
+  }
   const textField = (
     id: string,
     label: string,
@@ -523,8 +528,13 @@ export function RecordForm({
   );
   if (step === 2 && !catalog)
     return (
-      <Shell>
-        <Header title="입력 복원" back="/measurements" />
+      <Shell className={onboarding ? "onboarding-shell" : ""}>
+        <Header
+          title="입력 복원"
+          back="/measurements"
+          onBack={onboarding ? backToMetadata : undefined}
+          backDisabled={locked}
+        />
         {onboarding && <OnboardingProgress step={3} label="측정값 확인" />}
         <div className="content stack">
           {message ? (
@@ -547,8 +557,10 @@ export function RecordForm({
       </Shell>
     );
   return (
-    <Shell>
+    <Shell className={onboarding ? "onboarding-shell" : ""}>
       <Header
+        onBack={onboarding && step === 2 ? backToMetadata : undefined}
+        backDisabled={locked}
         title={
           base ? "측정 기록 수정" : step === 1 ? "새 측정 기록" : "측정값 입력"
         }
@@ -751,10 +763,7 @@ export function RecordForm({
               <button
                 type="button"
                 className="text-button"
-                onClick={() => {
-                  setStep(1);
-                  setMessage("");
-                }}
+                onClick={backToMetadata}
                 disabled={locked}
               >
                 변경

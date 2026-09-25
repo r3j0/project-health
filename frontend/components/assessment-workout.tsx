@@ -216,6 +216,16 @@ export function AssessmentWorkout() {
       }
     }
   }
+  function backToSetup() {
+    setDraft((current) => ({
+      ...current,
+      stage: "setup",
+      state: advanceWorkout(definition, current.state, { type: "interrupt" }),
+    }));
+    setMessage("");
+    setErrors({});
+    window.scrollTo({ top: 0 });
+  }
   function resetSession() {
     clearWorkoutProgress();
     setDraft(freshDraft());
@@ -349,7 +359,14 @@ export function AssessmentWorkout() {
     <Shell
       className={`assessment-shell ${["active", "countdown"].includes(draft.state.phase) && draft.stage === "session" && !complete ? "is-running" : ""}`}
     >
-      <Header title="간이측정" back="/onboarding" />
+      <Header
+        title="간이측정"
+        back="/onboarding"
+        onBack={
+          !complete && draft.stage === "session" ? backToSetup : undefined
+        }
+        backDisabled={locked}
+      />
       <OnboardingProgress
         step={!complete && draft.stage === "setup" ? 2 : 3}
         label={
@@ -435,11 +452,7 @@ export function AssessmentWorkout() {
                     <button
                       className="text-button"
                       disabled={locked}
-                      onClick={() => {
-                        setDraft((current) => ({ ...current, stage: "setup" }));
-                        setMessage("");
-                        setErrors({});
-                      }}
+                      onClick={backToSetup}
                     >
                       수정
                     </button>

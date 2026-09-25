@@ -99,6 +99,10 @@ test("가입 실패는 폼을 유지하고 성공하면 메인 경유 없이 온
       position: { x: 8, y: 8 },
     });
     await expect(page).toHaveURL(path);
+    await expect(
+      page.getByRole("navigation", { name: "하단 메뉴" }),
+    ).toBeHidden();
+    await expect(page.getByRole("main")).toHaveCSS("padding-bottom", "0px");
     await expect(progress).toHaveAttribute("aria-valuenow", "2");
     for (const width of [320, 390]) {
       await page.setViewportSize({ width, height: 844 });

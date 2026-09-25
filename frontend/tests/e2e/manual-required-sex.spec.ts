@@ -52,7 +52,7 @@ test("직접 입력의 성별은 접힌 추가 정보 밖에 표시하며 미선
     page.getByRole("heading", { name: "측정한 항목만 입력해요" }),
   ).toBeVisible();
   await expect(progress).toHaveAttribute("aria-valuenow", "3");
-  await page.getByRole("button", { name: "변경", exact: true }).click();
+  await page.getByRole("button", { name: "이전 단계", exact: true }).click();
   await expect(progress).toHaveAttribute("aria-valuenow", "2");
   await page.getByRole("button", { name: "측정값 입력하기" }).click();
   await expect(progress).toHaveAttribute("aria-valuenow", "3");
