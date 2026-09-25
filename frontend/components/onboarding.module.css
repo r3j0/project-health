@@ -4,43 +4,25 @@
   background: var(--canvas);
 }
 .header {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 44px;
-  align-items: center;
-  min-height: 52px;
-  padding-inline: 16px;
   background: var(--surface);
 }
 .header h1 {
   color: var(--text);
-  font-size: 15px;
   font-weight: 700;
   letter-spacing: normal;
   text-align: center;
 }
-.back,
 .skip,
 .manual {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
   border-radius: var(--radius-control);
   color: var(--muted);
   font-weight: 500;
 }
-.back {
-  justify-content: flex-start;
-}
-.skip {
-  font-size: 11px;
-}
-.progress {
+.shell .progress {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-height: 54px;
-  padding: 8px 16px;
+  gap: 8px;
+  padding-block: 0 20px;
   background: var(--surface);
 }
 .progressLabel {
@@ -66,12 +48,6 @@
   border-radius: inherit;
   background: var(--sky);
 }
-.body {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 24px 16px 18px;
-}
 .question {
   color: var(--text);
   font-size: 26px;
@@ -89,9 +65,9 @@
 .choice {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   min-height: 108px;
-  padding: 14px;
+  padding: 20px;
   border-radius: var(--radius-hero);
   background: var(--surface);
   box-shadow: 0 2px 8px color-mix(in srgb, var(--text) 6%, transparent);
@@ -140,24 +116,14 @@
   flex-shrink: 0;
 }
 .manual {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   align-self: center;
   gap: 7px;
   padding-inline: 12px;
   font-size: 12px;
-}
-.trustNote {
-  min-height: 82px;
-  margin-top: auto;
-  padding: 14px 18px;
-  background: var(--tint);
-  color: var(--muted);
-  font-size: 10px;
-}
-.trustTitle {
-  margin-bottom: 3px;
-  color: var(--navy);
-  font-size: 12px;
-  font-weight: 700;
 }
 @media (hover: hover) {
   .choice:hover {

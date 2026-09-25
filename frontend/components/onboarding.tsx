@@ -10,16 +10,22 @@ export function Onboarding() {
   const profile = useUserProfile();
   return (
     <Shell className={`onboarding-shell ${styles.shell}`}>
-      <header className={styles.header}>
-        <Link href="/" className={styles.back} aria-label="이전 화면">
+      <header className={`page-header ${styles.header}`}>
+        <Link
+          href="/"
+          className={`icon-button ${styles.back}`}
+          aria-label="이전 화면"
+        >
           <Image src="/onboarding/back.svg" alt="" width={20} height={20} />
         </Link>
         <h1>체력 기록 시작</h1>
-        <Link href="/" className={styles.skip}>
-          건너뛰기
-        </Link>
+        <div className="header-right">
+          <Link href="/" className={`header-link ${styles.skip}`}>
+            건너뛰기
+          </Link>
+        </div>
       </header>
-      <div className={styles.progress}>
+      <div className={`content ${styles.progress}`}>
         <div className={styles.progressLabel} aria-hidden="true">
           <span>1 / 3</span>
           <span>기본 정보 입력 전</span>
@@ -36,87 +42,88 @@ export function Onboarding() {
           <div className={styles.progressFill} />
         </div>
       </div>
-      <div className={styles.body}>
-        <h2 className={styles.question}>
-          국민체력100
-          <br />
-          결과표가 있나요?
-        </h2>
-        <p className={styles.description}>
-          지금 가진 정보에 맞는 가장 빠른 시작 방법을 선택해 주세요.
-        </p>
-        {profile.data?.isOnboarded && (
-          <Notice tone="info">
-            이미 등록한 기록이 있어요. 새로운 측정 결과를 추가할 수 있어요.
-            <Link href="/measurements" className="text-link">
-              내 측정 기록 보기
-            </Link>
-          </Notice>
-        )}
-        <Link
-          href="/onboarding/photo"
-          className={`${styles.choice} ${styles.primaryChoice}`}
-          aria-labelledby="photo-choice-title"
-          aria-describedby="photo-choice-description"
-        >
-          <span className={styles.iconBox}>
-            <Image src="/onboarding/camera.png" alt="" width={22} height={22} />
-          </span>
-          <div className={styles.choiceCopy}>
-            <h3 id="photo-choice-title">결과표가 있어요</h3>
-            <p id="photo-choice-description">
-              사진 한 장이면 측정값을 자동으로 읽어요.
-            </p>
-          </div>
-          <Image
-            className={styles.chevron}
-            src="/onboarding/chevron.svg"
-            alt=""
-            width={18}
-            height={18}
-          />
-        </Link>
-        <Link
-          href={assessmentHref}
-          className={styles.choice}
-          aria-labelledby="assessment-choice-title"
-          aria-describedby="assessment-choice-description"
-        >
-          <span className={styles.iconBox}>
+      <div className="content">
+        <div className="intro">
+          <h2 className={styles.question}>
+            국민체력100
+            <br />
+            결과표가 있나요?
+          </h2>
+          <p className={styles.description}>
+            지금 가진 정보에 맞는 가장 빠른 시작 방법을 선택해 주세요.
+          </p>
+        </div>
+        <div className="stack">
+          {profile.data?.isOnboarded && (
+            <Notice tone="info">
+              이미 등록한 기록이 있어요. 새로운 측정 결과를 추가할 수 있어요.
+              <Link href="/measurements" className="text-link">
+                내 측정 기록 보기
+              </Link>
+            </Notice>
+          )}
+          <Link
+            href="/onboarding/photo"
+            className={`${styles.choice} ${styles.primaryChoice}`}
+            aria-labelledby="photo-choice-title"
+            aria-describedby="photo-choice-description"
+          >
+            <span className={styles.iconBox}>
+              <Image
+                src="/onboarding/camera.png"
+                alt=""
+                width={22}
+                height={22}
+              />
+            </span>
+            <div className={styles.choiceCopy}>
+              <h3 id="photo-choice-title">결과표가 있어요</h3>
+              <p id="photo-choice-description">
+                사진 한 장이면 측정값을 자동으로 읽어요.
+              </p>
+            </div>
             <Image
-              src="/onboarding/activity.svg"
+              className={styles.chevron}
+              src="/onboarding/chevron.svg"
               alt=""
-              width={22}
-              height={22}
+              width={18}
+              height={18}
             />
-          </span>
-          <div className={styles.choiceCopy}>
-            <h3 id="assessment-choice-title">결과표가 없어요</h3>
-            <p id="assessment-choice-description">
-              몇 가지 간이측정으로 바로 시작할 수 있어요.
-            </p>
-          </div>
-          <Image
-            className={styles.chevron}
-            src="/onboarding/chevron.svg"
-            alt=""
-            width={18}
-            height={18}
-          />
-        </Link>
-        <Link href="/onboarding/manual" className={styles.manual}>
-          <Image src="/onboarding/pencil.svg" alt="" width={16} height={16} />
-          직접 입력하기
-        </Link>
+          </Link>
+          <Link
+            href={assessmentHref}
+            className={styles.choice}
+            aria-labelledby="assessment-choice-title"
+            aria-describedby="assessment-choice-description"
+          >
+            <span className={styles.iconBox}>
+              <Image
+                src="/onboarding/activity.svg"
+                alt=""
+                width={22}
+                height={22}
+              />
+            </span>
+            <div className={styles.choiceCopy}>
+              <h3 id="assessment-choice-title">결과표가 없어요</h3>
+              <p id="assessment-choice-description">
+                몇 가지 간이측정으로 바로 시작할 수 있어요.
+              </p>
+            </div>
+            <Image
+              className={styles.chevron}
+              src="/onboarding/chevron.svg"
+              alt=""
+              width={18}
+              height={18}
+            />
+          </Link>
+          <Link href="/onboarding/manual" className={styles.manual}>
+            <Image src="/onboarding/pencil.svg" alt="" width={16} height={16} />
+            직접 입력하기
+          </Link>
+        </div>
       </div>
-      <aside className={styles.trustNote} aria-label="체력 기록 안내">
-        <p className={styles.trustTitle}>처음부터 정확할 필요는 없어요.</p>
-        <p>
-          나중에 국민체력100 결과를 등록하면
-          <br />
-          추천 운동이 자동으로 업데이트돼요.
-        </p>
-      </aside>
     </Shell>
   );
 }
