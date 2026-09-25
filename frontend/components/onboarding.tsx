@@ -1,63 +1,122 @@
 "use client";
+import Image from "next/image";
 import Link from "next/link";
 import { assessmentHref } from "@/lib/workout-mode";
-import { Camera, ClipboardPen, ChevronRight, Timer } from "lucide-react";
-import { Header, Notice, Shell } from "./ui";
+import { Notice, Shell } from "./ui";
 import { useUserProfile } from "./user-profile-provider";
+import styles from "./onboarding.module.css";
 
 export function Onboarding() {
   const profile = useUserProfile();
   return (
-    <Shell className="onboarding-shell">
-      <Header title="체력 기록 시작하기" back="/" />
-      <div className="content stack">
-        <div className="intro">
-          <h2>어떤 방법으로 시작할까요?</h2>
-          <p>국민체력100 결과표가 있다면 측정한 항목부터 등록해 주세요.</p>
+    <Shell className={`onboarding-shell ${styles.shell}`}>
+      <header className={styles.header}>
+        <Link href="/" className={styles.back} aria-label="이전 화면">
+          <Image src="/onboarding/back.svg" alt="" width={20} height={20} />
+        </Link>
+        <h1>체력 기록 시작</h1>
+        <Link href="/" className={styles.skip}>
+          건너뛰기
+        </Link>
+      </header>
+      <div className={styles.progress}>
+        <div className={styles.progressLabel} aria-hidden="true">
+          <span>1 / 3</span>
+          <span>기본 정보 입력 전</span>
         </div>
+        <div
+          className={styles.progressTrack}
+          role="progressbar"
+          aria-label="체력 기록 진행 단계"
+          aria-valuemin={0}
+          aria-valuemax={3}
+          aria-valuenow={1}
+          aria-valuetext="3단계 중 1단계, 기본 정보 입력 전"
+        >
+          <div className={styles.progressFill} />
+        </div>
+      </div>
+      <div className={styles.body}>
+        <h2 className={styles.question}>
+          국민체력100
+          <br />
+          결과표가 있나요?
+        </h2>
+        <p className={styles.description}>
+          지금 가진 정보에 맞는 가장 빠른 시작 방법을 선택해 주세요.
+        </p>
         {profile.data?.isOnboarded && (
           <Notice tone="info">
             이미 등록한 기록이 있어요. 새로운 측정 결과를 추가할 수 있어요.
+            <Link href="/measurements" className="text-link">
+              내 측정 기록 보기
+            </Link>
           </Notice>
         )}
-        <Link href="/onboarding/photo" className="choice-card">
-          <Camera size={24} />
-          <div>
-            <h3>결과표 사진 선택</h3>
-            <p>사진에서 측정값을 읽고 확인한 뒤 등록해요.</p>
+        <Link
+          href="/onboarding/photo"
+          className={`${styles.choice} ${styles.primaryChoice}`}
+          aria-labelledby="photo-choice-title"
+          aria-describedby="photo-choice-description"
+        >
+          <span className={styles.iconBox}>
+            <Image src="/onboarding/camera.png" alt="" width={22} height={22} />
+          </span>
+          <div className={styles.choiceCopy}>
+            <h3 id="photo-choice-title">결과표가 있어요</h3>
+            <p id="photo-choice-description">
+              사진 한 장이면 측정값을 자동으로 읽어요.
+            </p>
           </div>
-          <ChevronRight size={20} />
+          <Image
+            className={styles.chevron}
+            src="/onboarding/chevron.svg"
+            alt=""
+            width={18}
+            height={18}
+          />
         </Link>
-        <Link href="/onboarding/manual" className="choice-card">
-          <ClipboardPen size={24} />
-          <div>
-            <h3>결과 직접 입력</h3>
-            <p>측정한 항목 하나부터 등록해요.</p>
+        <Link
+          href={assessmentHref}
+          className={styles.choice}
+          aria-labelledby="assessment-choice-title"
+          aria-describedby="assessment-choice-description"
+        >
+          <span className={styles.iconBox}>
+            <Image
+              src="/onboarding/activity.svg"
+              alt=""
+              width={22}
+              height={22}
+            />
+          </span>
+          <div className={styles.choiceCopy}>
+            <h3 id="assessment-choice-title">결과표가 없어요</h3>
+            <p id="assessment-choice-description">
+              몇 가지 간이측정으로 바로 시작할 수 있어요.
+            </p>
           </div>
-          <ChevronRight size={20} />
+          <Image
+            className={styles.chevron}
+            src="/onboarding/chevron.svg"
+            alt=""
+            width={18}
+            height={18}
+          />
         </Link>
-        <section className="feature-card stack">
-          <Timer size={24} />
-          <h2>결과표가 아직 없나요?</h2>
-          <p className="muted">
-            안내를 따라 직접 측정하고, 측정한 항목만 기록해 보세요.
-          </p>
-          <Link href={assessmentHref} className="button primary">
-            간이측정 시작하기
-          </Link>
-          <p className="caption">
-            만 19~64세 · 장비가 없는 항목은 건너뛸 수 있어요.
-          </p>
-        </section>
-        <div className="stack onboarding-footer">
-          <Link href="/" className="text-link">
-            나중에 등록하기
-          </Link>
-          <Link href="/measurements" className="text-link">
-            내 측정 기록 보기
-          </Link>
-        </div>
+        <Link href="/onboarding/manual" className={styles.manual}>
+          <Image src="/onboarding/pencil.svg" alt="" width={16} height={16} />
+          직접 입력하기
+        </Link>
       </div>
+      <aside className={styles.trustNote} aria-label="체력 기록 안내">
+        <p className={styles.trustTitle}>처음부터 정확할 필요는 없어요.</p>
+        <p>
+          나중에 국민체력100 결과를 등록하면
+          <br />
+          추천 운동이 자동으로 업데이트돼요.
+        </p>
+      </aside>
     </Shell>
   );
 }

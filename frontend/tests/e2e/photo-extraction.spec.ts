@@ -203,7 +203,7 @@ test("사진 초안을 지우고 다시 선택해도 직접 입력 초안은 유
   await page.getByLabel("측정 당시 만 나이", { exact: true }).fill("30");
   page.on("dialog", (dialog) => dialog.accept());
   await page.getByRole("link", { name: "이전 화면", exact: true }).click();
-  await page.getByRole("link", { name: "결과표 사진 선택" }).click();
+  await page.getByRole("link", { name: "결과표가 있어요" }).click();
   await page.getByLabel("결과표 파일 선택").setInputFiles(png);
   await page.getByRole("button", { name: "이 사진을 보며 직접 입력" }).click();
   await page.getByLabel("측정 당시 만 나이", { exact: true }).fill("25");
@@ -220,7 +220,7 @@ test("사진 초안을 지우고 다시 선택해도 직접 입력 초안은 유
     page.getByLabel("측정 당시 만 나이", { exact: true }),
   ).toHaveValue("");
   await page.getByRole("link", { name: "이전 화면", exact: true }).click();
-  await page.getByRole("link", { name: "결과 직접 입력" }).click();
+  await page.getByRole("link", { name: "직접 입력하기" }).click();
   await expect(
     page.getByLabel("측정 당시 만 나이", { exact: true }),
   ).toHaveValue("30");

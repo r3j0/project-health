@@ -44,7 +44,7 @@ async function seedWorkout(page: Page, draft: unknown) {
 }
 async function manual(page: Page, age = "25") {
   await page.goto("/onboarding");
-  await page.getByRole("link", { name: "결과 직접 입력" }).click();
+  await page.getByRole("link", { name: "직접 입력하기" }).click();
   await page.getByLabel("측정일", { exact: true }).fill("2026-09-01");
   await page.getByLabel("측정 당시 만 나이", { exact: true }).fill(age);
   await page.getByLabel("성별", { exact: true }).selectOption("male");

@@ -1,0 +1,191 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  background: var(--canvas);
+}
+.header {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  min-height: 52px;
+  padding-inline: 16px;
+  background: var(--surface);
+}
+.header h1 {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: normal;
+  text-align: center;
+}
+.back,
+.skip,
+.manual {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  font-weight: 500;
+}
+.back {
+  justify-content: flex-start;
+}
+.skip {
+  font-size: 11px;
+}
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 54px;
+  padding: 8px 16px;
+  background: var(--surface);
+}
+.progressLabel {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.progressLabel span:first-child {
+  color: var(--sky);
+  font-weight: 700;
+}
+.progressTrack {
+  height: 5px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+}
+.progressFill {
+  width: calc(100% / 3);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--sky);
+}
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 24px 16px 18px;
+}
+.question {
+  color: var(--text);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: normal;
+}
+.description {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 108px;
+  padding: 14px;
+  border-radius: var(--radius-hero);
+  background: var(--surface);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--text) 6%, transparent);
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+}
+.primaryChoice {
+  background: var(--tint);
+}
+.iconBox {
+  display: flex;
+  flex: 0 0 48px;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-card);
+  background: var(--canvas);
+}
+.primaryChoice .iconBox {
+  background: var(--sky);
+}
+.choiceCopy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.choiceCopy h3 {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.choiceCopy p {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.chevron {
+  flex-shrink: 0;
+}
+.manual {
+  align-self: center;
+  gap: 7px;
+  padding-inline: 12px;
+  font-size: 12px;
+}
+.trustNote {
+  min-height: 82px;
+  margin-top: auto;
+  padding: 14px 18px;
+  background: var(--tint);
+  color: var(--muted);
+  font-size: 10px;
+}
+.trustTitle {
+  margin-bottom: 3px;
+  color: var(--navy);
+  font-size: 12px;
+  font-weight: 700;
+}
+@media (hover: hover) {
+  .choice:hover {
+    background: color-mix(in srgb, var(--surface) 65%, var(--tint));
+    box-shadow: 0 3px 12px color-mix(in srgb, var(--text) 10%, transparent);
+  }
+  .primaryChoice:hover {
+    background: color-mix(in srgb, var(--tint) 92%, var(--sky));
+  }
+  .back:hover,
+  .skip:hover,
+  .manual:hover {
+    background: var(--tint);
+    color: var(--navy);
+  }
+}
+.choice:active {
+  background: color-mix(in srgb, var(--tint) 85%, var(--sky));
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--sky) 35%, transparent);
+}
+.back:active,
+.skip:active,
+.manual:active {
+  background: var(--border);
+  color: var(--navy);
+}
+@media (prefers-reduced-motion: reduce) {
+  .choice {
+    transition: none;
+  }
+}

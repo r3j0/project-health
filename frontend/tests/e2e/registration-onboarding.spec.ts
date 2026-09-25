@@ -1,10 +1,10 @@
 import { test, expect } from "@playwright/test";
-import { installApi, testUser } from "./integration-fixtures";
+import { installApi, testRecord, testUser } from "./integration-fixtures";
 
 test("가입 실패는 폼을 유지하고 성공하면 메인 경유 없이 온보딩을 시작한다", async ({
   page,
 }, info) => {
-  await installApi(page);
+  const server = await installApi(page);
   let registered = false;
   let attempts = 0;
   const auth = {
@@ -57,7 +57,7 @@ test("가입 실패는 폼을 유지하고 성공하면 메인 경유 없이 온
   await page.getByRole("button", { name: "가입하고 시작하기" }).click();
   await expect(page).toHaveURL("/onboarding");
   await expect(
-    page.getByRole("heading", { name: "체력 기록 시작하기", exact: true }),
+    page.getByRole("heading", { name: "체력 기록 시작", exact: true }),
   ).toBeVisible();
   await expect(page.getByRole("navigation", { name: "하단 메뉴" })).toHaveCount(
     0,
@@ -69,6 +69,7 @@ test("가입 실패는 폼을 유지하고 성공하면 메인 경유 없이 온
   for (const [width, height] of [
     [320, 640],
     [390, 844],
+    [430, 932],
     [1280, 900],
   ]) {
     await page.setViewportSize({ width, height });
@@ -82,11 +83,14 @@ test("가입 실패는 폼을 유지하고 성공하면 메인 경유 없이 온
     });
   }
   for (const [name, path] of [
-    ["결과표 사진 선택", "/onboarding/photo"],
-    ["결과 직접 입력", "/onboarding/manual"],
-    ["간이측정 시작하기", "/workout?mode=assessment"],
+    ["결과표가 있어요", "/onboarding/photo"],
+    ["직접 입력하기", "/onboarding/manual"],
+    ["결과표가 없어요", "/workout?mode=assessment"],
   ]) {
-    await page.getByRole("link", { name, exact: false }).click();
+    // The card padding is clickable, not just its title or icon.
+    await page.getByRole("link", { name, exact: true }).click({
+      position: { x: 8, y: 8 },
+    });
     await expect(page).toHaveURL(path);
     await page.goBack();
     await expect(page).toHaveURL("/onboarding");
@@ -94,17 +98,41 @@ test("가입 실패는 폼을 유지하고 성공하면 메인 경유 없이 온
       page.getByRole("navigation", { name: "하단 메뉴" }),
     ).toHaveCount(0);
   }
-  await page
-    .getByRole("link", { name: "나중에 등록하기", exact: true })
-    .click();
+  await page.getByRole("link", { name: "건너뛰기", exact: true }).click();
   await expect(page).toHaveURL("/");
   await expect(
     page.getByRole("navigation", { name: "하단 메뉴" }),
   ).toBeVisible();
+  expect(server.mutations).toEqual([]);
   await page.goBack();
+  await page.getByRole("link", { name: "이전 화면", exact: true }).focus();
+  for (const name of [
+    "건너뛰기",
+    "결과표가 있어요",
+    "결과표가 없어요",
+    "직접 입력하기",
+  ]) {
+    await page.keyboard.press("Tab");
+    const link = page.getByRole("link", { name, exact: true });
+    await expect(link).toBeFocused();
+    await expect(link).toHaveCSS("outline-style", "solid");
+    const box = await link.boundingBox();
+    expect(box!.height).toBeGreaterThanOrEqual(44);
+  }
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL("/onboarding/manual");
+  await page.goBack();
+  await page.getByRole("link", { name: "이전 화면", exact: true }).click();
+  await expect(page).toHaveURL("/");
+  expect(server.mutations).toEqual([]);
+
+  // Existing users keep their notice and access to previous measurements.
+  server.setRecord(testRecord());
+  await page.goto("/onboarding");
+  await expect(page.getByRole("status")).toContainText("이미 등록한 기록");
   await page
     .getByRole("link", { name: "내 측정 기록 보기", exact: true })
     .click();
   await expect(page).toHaveURL("/measurements");
-  await expect(page.getByText("첫 기록을 기다리고 있어요")).toBeVisible();
+  await expect(page.locator(".record-card")).toHaveCount(1);
 });

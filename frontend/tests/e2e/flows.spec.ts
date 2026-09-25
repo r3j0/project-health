@@ -65,14 +65,11 @@ async function signup(page: Page, destination: "records" | "main" = "records") {
     0,
   );
   if (destination === "records") {
-    await page
-      .getByRole("link", { name: "내 측정 기록 보기", exact: true })
-      .click();
+    await page.getByRole("link", { name: "건너뛰기", exact: true }).click();
+    await openRecords(page);
     await expect(page.getByText("첫 기록을 기다리고 있어요")).toBeVisible();
   } else {
-    await page
-      .getByRole("link", { name: "나중에 등록하기", exact: true })
-      .click();
+    await page.getByRole("link", { name: "건너뛰기", exact: true }).click();
     await expect(page).toHaveURL("/");
   }
   return email;
@@ -81,9 +78,9 @@ async function openManualRecord(page: Page) {
   await page.getByRole("link", { name: "새 기록 등록", exact: true }).click();
   await expect(page).toHaveURL(/\/onboarding$/);
   await expect(
-    page.getByRole("heading", { name: "체력 기록 시작하기", exact: true }),
+    page.getByRole("heading", { name: "체력 기록 시작", exact: true }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "결과 직접 입력" }).click();
+  await page.getByRole("link", { name: "직접 입력하기" }).click();
 }
 async function openSavedRecord(page: Page) {
   await expect(page).toHaveURL(new URL("/", page.url()).href);
@@ -125,14 +122,13 @@ test("가입 → 정확한 부분 저장 → 새로고침 → 수정 → 삭제 
   await page.goto("/measurements/new");
   await expect(page).toHaveURL(/\/onboarding$/);
   await expect(
-    page.getByRole("link", { name: "결과표 사진 선택" }),
+    page.getByRole("link", { name: "결과표가 있어요" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "간이측정 시작하기" }),
+    page.getByRole("link", { name: "결과표가 없어요" }),
   ).toBeVisible();
-  await page
-    .getByRole("link", { name: "내 측정 기록 보기", exact: true })
-    .click();
+  await page.getByRole("link", { name: "건너뛰기", exact: true }).click();
+  await openRecords(page);
   await startRecord(page);
   await page.getByRole("button", { name: "변경", exact: true }).click();
   await page.getByText("추가 정보", { exact: false }).click();
@@ -758,7 +754,7 @@ for (const outcome of ["success", "network", "server"] as const) {
     page.on("dialog", (dialog) => dialog.accept());
     await page.getByRole("link", { name: "이전 화면", exact: true }).click();
     await expect(page).toHaveURL(/\/onboarding$/);
-    await page.getByRole("link", { name: "결과 직접 입력" }).click();
+    await page.getByRole("link", { name: "직접 입력하기" }).click();
     await expect(page.getByLabel("신장", { exact: true })).toBeDisabled();
     await page.getByRole("button", { name: "같은 내용으로 다시 확인" }).click();
     await openSavedRecord(page);

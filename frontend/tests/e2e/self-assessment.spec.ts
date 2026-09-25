@@ -25,7 +25,7 @@ async function register(page: Page) {
 test("성인 범위, 준비 화면, 잘못된 커리큘럼을 처리한다", async ({ page }) => {
   await register(page);
   await page.goto("/onboarding");
-  await page.getByRole("link", { name: "간이측정 시작하기" }).click();
+  await page.getByRole("link", { name: "결과표가 없어요" }).click();
   await expect(page).toHaveURL(/mode=assessment/);
   await page.getByLabel("만 나이", { exact: true }).fill("18");
   await page.getByRole("button", { name: "측정 준비 완료" }).click();
@@ -429,7 +429,7 @@ test("저장 완료 화면에서 새 측정을 시작하면 이전 값 없이 �
 }) => {
   const account = await register(page);
   await page.goto("/onboarding");
-  await page.getByRole("link", { name: "간이측정 시작하기" }).click();
+  await page.getByRole("link", { name: "결과표가 없어요" }).click();
   for (const value of ["1", "2"]) {
     await expect(page.getByLabel("만 나이", { exact: true })).toHaveValue("");
     await prepareAssessment(page);
@@ -446,9 +446,9 @@ test("저장 완료 화면에서 새 측정을 시작하면 이전 값 없이 �
       await page.getByRole("link", { name: "새 체력 기록 시작" }).click();
       await expect(page).toHaveURL(/\/onboarding$/);
       await expect(
-        page.getByRole("heading", { name: "체력 기록 시작하기", exact: true }),
+        page.getByRole("heading", { name: "체력 기록 시작", exact: true }),
       ).toBeVisible();
-      await page.getByRole("link", { name: "간이측정 시작하기" }).click();
+      await page.getByRole("link", { name: "결과표가 없어요" }).click();
     }
   }
   const response = await page.request.get(`${api}/measurements`, {

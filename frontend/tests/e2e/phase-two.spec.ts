@@ -165,9 +165,7 @@ test("온보딩 직접 입력은 기존 폼을 복원하고 실제 저장 후 �
     .getByRole("link", { name: "첫 측정 기록 등록", exact: true })
     .click();
   await expect(page).toHaveURL(/\/onboarding$/);
-  await page
-    .getByRole("link", { name: "결과 직접 입력", exact: false })
-    .click();
+  await page.getByRole("link", { name: "직접 입력하기", exact: false }).click();
   await page.getByLabel("측정일", { exact: true }).fill("2026-09-17");
   await page.getByLabel("측정 당시 만 나이", { exact: true }).fill("25");
   await page.getByLabel("성별", { exact: true }).selectOption("male");

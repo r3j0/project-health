@@ -9,7 +9,7 @@ test("간이측정 등록은 기존 사용자 커리큘럼을 보존한다", asy
   ).toBeVisible();
   await expect(page.getByLabel("만 나이", { exact: true })).toHaveCount(0);
   await page.getByRole("link", { name: "체력 기록 시작하기" }).click();
-  await page.getByRole("link", { name: "간이측정 시작하기" }).click();
+  await page.getByRole("link", { name: "결과표가 없어요" }).click();
   await prepareAssessment(page);
   await skipToFlexibility(page);
   await page.getByLabel("기준선에서 도달한 거리 (cm)").fill("0");

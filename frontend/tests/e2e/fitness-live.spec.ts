@@ -84,7 +84,7 @@ test("실제 API: 6종목 직접 입력·상세 등급·기준·수정 재평가
     .getByRole("link", { name: "첫 측정 기록 등록", exact: true })
     .click();
   await expect(page).toHaveURL("/onboarding");
-  await page.getByRole("link", { name: "결과 직접 입력" }).click();
+  await page.getByRole("link", { name: "직접 입력하기" }).click();
   await page.getByLabel("측정일", { exact: true }).fill(today());
   await page.getByLabel("측정 당시 만 나이", { exact: true }).fill("25");
   await page.getByText("추가 정보", { exact: false }).click();
@@ -276,7 +276,7 @@ test("실제 API: 간이측정은 기관 결과표와 구분하고 부분 기록
   const before = await page.request.get(`${api}/auth/me`, { headers });
   const profile = await before.json();
   await page.goto("/onboarding");
-  await page.getByRole("link", { name: "간이측정 시작하기" }).click();
+  await page.getByRole("link", { name: "결과표가 없어요" }).click();
   await page.getByLabel("성별 (선택)").selectOption("male");
   await prepareAssessment(page);
   await skipToFlexibility(page);
