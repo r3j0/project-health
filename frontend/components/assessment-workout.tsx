@@ -29,6 +29,7 @@ import type { Catalog, Measurement } from "@/lib/types";
 import { StepAssessmentHelp } from "./step-assessment-help";
 import { WorkoutRunner } from "./workout-runner";
 import { OnboardingProgress } from "./onboarding-progress";
+import inputStyles from "./onboarding-inputs.module.css";
 import { useOperationScope } from "./use-operation-scope";
 import {
   Dialog,
@@ -264,7 +265,11 @@ export function AssessmentWorkout() {
           신체정보와 세 가지 체력 항목을 기록해요.
         </p>
       </div>
-      <form className="stack" onSubmit={start} noValidate>
+      <form
+        className={`stack ${inputStyles.compact}`}
+        onSubmit={start}
+        noValidate
+      >
         <section className="feature-card stack">
           <h3>측정 전 확인</h3>
           <div className="field">
@@ -363,7 +368,7 @@ export function AssessmentWorkout() {
   );
   return (
     <Shell
-      className={`assessment-shell ${["active", "countdown"].includes(draft.state.phase) && draft.stage === "session" && !complete ? "is-running" : ""}`}
+      className={`${inputStyles.assessment} assessment-shell ${["active", "countdown"].includes(draft.state.phase) && draft.stage === "session" && !complete ? "is-running" : ""}`}
     >
       <Header
         title="간이측정"

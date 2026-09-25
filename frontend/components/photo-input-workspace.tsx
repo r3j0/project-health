@@ -9,6 +9,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import styles from "./photo-input-workspace.module.css";
+import inputStyles from "./onboarding-inputs.module.css";
 
 export function PhotoInputWorkspace({
   photo,
@@ -140,7 +141,7 @@ export function PhotoInputWorkspace({
         <div
           ref={content}
           id={id}
-          className={styles.panelContent}
+          className={`${styles.panelContent} ${inputStyles.compact}`}
           hidden={mode !== "open"}
         >
           {children}
