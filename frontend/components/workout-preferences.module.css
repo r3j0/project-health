@@ -74,9 +74,12 @@
   font-size: 13px;
 }
 .description {
-  min-height: 42px;
-  margin-top: 12px;
-  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  font-size: 12px;
+  font-weight: 400;
   color: var(--text-secondary);
   word-break: keep-all;
 }

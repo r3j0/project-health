@@ -8,17 +8,17 @@ export const exerciseGoalOptions = [
   {
     value: "fitness_grade_improvement",
     label: "국민체력100 등급 개선",
-    description: "측정 종목별 등급 향상을 목표로 해요.",
+    description: "종목별 등급 향상",
   },
   {
     value: "body_composition_management",
     label: "체형 관리",
-    description: "체지방과 근육 등 체성분 관리를 목표로 해요.",
+    description: "체지방·근육 관리",
   },
   {
     value: "general_fitness_improvement",
     label: "기본 체력 증진",
-    description: "일상에 필요한 체력을 전반적으로 기르고 싶어요.",
+    description: "일상 체력 기르기",
   },
 ] as const;
 

@@ -86,7 +86,7 @@ export function WorkoutPreferenceFields({
                 </span>
                 <span
                   id={`${id}-${option.value}-description`}
-                  className="sr-only"
+                  className={styles.description}
                 >
                   {option.description}
                 </span>
@@ -94,11 +94,6 @@ export function WorkoutPreferenceFields({
             );
           })}
         </div>
-        <p className={styles.description} aria-live="polite">
-          {exerciseGoalOptions.find(
-            (option) => option.value === value.exerciseGoal,
-          )?.description ?? "목적을 선택하면 자세한 설명을 볼 수 있어요."}
-        </p>
       </fieldset>
     </div>
   );
