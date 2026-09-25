@@ -83,6 +83,10 @@ export function Account() {
             <strong>내 측정 기록</strong>
             <ChevronRight size={20} />
           </Link>
+          <Link href="/account/preferences" className="menu-row">
+            <strong>운동 설정</strong>
+            <ChevronRight size={20} aria-hidden="true" />
+          </Link>
           <Link href="/account/settings" className="menu-row">
             <strong>계정 설정</strong>
             <ChevronRight size={20} />

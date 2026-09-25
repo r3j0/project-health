@@ -290,3 +290,15 @@ PR #7의 `9dd4b49` 위에서 승인된 리포트 미리보기를 실제 화면�
 - 기존 API 파싱 경계, 인증, 기록 저장·수정 로직, 다각형 컴포넌트는 유지한다. 새 의존성을 추가하지 않았으며 백엔드 파일은 변경하지 않았다. 실제 OpenAI 판독 및 실물 기기 검증은 재실행하지 않았다.
 
 로그: `/tmp/project-health-report-check.log`, `/tmp/project-health-report-e2e.log`, `/tmp/project-health-report-live.log`, `/tmp/project-health-report-visual.log`. 화면 캡처: `/Users/rejo/.codex/visualizations/2026/09/21/01a0c2c0-45f7-79d2-95a6-66104ef5a47b/report-ui-implemented-20260924/`.
+
+
+## 운동량·목적 설정 UI 기틀 (2026-09-25)
+
+내 프로필에 운동 설정 진입점을 추가하고 `/account/preferences`를 KSPO Orange 톤으로 구성했다. 운동량은 `less / standard / more`, 운동 목적은 합의한 세 enum을 사용하며 각 그룹에서 하나만 선택한다. 화면 초기값은 운동량 기본·목적 미선택이다. 선택 필드는 외부 value/onChange를 받는 컴포넌트로 분리했다.
+
+- 이번 범위는 UI만이다. preference API 호출·브라우저 영속 저장·저장 성공 흉내를 넣지 않았다. 저장 버튼은 비활성화하며 준비 중·화면 이탈 시 초기화 안내를 제공한다. 기존 계정·온보딩·커리큘럼은 수정하지 않는다.
+- `npm run check` 통과: 린트·타입 검사·기존 단위 테스트 **86개**·프로덕션 빌드. 포맷 검사 통과.
+- 실제 테스트 계정으로 프로필→설정 진입, 두 그룹의 모든 선택지, 단일 선택 유지, 키보드 방향키·포커스, 저장 비활성화, 새로고침·페이지 재진입 시 초기화, 돌아가기를 확인했다. 320/390/1280px 가로 넘침 및 브라우저 예외가 없으며 preference 요청·인증 외 변경 요청은 0건이었다. 기존 프로필 브라우저 회귀 1개도 통과했다.
+- 최초 브라우저 확인은 이전 빌드로 실행 중이던 프론트 서버 때문에 새 경로에 접근하지 못했다. 최신 빌드로 프론트를 재시작한 뒤 위 검증을 완료했다. 백엔드 파일·테스트 계정의 저장 데이터는 변경하지 않았다.
+
+검증 로그: `/tmp/project-health-preferences-check.log`, `/tmp/project-health-preferences-ui/visual.log`, `/tmp/project-health-preferences-ui/account-e2e.log`. 화면 캡처: `/Users/rejo/.codex/visualizations/2026/09/21/01a0c2c0-45f7-79d2-95a6-66104ef5a47b/preferences-ui-20260925/`.

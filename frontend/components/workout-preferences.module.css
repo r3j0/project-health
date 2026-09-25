@@ -1,0 +1,111 @@
+.content {
+  display: grid;
+  gap: 32px;
+}
+.fields {
+  display: grid;
+  gap: 32px;
+}
+.group {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.group legend {
+  padding: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+.hint {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.volumes,
+.goals {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+.volumes {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.choice {
+  position: relative;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  cursor: pointer;
+}
+.choice:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--tint);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.choice:has(input:focus-visible) {
+  outline: 3px solid var(--navy);
+  outline-offset: 3px;
+}
+.volume {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 110px;
+  padding: 14px 10px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  word-break: keep-all;
+}
+.volume > svg {
+  color: var(--muted);
+}
+.volume:has(input:checked) > svg {
+  color: var(--navy);
+}
+.goal {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 16px;
+}
+.goalCopy {
+  display: grid;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.goalCopy strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+.goalCopy > span {
+  font-size: 13px;
+  color: var(--text-secondary);
+  word-break: keep-all;
+}
+.check {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--navy);
+}
+.goal:has(input:checked) .check {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.save {
+  display: grid;
+  gap: 10px;
+}
+.save p {
+  text-align: center;
+}

@@ -9,7 +9,7 @@ export function BottomNavigation() {
   if (pathname === "/onboarding") return null;
   const theme = pathname.startsWith("/onboarding/")
     ? " kspo-sky-theme"
-    : pathname === "/account"
+    : pathname === "/account" || pathname === "/account/preferences"
       ? " kspo-orange-theme"
       : "";
   const tabs = [
@@ -18,7 +18,10 @@ export function BottomNavigation() {
       href: "/account",
       label: "내 프로필",
       icon: UserRound,
-      active: pathname === "/account" || pathname.startsWith("/measurements"),
+      active:
+        pathname === "/account" ||
+        pathname.startsWith("/account/") ||
+        pathname.startsWith("/measurements"),
     },
   ];
 
