@@ -195,3 +195,53 @@ test("평가 불가 사유는 한 번만 표시하고 등급 단계를 만들지
     report.getByText("전체 등급 기준 보기", { exact: true }),
   ).toHaveCount(0);
 });
+
+test("다각형 제외 항목은 수치 높이의 한 행으로 표시하고 상세 사유를 펼친다", async ({
+  page,
+}, info) => {
+  const record = gripRecordFixture();
+  const bodyFat = structuredClone(record.items[1]);
+  bodyFat.measurementCode = bodyFat.evaluation.measurementCode =
+    "body_fat_percentage";
+  bodyFat.value = "32";
+  bodyFat.unit = "%";
+  record.items.push(bodyFat);
+  const catalog = structuredClone(gripCatalogFixture);
+  catalog.definitions.push({
+    ...catalog.definitions[1],
+    code: "body_fat_percentage",
+    label: "체지방률",
+    unit: "%",
+  });
+  await installApi(page, record, catalog);
+  await page.goto(`/measurements/${record.id}`);
+  await expect(page.locator(".radar-legend")).toHaveCount(0);
+  await expect(page.locator(".radar-grade")).toHaveCount(6);
+  await page.getByText("다각형에 포함하지 않는 항목", { exact: true }).click();
+  const summary = page.locator('summary[aria-label^="체지방률:"]');
+  const item = summary.locator("..");
+  await expect(summary).toContainText("32");
+  await expect(summary).toContainText("%");
+  await expect(
+    item.getByText(bodyFat.evaluation.message, { exact: true }),
+  ).toBeHidden();
+  for (const width of [320, 390, 430]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect((await summary.boundingBox())!.height).toBeLessThanOrEqual(48);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(width);
+    await page
+      .getByRole("heading", { name: "이 기록의 체력 프로필" })
+      .scrollIntoViewIfNeeded();
+    await page.screenshot({
+      path: info.outputPath(`record-summary-${width}.png`),
+      fullPage: true,
+    });
+  }
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    item.getByText(bodyFat.evaluation.message, { exact: true }),
+  ).toBeVisible();
+});

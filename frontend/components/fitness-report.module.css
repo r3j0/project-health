@@ -377,3 +377,36 @@
     font-size: 11px;
   }
 }
+
+.otherItem > summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 16px;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+}
+.otherItem + .otherItem {
+  margin-top: 8px;
+}
+.otherName {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.otherName small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+.otherItem .value {
+  justify-content: flex-end;
+  max-width: 14ch;
+  overflow-wrap: anywhere;
+}
+.otherItem .value strong {
+  min-width: 0;
+}
+.otherDetails {
+  padding-bottom: 12px;
+}

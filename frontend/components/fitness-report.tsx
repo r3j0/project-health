@@ -41,11 +41,13 @@ function ItemReport({
   label,
   criteria,
   representative = false,
+  compact = false,
 }: {
   item: ReportItem;
   label: string;
   criteria: boolean;
   representative?: boolean;
+  compact?: boolean;
 }) {
   const { evaluation } = item;
   const conversion = evaluation.conversion;
@@ -57,23 +59,8 @@ function ItemReport({
       ? displayConvertedValue(conversion.value)
       : item.value;
   const unit = reference && conversion ? conversion.unit : item.unit;
-  return (
-    <div className={`evaluation-item ${styles.item}`}>
-      <div className={styles.itemHeading}>
-        <h3>{label}</h3>
-        {representative && (
-          <span className={styles.representative}>대표 등급 반영</span>
-        )}
-      </div>
-      {reference && <p className="caption">추정 최대산소섭취량</p>}
-      <p
-        className={styles.value}
-        aria-label={
-          reference ? `추정 최대산소섭취량: ${value} ${unit}` : undefined
-        }
-      >
-        <strong>{value}</strong> <span>{unit}</span>
-      </p>
+  const information = (
+    <>
       {conversion &&
         (reference ? (
           <>
@@ -101,6 +88,46 @@ function ItemReport({
       )}
       {conversion && <ConversionDetails conversion={conversion} />}
       {criteria && <FitnessCriteria evaluation={evaluation} />}
+    </>
+  );
+  if (compact)
+    return (
+      <details className={styles.otherItem}>
+        <summary
+          aria-label={`${label}: ${value} ${unit}, ${gradeLabel(itemGradeResult(evaluation))}`}
+        >
+          <span className={styles.otherName}>
+            <span>{label}</span>
+            <small>
+              {gradeLabel(itemGradeResult(evaluation)).split(" · ").at(-1)}
+            </small>
+          </span>
+          <span className={styles.value}>
+            <strong>{value}</strong> <span>{unit}</span>
+          </span>
+          <ChevronDown size={16} aria-hidden="true" />
+        </summary>
+        <div className={styles.otherDetails}>{information}</div>
+      </details>
+    );
+  return (
+    <div className={`evaluation-item ${styles.item}`}>
+      <div className={styles.itemHeading}>
+        <h3>{label}</h3>
+        {representative && (
+          <span className={styles.representative}>대표 등급 반영</span>
+        )}
+      </div>
+      {reference && <p className="caption">추정 최대산소섭취량</p>}
+      <p
+        className={styles.value}
+        aria-label={
+          reference ? `추정 최대산소섭취량: ${value} ${unit}` : undefined
+        }
+      >
+        <strong>{value}</strong> <span>{unit}</span>
+      </p>
+      {information}
     </div>
   );
 }
@@ -246,6 +273,7 @@ export function FitnessReport({
                     item={item}
                     label={label(item.measurementCode)}
                     criteria={true}
+                    compact
                   />
                 ))}
             </div>
