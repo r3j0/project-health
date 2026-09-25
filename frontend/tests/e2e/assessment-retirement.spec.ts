@@ -258,6 +258,10 @@ test("기존 저장 기록을 조회·수정할 때 윗몸말아올리기 원본
   await page.goto(`/measurements/${record.id}`);
   await expect(page.getByText("20 회", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "기록 수정" }).click();
+  await expect(
+    page.getByRole("progressbar", { name: "체력 기록 진행 단계" }),
+  ).toHaveCount(0);
+  await expect(page.locator(".stepper")).toBeVisible();
   await expect(page.getByLabel("윗몸말아올리기", { exact: true })).toHaveValue(
     "20",
   );

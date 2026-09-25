@@ -17,36 +17,6 @@
   color: var(--muted);
   font-weight: 500;
 }
-.shell .progress {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding-block: 0 20px;
-  background: var(--surface);
-}
-.progressLabel {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  color: var(--muted);
-  font-size: 10px;
-}
-.progressLabel span:first-child {
-  color: var(--sky);
-  font-weight: 700;
-}
-.progressTrack {
-  height: 5px;
-  overflow: hidden;
-  border-radius: var(--radius-pill);
-  background: var(--border);
-}
-.progressFill {
-  width: calc(100% / 3);
-  height: 100%;
-  border-radius: inherit;
-  background: var(--sky);
-}
 .question {
   color: var(--text);
   font-size: 26px;

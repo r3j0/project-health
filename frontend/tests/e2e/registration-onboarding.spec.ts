@@ -5,6 +5,9 @@ test("가입 실패는 폼을 유지하고 성공하면 메인 경유 없이 온
   page,
 }, info) => {
   const server = await installApi(page);
+  const progress = page.getByRole("progressbar", {
+    name: "체력 기록 진행 단계",
+  });
   let registered = false;
   let attempts = 0;
   const auth = {
@@ -65,6 +68,7 @@ test("가입 실패는 폼을 유지하고 성공하면 메인 경유 없이 온
   await expect(
     page.getByRole("link", { name: "건너뛰기", exact: true }),
   ).toHaveCount(0);
+  await expect(progress).toHaveAttribute("aria-valuenow", "1");
   expect(destinations).not.toContain("/");
   expect(destinations).not.toContain("/account");
   expect(attempts).toBe(2);
@@ -95,8 +99,20 @@ test("가입 실패는 폼을 유지하고 성공하면 메인 경유 없이 온
       position: { x: 8, y: 8 },
     });
     await expect(page).toHaveURL(path);
+    await expect(progress).toHaveAttribute("aria-valuenow", "2");
+    for (const width of [320, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth),
+      ).toBeLessThanOrEqual(width);
+      await page.screenshot({
+        path: info.outputPath(`${name}-${width}.png`),
+        fullPage: false,
+      });
+    }
     await page.goBack();
     await expect(page).toHaveURL("/onboarding");
+    await expect(progress).toHaveAttribute("aria-valuenow", "1");
     await expect(
       page.getByRole("navigation", { name: "하단 메뉴" }),
     ).toHaveCount(0);

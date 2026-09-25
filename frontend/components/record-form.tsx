@@ -33,6 +33,7 @@ import {
 import { StepAssessmentHelp } from "./step-assessment-help";
 import { CatalogPicker } from "./catalog-picker";
 import { RecordValues } from "./record-values";
+import { OnboardingProgress } from "./onboarding-progress";
 import { useUnsaved } from "./use-unsaved";
 import { useOperationScope } from "./use-operation-scope";
 export function RecordForm({
@@ -524,6 +525,7 @@ export function RecordForm({
     return (
       <Shell>
         <Header title="입력 복원" back="/measurements" />
+        {onboarding && <OnboardingProgress step={3} label="측정값 확인" />}
         <div className="content stack">
           {message ? (
             <>
@@ -558,6 +560,12 @@ export function RecordForm({
               : "/measurements"
         }
       />
+      {onboarding && (
+        <OnboardingProgress
+          step={step === 1 ? 2 : 3}
+          label={step === 1 ? "기본 정보 입력" : "측정값 확인"}
+        />
+      )}
       <div className="content">
         {reference}
         {removedRetiredItems && (
@@ -578,15 +586,17 @@ export function RecordForm({
             </ul>
           </details>
         )}
-        <div className="stepper" aria-label={`${step}단계 / 2단계`}>
-          <span className={`step ${step === 1 ? "active" : ""}`}>
-            <b>1</b>기본 정보
-          </span>
-          <span className="step-line" />
-          <span className={`step ${step === 2 ? "active" : ""}`}>
-            <b>2</b>측정값
-          </span>
-        </div>
+        {!onboarding && (
+          <div className="stepper" aria-label={`${step}단계 / 2단계`}>
+            <span className={`step ${step === 1 ? "active" : ""}`}>
+              <b>1</b>기본 정보
+            </span>
+            <span className="step-line" />
+            <span className={`step ${step === 2 ? "active" : ""}`}>
+              <b>2</b>측정값
+            </span>
+          </div>
+        )}
         <div
           ref={notice}
           tabIndex={-1}

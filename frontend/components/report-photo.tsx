@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, ImagePlus } from "lucide-react";
 import { Header, Notice, Shell } from "./ui";
 import { RecordForm } from "./record-form";
+import { OnboardingProgress } from "./onboarding-progress";
 import { useOperationScope } from "./use-operation-scope";
 import { api, getSession } from "@/lib/session";
 import { ApiError, errorMessage } from "@/lib/http";
@@ -193,6 +194,16 @@ export function ReportPhoto() {
   return (
     <Shell>
       <Header title="결과표 사진 선택" back="/onboarding" />
+      <OnboardingProgress
+        step={2}
+        label={
+          busy === "extract"
+            ? "결과표 분석 중"
+            : draft
+              ? "분석 결과 확인"
+              : "결과표 사진 등록"
+        }
+      />
       <div className="content stack">
         <div className="intro">
           <h2>결과표가 잘 보이게 선택해 주세요</h2>

@@ -9,8 +9,13 @@ test("직접 입력의 성별은 접힌 추가 정보 밖에 표시하며 미선
   page,
 }, info) => {
   const server = await installApi(page);
+  const progress = page.getByRole("progressbar", {
+    name: "체력 기록 진행 단계",
+  });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/onboarding/manual");
+  await expect(progress).toHaveAttribute("aria-valuenow", "2");
+  await expect(page.locator(".stepper")).toHaveCount(0);
   await page.getByLabel("측정일", { exact: true }).fill(meta.measuredOn);
   await page.getByLabel("측정 당시 만 나이", { exact: true }).fill(meta.age);
   const sex = page.getByLabel("성별", { exact: true });
@@ -20,6 +25,7 @@ test("직접 입력의 성별은 접힌 추가 정보 밖에 표시하며 미선
   await expect(page.locator("details #sex")).toHaveCount(0);
   await page.getByRole("button", { name: "측정값 입력하기" }).click();
   await expect(sex).toBeFocused();
+  await expect(progress).toHaveAttribute("aria-valuenow", "2");
   await expect(
     page.getByRole("heading", { name: "언제 측정하셨나요?" }),
   ).toBeVisible();
@@ -45,6 +51,17 @@ test("직접 입력의 성별은 접힌 추가 정보 밖에 표시하며 미선
   await expect(
     page.getByRole("heading", { name: "측정한 항목만 입력해요" }),
   ).toBeVisible();
+  await expect(progress).toHaveAttribute("aria-valuenow", "3");
+  await page.getByRole("button", { name: "변경", exact: true }).click();
+  await expect(progress).toHaveAttribute("aria-valuenow", "2");
+  await page.getByRole("button", { name: "측정값 입력하기" }).click();
+  await expect(progress).toHaveAttribute("aria-valuenow", "3");
+  await page.reload();
+  await expect(progress).toHaveAttribute("aria-valuenow", "3");
+  await expect(
+    page.getByRole("heading", { name: "측정한 항목만 입력해요" }),
+  ).toBeVisible();
+  expect(server.mutations).toHaveLength(0);
 });
 
 for (const uncertain of [false, true]) {

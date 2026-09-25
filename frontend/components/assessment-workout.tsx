@@ -27,6 +27,7 @@ import { ApiError, errorMessage } from "@/lib/http";
 import type { Catalog, Measurement } from "@/lib/types";
 import { StepAssessmentHelp } from "./step-assessment-help";
 import { WorkoutRunner } from "./workout-runner";
+import { OnboardingProgress } from "./onboarding-progress";
 import { useOperationScope } from "./use-operation-scope";
 import {
   Dialog,
@@ -349,6 +350,18 @@ export function AssessmentWorkout() {
       className={`assessment-shell ${["active", "countdown"].includes(draft.state.phase) && draft.stage === "session" && !complete ? "is-running" : ""}`}
     >
       <Header title="간이측정" back="/onboarding" />
+      <OnboardingProgress
+        step={!complete && draft.stage === "setup" ? 2 : 3}
+        label={
+          complete
+            ? "체력 기록 완료"
+            : draft.stage === "setup"
+              ? "기본 정보 입력"
+              : draft.state.phase === "review"
+                ? "측정 결과 확인"
+                : "간이측정 진행"
+        }
+      />
       <div className="content stack">
         {!complete && draft.removedEndurance && (
           <Notice tone="info">

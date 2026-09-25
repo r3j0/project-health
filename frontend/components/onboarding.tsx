@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { assessmentHref } from "@/lib/workout-mode";
 import { Notice, Shell } from "./ui";
+import { OnboardingProgress } from "./onboarding-progress";
 import { useUserProfile } from "./user-profile-provider";
 import styles from "./onboarding.module.css";
 
@@ -20,23 +21,7 @@ export function Onboarding() {
         </Link>
         <h1>체력 기록 시작</h1>
       </header>
-      <div className={`content ${styles.progress}`}>
-        <div className={styles.progressLabel} aria-hidden="true">
-          <span>1 / 3</span>
-          <span>기본 정보 입력 전</span>
-        </div>
-        <div
-          className={styles.progressTrack}
-          role="progressbar"
-          aria-label="체력 기록 진행 단계"
-          aria-valuemin={0}
-          aria-valuemax={3}
-          aria-valuenow={1}
-          aria-valuetext="3단계 중 1단계, 기본 정보 입력 전"
-        >
-          <div className={styles.progressFill} />
-        </div>
-      </div>
+      <OnboardingProgress step={1} label="시작 방법 선택" />
       <div className="content">
         <div className="intro">
           <h2 className={styles.question}>

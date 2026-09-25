@@ -54,6 +54,9 @@ test("사진 추출은 저장하지 않고 확인한 값만 기존 API로 저장
   page,
 }) => {
   const server = await installApi(page);
+  const progress = page.getByRole("progressbar", {
+    name: "체력 기록 진행 단계",
+  });
   let extractions = 0;
   await page.route("**/measurements/extract", async (route) => {
     extractions++;
@@ -66,19 +69,30 @@ test("사진 추출은 저장하지 않고 확인한 값만 기존 API로 저장
     await route.fulfill({ json: extraction });
   });
   await page.goto("/onboarding/photo");
+  await expect(progress).toHaveAttribute("aria-valuenow", "2");
   await page.getByLabel("결과표 파일 선택").setInputFiles(png);
   await page.getByRole("button", { name: "사진에서 측정값 읽기" }).click();
   await expect(
     page.getByText("읽은 측정값 1개 · 확인할 항목 1개"),
   ).toBeVisible();
+  await expect(progress).toHaveAttribute(
+    "aria-valuetext",
+    "3단계 중 2단계, 분석 결과 확인",
+  );
   expect(server.mutations).toHaveLength(0);
   await page.getByRole("button", { name: "추출값 확인·수정" }).click();
+  await expect(progress).toHaveAttribute(
+    "aria-valuetext",
+    "3단계 중 2단계, 기본 정보 입력",
+  );
   await expect(page.getByText(/악력: 32 kg/)).toBeVisible();
   await page.getByRole("button", { name: "측정값 입력하기" }).click();
+  await expect(progress).toHaveAttribute("aria-valuenow", "3");
   await expect(
     page.getByLabel("앉아 윗몸 앞으로 굽히기", { exact: true }),
   ).toHaveValue(extraction.items[0].value);
   await page.reload();
+  await expect(progress).toHaveAttribute("aria-valuenow", "3");
   await expect(
     page.getByLabel("앉아 윗몸 앞으로 굽히기", { exact: true }),
   ).toHaveValue(extraction.items[0].value);
@@ -87,6 +101,7 @@ test("사진 추출은 저장하지 않고 확인한 값만 기존 API로 저장
     .getByRole("button", { name: "1개 항목 저장하기", exact: true })
     .click();
   await expect(page).toHaveURL("/");
+  await expect(progress).toHaveCount(0);
   expect(extractions).toBe(1);
   expect(server.mutations).toHaveLength(1);
   expect(server.record?.items).toEqual([
