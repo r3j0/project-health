@@ -338,7 +338,7 @@ test("사진 추출로 돌아온 성인 윗몸말아올리기도 신규 입력�
     ),
   });
   await page.getByRole("button", { name: "측정값 읽기" }).click();
-  await page.getByRole("button", { name: "추출값 확인·수정" }).click();
+  await page.getByRole("button", { name: "결과표 확정" }).click();
   await expect(
     page.getByText(/성인 윗몸말아올리기는 새 기록에서 지원하지 않아/),
   ).toBeVisible();

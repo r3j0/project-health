@@ -79,14 +79,23 @@ test("사진 추출은 저장하지 않고 확인한 값만 기존 API로 저장
   ).toBeVisible();
   await page.getByRole("button", { name: "측정값 읽기" }).click();
   await expect(
-    page.getByText("읽은 측정값 1개 · 확인할 항목 1개"),
+    page.getByText("일부 내용을 확인해야 해요.", { exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("list", { name: "읽은 측정값", exact: true }),
+  ).toContainText("-3.12345678901234567890 cm");
+  await expect(
+    page.getByRole("list", { name: "확인할 항목", exact: true }),
+  ).toContainText("악력32 kg");
+  await expect(
+    page.getByText("읽은 값과 누락 정보를 확인해 주세요.", { exact: false }),
+  ).toHaveCount(0);
   await expect(progress).toHaveAttribute(
     "aria-valuetext",
     "3단계 중 2단계, 분석 결과 확인",
   );
   expect(server.mutations).toHaveLength(0);
-  await page.getByRole("button", { name: "추출값 확인·수정" }).click();
+  await page.getByRole("button", { name: "결과표 확정" }).click();
   await expect(progress).toHaveAttribute(
     "aria-valuetext",
     "3단계 중 2단계, 기본 정보 입력",
@@ -159,9 +168,9 @@ test("사진 분석 실패 후 직접 입력 가능하며 여러 사람 결과�
   ).toBeEnabled();
   await page.getByRole("button", { name: "측정값 읽기" }).click();
   await expect(page.getByText(/여러 사람의 결과가 섞여/)).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "추출값 확인·수정" }),
-  ).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "결과표 확정" })).toHaveCount(
+    0,
+  );
 });
 test("분석 취소 후 늦은 응답으로 입력 화면이 바뀌지 않는다", async ({
   page,
@@ -183,9 +192,9 @@ test("분석 취소 후 늦은 응답으로 입력 화면이 바뀌지 않는다
   await page.getByRole("button", { name: "분석 취소" }).click();
   release();
   await expect(page.locator(".notice[role=alert]")).toContainText("취소했어요");
-  await expect(
-    page.getByRole("button", { name: "추출값 확인·수정" }),
-  ).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "결과표 확정" })).toHaveCount(
+    0,
+  );
   await expect(page.getByRole("button", { name: "측정값 읽기" })).toBeEnabled();
 });
 
@@ -264,9 +273,9 @@ test("서버 처리 제한 안의 느린 사진 분석도 조기 취소하지 �
   await page.goto("/onboarding/photo");
   await page.getByLabel("결과표 파일 선택").setInputFiles(png);
   await page.getByRole("button", { name: "측정값 읽기" }).click();
-  await expect(
-    page.getByRole("button", { name: "추출값 확인·수정" }),
-  ).toBeVisible({ timeout: 65000 });
+  await expect(page.getByRole("button", { name: "결과표 확정" })).toBeVisible({
+    timeout: 65000,
+  });
   await expect(page.locator(".notice[role=alert]")).toHaveCount(0);
 });
 
@@ -305,3 +314,72 @@ test("사진을 보며 직접 입력해도 성별을 선택해야 측정값으�
     page.getByRole("heading", { name: "측정한 항목만 입력해요" }),
   ).toBeVisible();
 });
+
+for (const status of ["extracted", "needs_review"] as const) {
+  test(`사진 추출 결과는 확인 안내와 실제 항목을 표시한다: ${status}`, async ({
+    page,
+  }, info) => {
+    await installApi(page);
+    const readItems = [
+      ...extraction.items,
+      ...[
+        ["height", "신장", "170", "cm"],
+        ["weight", "체중", "65", "kg"],
+        ["bmi", "BMI", "22.5", "kg/m²"],
+        ["waist_circumference", "허리둘레", "80", "cm"],
+        ["cross_sit_up", "교차 윗몸일으키기", "40", "회"],
+      ].map(([measurementCode, label, value, unit]) => ({
+        measurementCode,
+        value,
+        unit,
+        reportedGrade: null,
+        evidence: { label, value, unit },
+      })),
+    ];
+    await page.route("**/measurements/extract", (route) =>
+      route.fulfill({
+        json: {
+          ...extraction,
+          status,
+          items: status === "extracted" ? readItems : [],
+          reviewItems: status === "extracted" ? [] : extraction.reviewItems,
+        },
+      }),
+    );
+    await page.goto("/onboarding/photo");
+    await page.getByLabel("결과표 파일 선택").setInputFiles(png);
+    await page
+      .getByRole("button", { name: "측정값 읽기", exact: true })
+      .click();
+    await expect(
+      page.getByText("일부 내용을 확인해야 해요.", { exact: true }),
+    ).toBeVisible();
+    const list = page.getByRole("list", {
+      name: status === "extracted" ? "읽은 측정값" : "확인할 항목",
+      exact: true,
+    });
+    await expect(list.getByRole("listitem")).toHaveCount(
+      status === "extracted" ? 6 : 1,
+    );
+    await expect(list.getByRole("listitem").first()).toHaveCSS(
+      "border-left-color",
+      status === "extracted" ? "rgb(27, 153, 196)" : "rgb(255, 127, 0)",
+    );
+    for (const width of [320, 390, 430]) {
+      await page.setViewportSize({ width, height: 844 });
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth),
+      ).toBeLessThanOrEqual(width);
+      await page.screenshot({
+        path: info.outputPath(`extraction-${status}-${width}.png`),
+        fullPage: true,
+      });
+    }
+    await page
+      .getByRole("button", { name: "결과표 확정", exact: true })
+      .click();
+    await expect(
+      page.getByLabel("측정 당시 만 나이", { exact: true }),
+    ).toHaveValue("25");
+  });
+}

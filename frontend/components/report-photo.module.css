@@ -37,3 +37,46 @@
 .actions :global(.text-button) {
   color: var(--muted);
 }
+
+.extraction {
+  display: grid;
+  gap: 16px;
+}
+.extraction h3 {
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+.resultList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.readItem,
+.reviewItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: var(--radius-chip);
+  border-left: 3px solid var(--sky);
+  background: var(--tint);
+  color: var(--navy);
+  overflow-wrap: anywhere;
+}
+.reviewItem {
+  border-color: var(--orange);
+  background: color-mix(in srgb, var(--orange) 10%, var(--surface));
+  color: color-mix(in srgb, var(--orange) 45%, var(--text));
+}
+.resultList span,
+.resultList small {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.resultList strong {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}

@@ -303,21 +303,59 @@ export function ReportPhoto() {
           </p>
         )}
         {photo && draft && (
-          <section className="feature-card stack">
-            <Notice tone="info">{extractionStatusText[draft.status]}</Notice>
+          <section className={styles.extraction} aria-label="사진 추출 결과">
+            <Notice tone="info">일부 내용을 확인해야 해요.</Notice>
+            {(!canReviewExtraction(draft) ||
+              draft.status === "grades_only") && (
+              <Notice tone="info">{extractionStatusText[draft.status]}</Notice>
+            )}
+            {draft.items.length > 0 ? (
+              <div>
+                <h3>읽은 측정값</h3>
+                <ul className={styles.resultList} aria-label="읽은 측정값">
+                  {draft.items.map((item) => (
+                    <li className={styles.readItem} key={item.measurementCode}>
+                      <span>{item.evidence.label || item.measurementCode}</span>
+                      <strong>
+                        {item.value} {item.unit}
+                      </strong>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="caption">사진에서 읽은 측정값이 없어요.</p>
+            )}
+            {draft.reviewItems.length > 0 && (
+              <div>
+                <h3>확인할 항목</h3>
+                <ul className={styles.resultList} aria-label="확인할 항목">
+                  {draft.reviewItems.map((item, index) => (
+                    <li className={styles.reviewItem} key={index}>
+                      <span>
+                        {item.evidence.label ||
+                          item.measurementCode ||
+                          "확인할 항목"}
+                      </span>
+                      <strong>
+                        {item.value ?? item.evidence.value ?? "판독 불가"}{" "}
+                        {item.unit ?? item.evidence.unit ?? ""}
+                      </strong>
+                      {item.reportedGrade && (
+                        <small>결과표 등급: {item.reportedGrade}</small>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {canReviewExtraction(draft) && (
-              <>
-                <p>
-                  읽은 측정값 {draft.items.length}개 · 확인할 항목{" "}
-                  {draft.reviewItems.length}개
-                </p>
-                <button
-                  className="button primary"
-                  onClick={() => setEntering(true)}
-                >
-                  추출값 확인·수정
-                </button>
-              </>
+              <button
+                className="button primary"
+                onClick={() => setEntering(true)}
+              >
+                결과표 확정
+              </button>
             )}
           </section>
         )}

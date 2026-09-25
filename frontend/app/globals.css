@@ -6,7 +6,8 @@
   --navy-hover: #08235c;
   --navy-pressed: #061b48;
   --sky: #1b99c4;
-  --accent: #ff7f00;
+  --orange: #ff7f00;
+  --accent: var(--orange);
   --canvas: #f8fafc;
   --surface: #fff;
   --border: #e2e8f0;
