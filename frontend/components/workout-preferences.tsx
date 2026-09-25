@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { Check, Equal, Minus, Plus } from "lucide-react";
+import { Activity, Equal, Minus, Plus, Scale, Trophy } from "lucide-react";
 import {
   exerciseGoalOptions,
   exerciseVolumeOptions,
@@ -11,6 +11,11 @@ import { Header, Shell } from "./ui";
 import styles from "./workout-preferences.module.css";
 
 const volumeIcons = { less: Minus, standard: Equal, more: Plus };
+const goalIcons = {
+  fitness_grade_improvement: Trophy,
+  body_composition_management: Scale,
+  general_fitness_improvement: Activity,
+};
 
 /** Controlled fields can be connected to the preferences API without changing the UI. */
 export function WorkoutPreferenceFields({
@@ -28,14 +33,11 @@ export function WorkoutPreferenceFields({
         <p id={`${id}-volume-hint`} className={styles.hint}>
           나에게 맞는 운동량을 선택해 주세요.
         </p>
-        <div className={styles.volumes}>
+        <div className={styles.choices}>
           {exerciseVolumeOptions.map((option) => {
             const Icon = volumeIcons[option.value];
             return (
-              <label
-                key={option.value}
-                className={`${styles.choice} ${styles.volume}`}
-              >
+              <label key={option.value} className={styles.choice}>
                 <input
                   className="sr-only"
                   type="radio"
@@ -47,7 +49,7 @@ export function WorkoutPreferenceFields({
                   }
                 />
                 <Icon size={22} aria-hidden="true" />
-                <span>{option.label}</span>
+                <span className={styles.label}>{option.label}</span>
               </label>
             );
           })}
@@ -58,38 +60,45 @@ export function WorkoutPreferenceFields({
         <p id={`${id}-goal-hint`} className={styles.hint}>
           가장 이루고 싶은 목표를 하나 골라 주세요.
         </p>
-        <div className={styles.goals}>
-          {exerciseGoalOptions.map((option) => (
-            <label
-              key={option.value}
-              className={`${styles.choice} ${styles.goal}`}
-            >
-              <input
-                className="sr-only"
-                type="radio"
-                name={`${id}-exerciseGoal`}
-                value={option.value}
-                aria-labelledby={`${id}-${option.value}-label`}
-                aria-describedby={`${id}-${option.value}-description`}
-                checked={value.exerciseGoal === option.value}
-                onChange={() =>
-                  onChange({ ...value, exerciseGoal: option.value })
-                }
-              />
-              <span className={styles.goalCopy}>
-                <strong id={`${id}-${option.value}-label`}>
+        <div className={styles.choices}>
+          {exerciseGoalOptions.map((option) => {
+            const Icon = goalIcons[option.value];
+            return (
+              <label key={option.value} className={styles.choice}>
+                <input
+                  className="sr-only"
+                  type="radio"
+                  name={`${id}-exerciseGoal`}
+                  value={option.value}
+                  aria-labelledby={`${id}-${option.value}-label`}
+                  aria-describedby={`${id}-${option.value}-description`}
+                  checked={value.exerciseGoal === option.value}
+                  onChange={() =>
+                    onChange({ ...value, exerciseGoal: option.value })
+                  }
+                />
+                <Icon size={22} aria-hidden="true" />
+                <span
+                  id={`${id}-${option.value}-label`}
+                  className={`${styles.label} ${styles.goalLabel}`}
+                >
                   {option.label}
-                </strong>
-                <span id={`${id}-${option.value}-description`}>
+                </span>
+                <span
+                  id={`${id}-${option.value}-description`}
+                  className="sr-only"
+                >
                   {option.description}
                 </span>
-              </span>
-              <span className={styles.check} aria-hidden="true">
-                {value.exerciseGoal === option.value && <Check size={14} />}
-              </span>
-            </label>
-          ))}
+              </label>
+            );
+          })}
         </div>
+        <p className={styles.description} aria-live="polite">
+          {exerciseGoalOptions.find(
+            (option) => option.value === value.exerciseGoal,
+          )?.description ?? "목적을 선택하면 자세한 설명을 볼 수 있어요."}
+        </p>
       </fieldset>
     </div>
   );

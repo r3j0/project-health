@@ -22,13 +22,10 @@
   color: var(--muted);
   font-size: 14px;
 }
-.volumes,
-.goals {
+.choices {
   display: grid;
   gap: 10px;
   margin-top: 16px;
-}
-.volumes {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .choice {
@@ -48,7 +45,7 @@
   outline: 3px solid var(--navy);
   outline-offset: 3px;
 }
-.volume {
+.choice {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -61,46 +58,32 @@
   font-weight: 600;
   word-break: keep-all;
 }
-.volume > svg {
+.choice > svg {
   color: var(--muted);
 }
-.volume:has(input:checked) > svg {
+.choice:has(input:checked) > svg {
   color: var(--navy);
 }
-.goal {
+.label {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 18px 16px;
+  justify-content: center;
+  min-height: 42px;
 }
-.goalCopy {
-  display: grid;
-  gap: 6px;
-  flex: 1;
-  min-width: 0;
+.goalLabel {
+  font-size: 13px;
 }
-.goalCopy strong {
-  font-size: 15px;
-  font-weight: 600;
-}
-.goalCopy > span {
+.description {
+  min-height: 42px;
+  margin-top: 12px;
   font-size: 13px;
   color: var(--text-secondary);
   word-break: keep-all;
 }
-.check {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  flex: none;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  color: var(--navy);
-}
-.goal:has(input:checked) .check {
-  border-color: var(--accent);
-  background: var(--accent);
+@media (max-width: 380px) {
+  .goalLabel {
+    font-size: 12px;
+  }
 }
 .save {
   display: grid;
