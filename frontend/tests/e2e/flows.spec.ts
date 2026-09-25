@@ -144,16 +144,24 @@ test("가입 → 정확한 부분 저장 → 새로고침 → 수정 → 삭제 
   await page.getByLabel("신장 등급", { exact: true }).fill("참가");
   await save(page, 3);
   await expect(
-    page.getByText("170.1234567890123456789 cm", { exact: true }),
+    page
+      .locator(".result-card")
+      .getByText("170.1234567890123456789 cm", { exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("-3.25 cm", { exact: true })).toBeVisible();
-  await expect(page.getByText("0 회", { exact: true })).toBeVisible();
+  await expect(
+    page.locator(".result-card").getByText("-3.25 cm", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.locator(".result-card").getByText("0 회", { exact: true }),
+  ).toBeVisible();
   await page.getByText("미입력 항목 보기", { exact: false }).click();
   await expect(page.getByText("체중 · 미입력", { exact: true })).toBeVisible();
   await expect(page.getByText("BMI · 미입력", { exact: true })).toBeVisible();
   await page.reload();
   await expect(
-    page.getByText("170.1234567890123456789 cm", { exact: true }),
+    page
+      .locator(".result-card")
+      .getByText("170.1234567890123456789 cm", { exact: true }),
   ).toBeVisible();
   await page.screenshot({
     path: testInfo.outputPath("record-mobile.png"),
@@ -162,10 +170,16 @@ test("가입 → 정확한 부분 저장 → 새로고침 → 수정 → 삭제 
   await page.getByRole("link", { name: "기록 수정" }).click();
   await page.getByLabel("신장", { exact: true }).fill("171.25");
   await page.getByRole("button", { name: "수정 내용 저장" }).click();
-  await expect(page.getByText("171.25 cm", { exact: true })).toBeVisible();
-  await expect(page.getByText("-3.25 cm", { exact: true })).toBeVisible();
   await expect(
-    page.getByText("결과표 등급: 참가", { exact: true }),
+    page.locator(".result-card").getByText("171.25 cm", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.locator(".result-card").getByText("-3.25 cm", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator(".result-card")
+      .getByText("결과표 등급: 참가", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByText("테스트 체력인증센터", { exact: true }),
@@ -222,7 +236,9 @@ test("실제 저장 응답 유실 후 같은 키로 재시도해 중복 생성�
   await expect(page.getByLabel("신장", { exact: true })).toBeDisabled();
   await page.getByRole("button", { name: "같은 내용으로 다시 확인" }).click();
   await openSavedRecord(page);
-  await expect(page.getByText("170 cm", { exact: true })).toBeVisible();
+  await expect(
+    page.locator(".result-card").getByText("170 cm", { exact: true }),
+  ).toBeVisible();
   expect(keys).toHaveLength(2);
   expect(keys[0]).toBe(keys[1]);
   await page.getByRole("link", { name: "이전 화면", exact: true }).click();
@@ -243,7 +259,9 @@ test("두 탭에서의 수정 충돌은 입력을 유지하고 최신 기록을 
   await second.goto(url + "/edit");
   await second.getByLabel("신장", { exact: true }).fill("180");
   await second.getByRole("button", { name: "수정 내용 저장" }).click();
-  await expect(second.getByText("180 cm", { exact: true })).toBeVisible();
+  await expect(
+    second.locator(".result-card").getByText("180 cm", { exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "수정 내용 저장" }).click();
   await expect(
     page.getByRole("dialog", { name: "최신 기록을 확인해 주세요" }),
@@ -257,7 +275,9 @@ test("두 탭에서의 수정 충돌은 입력을 유지하고 최신 기록을 
     .click();
   await expect(page.getByLabel("신장", { exact: true })).toHaveValue("171");
   await second.reload();
-  await expect(second.getByText("180 cm", { exact: true })).toBeVisible();
+  await expect(
+    second.locator(".result-card").getByText("180 cm", { exact: true }),
+  ).toBeVisible();
 });
 test("동시 새로고침 후 인증 유지, 한 탭의 로그아웃이 다른 탭도 비운다", async ({
   page,
@@ -428,7 +448,9 @@ test("수정된 기록은 최신 내용 확인 전 삭제하지 않는다", asyn
   await second.goto(url + "/edit");
   await second.getByLabel("신장", { exact: true }).fill("180");
   await second.getByRole("button", { name: "수정 내용 저장" }).click();
-  await expect(second.getByText("180 cm", { exact: true })).toBeVisible();
+  await expect(
+    second.locator(".result-card").getByText("180 cm", { exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "기록 삭제", exact: true }).click();
   await page
     .getByRole("dialog")
@@ -443,7 +465,9 @@ test("수정된 기록은 최신 내용 확인 전 삭제하지 않는다", asyn
   await page
     .getByRole("button", { name: "최신 기록 불러오기", exact: true })
     .click();
-  await expect(page.getByText("180 cm", { exact: true })).toBeVisible();
+  await expect(
+    page.locator(".result-card").getByText("180 cm", { exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "기록 삭제", exact: true }).click();
   await page
     .getByRole("dialog")
@@ -530,7 +554,9 @@ test("저장 응답 유실 뒤 갱신 429와 새로고침에도 원래 키·본�
   await expect(page.getByLabel("신장", { exact: true })).toBeDisabled();
   await page.getByRole("button", { name: "같은 내용으로 다시 확인" }).click();
   await openSavedRecord(page);
-  await expect(page.getByText("170 cm", { exact: true })).toBeVisible();
+  await expect(
+    page.locator(".result-card").getByText("170 cm", { exact: true }),
+  ).toBeVisible();
   expect(new Set(keys).size).toBe(1);
   expect(new Set(bodies).size).toBe(1);
   expect(keys).toHaveLength(3);
@@ -565,7 +591,9 @@ test("세션 만료 후 같은 계정으로 로그인하면 입력과 생성 요
   await expect(page.getByLabel("신장", { exact: true })).toHaveValue("170");
   await page.getByRole("button", { name: "같은 내용으로 다시 확인" }).click();
   await openSavedRecord(page);
-  await expect(page.getByText("170 cm", { exact: true })).toBeVisible();
+  await expect(
+    page.locator(".result-card").getByText("170 cm", { exact: true }),
+  ).toBeVisible();
   expect(keys).toHaveLength(2);
   expect(keys[0]).toBe(keys[1]);
 });
@@ -652,7 +680,9 @@ test("복원한 수정 입력은 원래 ETag를 유지하여 최신 기록을 �
   await second.goto(url + "/edit");
   await second.getByLabel("신장", { exact: true }).fill("180");
   await second.getByRole("button", { name: "수정 내용 저장" }).click();
-  await expect(second.getByText("180 cm", { exact: true })).toBeVisible();
+  await expect(
+    second.locator(".result-card").getByText("180 cm", { exact: true }),
+  ).toBeVisible();
   page.on("dialog", (dialog) => dialog.accept());
   await page.reload();
   await expect(page.getByLabel("신장", { exact: true })).toHaveValue("171");
@@ -756,7 +786,9 @@ for (const outcome of ["success", "network", "server"] as const) {
     await expect(page.getByLabel("신장", { exact: true })).toBeDisabled();
     await page.getByRole("button", { name: "같은 내용으로 다시 확인" }).click();
     await openSavedRecord(page);
-    await expect(page.getByText("170 cm", { exact: true })).toBeVisible();
+    await expect(
+      page.locator(".result-card").getByText("170 cm", { exact: true }),
+    ).toBeVisible();
     expect(held.requests).toHaveLength(2);
     expect(held.requests[0]).toEqual(held.requests[1]);
     await page.getByRole("link", { name: "이전 화면", exact: true }).click();
@@ -866,7 +898,9 @@ for (const outcome of ["success", "network"] as const) {
     );
     await expect(page.getByLabel("신장", { exact: true })).toBeEnabled();
     await page.getByRole("button", { name: "수정 내용 저장" }).click();
-    await expect(page.getByText("181.25 cm", { exact: true })).toBeVisible();
+    await expect(
+      page.locator(".result-card").getByText("181.25 cm", { exact: true }),
+    ).toBeVisible();
   });
 }
 

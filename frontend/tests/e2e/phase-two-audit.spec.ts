@@ -27,16 +27,20 @@ const png = Buffer.from(
   "base64",
 );
 
-test("진행 중인 측정에서 나갔다가 돌아오면 해당 항목을 다시 시작한다", async ({
+test("진행 중인 측정에서 이전 단계로 돌아오면 해당 항목을 다시 시작한다", async ({
   page,
 }) => {
   await register(page);
   await page.goto("/workout?mode=assessment");
   await prepareAssessment(page);
   await page.getByRole("button", { name: "측정 시작", exact: true }).click();
-  await page.getByRole("link", { name: "이전 화면", exact: true }).click();
-  await expect(page).toHaveURL(/\/onboarding$/);
-  await page.goBack();
+  await page.getByRole("button", { name: "이전 단계", exact: true }).click();
+  await expect(page.getByRole("timer")).toHaveCount(0);
+  await expect(page.getByRole("progressbar")).toHaveAttribute(
+    "aria-valuenow",
+    "2",
+  );
+  await page.getByRole("button", { name: "변경 완료", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "이 항목 다시 시작" }),
   ).toBeVisible();
@@ -56,8 +60,11 @@ test("사진은 이탈 시 지우고 입력 초안은 사진 없이 이어갈 �
   await page.getByRole("button", { name: "이 사진을 보며 직접 입력" }).click();
   await page.getByLabel("측정 당시 만 나이", { exact: true }).fill("25");
   page.on("dialog", (dialog) => dialog.accept());
-  await page.getByRole("link", { name: "내 프로필", exact: true }).click();
-  await expect(page).toHaveURL(/\/account$/);
+  await expect(
+    page.getByRole("navigation", { name: "하단 메뉴" }),
+  ).toBeHidden();
+  await page.getByRole("link", { name: "이전 화면", exact: true }).click();
+  await expect(page).toHaveURL(/\/onboarding$/);
   await page.goBack();
   await expect(preview).toHaveCount(0);
   // The photo draft now resumes directly in its own form namespace.

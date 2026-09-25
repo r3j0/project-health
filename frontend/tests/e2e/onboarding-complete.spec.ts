@@ -4,6 +4,7 @@ import { installApi, testRecord } from "./integration-fixtures";
 test("저장 완료 화면은 새로고침해도 기록을 확인하고 두 가지 다음 행동만 제공한다", async ({
   page,
 }, info) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const record = testRecord();
   const server = await installApi(page, record);
   await page.goto(`/onboarding/complete?record=${record.id}`);
