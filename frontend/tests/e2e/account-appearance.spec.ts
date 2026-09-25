@@ -101,7 +101,9 @@ test("프로필은 얼굴 모션과 축 아래 등급을 표시하고 기록 상
   await page.getByRole("button", { name: "취소", exact: true }).click();
   await page.getByRole("link", { name: "내 측정 기록", exact: true }).click();
   await page.locator(".record-card").click();
-  await expect(page.locator(".radar-legend dd")).toHaveCount(6);
+  await expect(
+    page.locator(".fitness-radar:not(.fitness-radar-compact) .radar-grade"),
+  ).toHaveCount(6);
   await page.getByRole("link", { name: "메인", exact: true }).click();
   const fullBody = page.getByRole("img", { name: "편안하게 숨 쉬는 햄스터" });
   await expect(fullBody.locator('[data-part="torso"]')).toBeVisible();

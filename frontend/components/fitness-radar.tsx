@@ -25,7 +25,7 @@ export function FitnessRadar({
       className={`fitness-radar${compact ? " fitness-radar-compact" : ""}`}
     >
       <svg
-        viewBox={compact ? "0 0 360 340" : "0 0 360 316"}
+        viewBox="0 0 360 340"
         role="img"
         aria-labelledby={`${id}-title ${id}-description`}
       >
@@ -33,16 +33,13 @@ export function FitnessRadar({
         <desc id={`${id}-description`}>
           위쪽 심폐지구력부터 시계 방향으로 여섯 점을 연결합니다. 바깥쪽일수록
           높은 등급이며 평가가 없는 축은 원점에 표시합니다.
-          {compact &&
-            fitnessFactors
-              .map(
-                (f) =>
-                  `${f.label}: ${gradeLabel(axes.find((a) => a.factor === f.code)!)}.`,
-              )
-              .join(" ")}
-          {compact &&
-            hasReferenceGrade &&
-            "심폐지구력은 자가측정 기반 참고 등급입니다."}
+          {fitnessFactors
+            .map(
+              (f) =>
+                `${f.label}: ${gradeLabel(axes.find((a) => a.factor === f.code)!)}.`,
+            )
+            .join(" ")}
+          {hasReferenceGrade && "심폐지구력은 자가측정 기반 참고 등급입니다."}
         </desc>
         {[0.25, 0.5, 0.75, 1].map((radius) => (
           <polygon
@@ -60,9 +57,7 @@ export function FitnessRadar({
           const end = radarPoint(i, 1),
             label = radarPoint(i, 1.28);
           // Two-line labels sit outside the grid, including the upper corners.
-          const labelY =
-            label.y -
-            (compact ? (i === 0 ? 8 : i === 1 || i === 5 ? 26 : 0) : 0);
+          const labelY = label.y - (i === 0 ? 8 : i === 1 || i === 5 ? 26 : 0);
           const axis = axes.find((a) => a.factor === f.code)!;
           const reference =
             axis.sourceMeasurementCodes.includes("ymca_recovery_heart_rate") &&
@@ -85,19 +80,17 @@ export function FitnessRadar({
               >
                 {f.label}
               </text>
-              {compact && (
-                <text
-                  className="radar-grade"
-                  data-factor={f.code}
-                  x={label.x}
-                  y={labelY + 22}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                >
-                  {gradeLabel(axis).split(" · ")[0]}
-                  {reference ? " (참고)" : ""}
-                </text>
-              )}
+              <text
+                className="radar-grade"
+                data-factor={f.code}
+                x={label.x}
+                y={labelY + 22}
+                textAnchor="middle"
+                dominantBaseline="middle"
+              >
+                {compact ? gradeLabel(axis).split(" · ")[0] : gradeLabel(axis)}
+                {reference ? " (참고)" : ""}
+              </text>
             </g>
           );
         })}
@@ -123,17 +116,6 @@ export function FitnessRadar({
               심폐지구력은 자가측정 기반 참고 등급이에요.
             </p>
           )}
-          <dl className="radar-legend">
-            {fitnessFactors.map((f) => {
-              const axis = axes.find((a) => a.factor === f.code)!;
-              return (
-                <div key={f.code}>
-                  <dt>{f.label}</dt>
-                  <dd>{gradeLabel(axis)}</dd>
-                </div>
-              );
-            })}
-          </dl>
         </>
       )}
     </figure>

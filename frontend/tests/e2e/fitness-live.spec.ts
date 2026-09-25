@@ -103,14 +103,9 @@ test("실제 API: 6종목 직접 입력·상세 등급·기준·수정 재평가
   ]);
   await expect(page).toHaveURL(/\/onboarding\/complete\?record=/);
   await page.goto(`/measurements/${saved.id}`);
-  await expect(page.locator(".radar-legend dd")).toHaveText([
-    "2등급",
-    "3등급",
-    "1등급",
-    "2등급",
-    "2등급",
-    "1등급",
-  ]);
+  await expect(
+    page.locator(".fitness-radar:not(.fitness-radar-compact) .radar-grade"),
+  ).toHaveText(["2등급", "3등급", "1등급", "2등급", "2등급", "1등급"]);
   await expect(page.locator(".radar-point")).toHaveCount(6);
   await page.locator('summary[aria-label^="유연성 · 2등급"]').click();
   await expect(page.getByText(/현재 값과의 차이 4.8 cm/)).toBeVisible();
@@ -123,16 +118,15 @@ test("실제 API: 6종목 직접 입력·상세 등급·기준·수정 재평가
   await add(page, "트레드밀(VO₂max)", "44.8");
   await page.getByRole("button", { name: "수정 내용 저장" }).click();
   await expect(page).toHaveURL(/saved=1/);
-  await expect(page.locator(".radar-legend dd")).toHaveText([
-    "1등급",
-    "3등급",
-    "1등급",
-    "1등급",
-    "2등급",
-    "1등급",
-  ]);
+  await expect(
+    page.locator(".fitness-radar:not(.fitness-radar-compact) .radar-grade"),
+  ).toHaveText(["1등급", "3등급", "1등급", "1등급", "2등급", "1등급"]);
   await page.reload();
-  await expect(page.locator(".radar-legend dd").nth(3)).toHaveText("1등급");
+  await expect(
+    page
+      .locator(".fitness-radar:not(.fitness-radar-compact) .radar-grade")
+      .nth(3),
+  ).toHaveText("1등급");
   const stored = await page.request.get(`${api}/measurements/${saved.id}`, {
     headers,
   });
@@ -157,7 +151,9 @@ test("실제 API: 미측정·정보 부족·기준 미확보·0회·음수를 �
     ],
   });
   await page.goto(`/measurements/${saved.id}`);
-  await expect(page.locator(".radar-legend dd")).toHaveText([
+  await expect(
+    page.locator(".fitness-radar:not(.fitness-radar-compact) .radar-grade"),
+  ).toHaveText([
     "평가 불가 · 정보 부족",
     "평가 미존재 · 미측정",
     "기준 미달",
@@ -173,9 +169,11 @@ test("실제 API: 미측정·정보 부족·기준 미확보·0회·음수를 �
   });
   expect(patch.status()).toBe(200);
   await page.reload();
-  await expect(page.locator(".radar-legend dd").nth(3)).toHaveText(
-    "평가 불가 · 정보 부족",
-  );
+  await expect(
+    page
+      .locator(".fitness-radar:not(.fitness-radar-compact) .radar-grade")
+      .nth(3),
+  ).toHaveText("평가 불가 · 정보 부족");
   await expect(page.locator('.radar-point[cx="180"][cy="158"]')).toHaveCount(6);
 });
 
@@ -304,7 +302,11 @@ test("실제 API: 간이측정은 기관 결과표와 구분하고 부분 기록
   await page.getByRole("link", { name: "측정 기록 보기", exact: true }).click();
   await expect(page.locator(".radar-point")).toHaveCount(6);
   await expect(page.locator('.radar-point[cx="180"][cy="158"]')).toHaveCount(5);
-  await expect(page.locator(".radar-legend dd").nth(3)).toHaveText("2등급");
+  await expect(
+    page
+      .locator(".fitness-radar:not(.fitness-radar-compact) .radar-grade")
+      .nth(3),
+  ).toHaveText("2등급");
   await page.getByRole("link", { name: "기록 수정", exact: true }).click();
   await page.getByRole("button", { name: "변경", exact: true }).click();
   await page.getByText("추가 정보", { exact: false }).click();
@@ -376,7 +378,11 @@ test("실제 API: 절대악력 저장·환산 리포트·체중 수정 및 제�
   await page.locator("#value-weight").fill("100");
   await page.getByRole("button", { name: "수정 내용 저장" }).click();
   await expect(page).toHaveURL(/saved=1/);
-  await expect(page.locator(".radar-legend dd").nth(1)).toHaveText("기준 미달");
+  await expect(
+    page
+      .locator(".fitness-radar:not(.fitness-radar-compact) .radar-grade")
+      .nth(1),
+  ).toHaveText("기준 미달");
   await page.reload();
   await page.locator('summary[aria-label^="근력 · 기준 미달"]').click();
   await expect(
@@ -390,9 +396,11 @@ test("실제 API: 절대악력 저장·환산 리포트·체중 수정 및 제�
   await expect(page.getByText(/체중이 없으면 절대악력만 저장/)).toBeVisible();
   await page.getByRole("button", { name: "수정 내용 저장" }).click();
   await expect(page).toHaveURL(/saved=1/);
-  await expect(page.locator(".radar-legend dd").nth(1)).toHaveText(
-    "평가 불가 · 정보 부족",
-  );
+  await expect(
+    page
+      .locator(".fitness-radar:not(.fitness-radar-compact) .radar-grade")
+      .nth(1),
+  ).toHaveText("평가 불가 · 정보 부족");
   await page
     .locator('summary[aria-label^="근력 · 평가 불가 · 정보 부족"]')
     .click();
@@ -451,7 +459,11 @@ test("실제 API: 스텝검사 완료부터 환산 리포트·내 프로필·신
     },
   });
   await page.getByRole("link", { name: "측정 기록 보기", exact: true }).click();
-  await expect(page.locator(".radar-legend dd").first()).toHaveText("1등급");
+  await expect(
+    page
+      .locator(".fitness-radar:not(.fitness-radar-compact) .radar-grade")
+      .first(),
+  ).toHaveText("1등급 (참고)");
   await page.locator('summary[aria-label^="심폐지구력 · 1등급"]').click();
   await expect(
     page.getByLabel("추정 최대산소섭취량: 49.877 ml/kg/min", { exact: true }),
@@ -469,7 +481,11 @@ test("실제 API: 스텝검사 완료부터 환산 리포트·내 프로필·신
   await page.getByLabel("체중", { exact: true }).fill("100");
   await page.getByRole("button", { name: "수정 내용 저장" }).click();
   await expect(page).toHaveURL(/saved=1/);
-  await expect(page.locator(".radar-legend dd").first()).toHaveText("3등급");
+  await expect(
+    page
+      .locator(".fitness-radar:not(.fitness-radar-compact) .radar-grade")
+      .first(),
+  ).toHaveText("3등급 (참고)");
   await page.locator('summary[aria-label^="심폐지구력 · 3등급"]').click();
   await expect(
     page.getByLabel("추정 최대산소섭취량: 42.107 ml/kg/min", { exact: true }),
@@ -485,9 +501,11 @@ test("실제 API: 스텝검사 완료부터 환산 리포트·내 프로필·신
   await page.getByRole("button", { name: "수정 내용 저장" }).click();
   await expect(page).toHaveURL(/saved=1/);
   await page.reload();
-  await expect(page.locator(".radar-legend dd").first()).toHaveText(
-    "평가 불가 · 정보 부족",
-  );
+  await expect(
+    page
+      .locator(".fitness-radar:not(.fitness-radar-compact) .radar-grade")
+      .first(),
+  ).toHaveText("평가 불가 · 정보 부족");
   await expect(
     page.getByRole("definition").filter({ hasText: "90 bpm" }),
   ).toBeVisible();

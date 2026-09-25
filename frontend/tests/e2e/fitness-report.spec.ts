@@ -76,7 +76,11 @@ for (const status of [
       "d",
       "M 180 158 L 180 158 L 180 158 L 180 158 L 180 158 L 180 158 Z",
     );
-    await expect(page.locator(".radar-legend dd").nth(3)).toHaveText(
+    await expect(
+      page
+        .locator(".fitness-radar:not(.fitness-radar-compact) .radar-grade")
+        .nth(3),
+    ).toHaveText(
       {
         not_evaluated: "평가 미존재 · 미평가",
         insufficient_information: "평가 불가 · 정보 부족",
