@@ -1,31 +1,20 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
+import { BreathingMascot } from "./mascot/BreathingMascot";
+import { LatestFitness } from "./latest-fitness";
 import { useRouter } from "next/navigation";
 import { ChevronRight, LogOut } from "lucide-react";
-import { api, logout } from "@/lib/session";
+import { logout } from "@/lib/session";
 import { errorMessage } from "@/lib/http";
-import type { User } from "@/lib/types";
-import { ArtworkSlot, Dialog, Loading, Notice, Shell } from "./ui";
+import { useUserProfile } from "./user-profile-provider";
+import { Dialog, Loading, Notice, Shell } from "./ui";
 export function Account() {
-  const [user, setUser] = useState<User | null>(null),
-    [profileError, setProfileError] = useState(""),
-    [logoutError, setLogoutError] = useState(""),
+  const { data: user, error: profileError, reload } = useUserProfile();
+  const [logoutError, setLogoutError] = useState(""),
     [confirm, setConfirm] = useState(false),
-    [busy, setBusy] = useState(false),
-    [retry, setRetry] = useState(0);
+    [busy, setBusy] = useState(false);
   const router = useRouter();
-  useEffect(() => {
-    const c = new AbortController();
-    api<User>("/auth/me", { signal: c.signal })
-      .then((r) => {
-        if (!c.signal.aborted) setUser(r.data);
-      })
-      .catch((e) => {
-        if (!c.signal.aborted) setProfileError(errorMessage(e));
-      });
-    return () => c.abort();
-  }, [retry]);
   async function signOut() {
     setBusy(true);
     setLogoutError("");
@@ -40,14 +29,19 @@ export function Account() {
     }
   }
   return (
-    <Shell>
+    <Shell className="account-shell kspo-orange-theme">
       <h1 className="sr-only">내 프로필</h1>
       <div className="content stack">
         {logoutError && <Notice>{logoutError}</Notice>}
         {user ? (
           <>
             <div className="profile-card">
-              <ArtworkSlot small />
+              <BreathingMascot
+                framing="face"
+                size={80}
+                label="편안하게 숨 쉬는 햄스터 얼굴"
+                className="profile-avatar"
+              />
               <div className="profile-copy">
                 <h2>나의 건강한 일상</h2>
                 <p className="muted" style={{ fontSize: 14, marginTop: 6 }}>
@@ -59,20 +53,21 @@ export function Account() {
         ) : profileError ? (
           <>
             <Notice>{profileError}</Notice>
-            <button
-              className="button secondary"
-              onClick={() => {
-                setProfileError("");
-                setRetry((v) => v + 1);
-              }}
-            >
+            <button className="button secondary" onClick={reload}>
               다시 불러오기
             </button>
           </>
         ) : (
           <Loading />
         )}
+        {user?.isOnboarded && <LatestFitness />}
         <div className="menu-card">
+          {user && (
+            <div className="menu-row">
+              <span className="muted">보유 재화</span>
+              <strong>{user.currency.balance.toLocaleString("ko-KR")}</strong>
+            </div>
+          )}
           {user && (
             <div className="menu-row">
               <span className="muted">가입일</span>
@@ -86,6 +81,14 @@ export function Account() {
           )}
           <Link href="/measurements" className="menu-row">
             <strong>내 측정 기록</strong>
+            <ChevronRight size={20} />
+          </Link>
+          <Link href="/account/preferences" className="menu-row">
+            <strong>운동 설정</strong>
+            <ChevronRight size={20} aria-hidden="true" />
+          </Link>
+          <Link href="/account/settings" className="menu-row">
+            <strong>계정 설정</strong>
             <ChevronRight size={20} />
           </Link>
         </div>

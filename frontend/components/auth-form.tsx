@@ -3,24 +3,16 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
+import { authDestination } from "@/lib/auth-destination";
 import { authenticate } from "@/lib/session";
 import { ApiError, errorMessage } from "@/lib/http";
-import {
-  ArtworkSlot,
-  Brand,
-  FieldError,
-  Notice,
-  Shell,
-  SubmitLabel,
-} from "./ui";
+import { Brand, FieldError, Notice, Shell, SubmitLabel } from "./ui";
+import { BreathingMascot } from "./mascot/BreathingMascot";
 import { useSession } from "./session-provider";
-function destination() {
+function destination(mode: "login" | "register") {
+  if (mode === "register") return "/onboarding";
   const next = new URLSearchParams(window.location.search).get("next") ?? "";
-  return /^\/measurements(?:\/new|\/[a-f0-9-]+(?:\/edit)?)?$/.test(next) ||
-    next === "/account" ||
-    next === "/"
-    ? next
-    : "/";
+  return authDestination(next);
 }
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const register = mode === "register",
@@ -36,8 +28,8 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     [remaining, setRemaining] = useState(0);
   const guard = useRef(false);
   useEffect(() => {
-    if (session.status === "authenticated") router.replace(destination());
-  }, [session.status, router]);
+    if (session.status === "authenticated") router.replace(destination(mode));
+  }, [session.status, router, mode]);
   useEffect(() => {
     if (!remaining) return;
     const timer = setTimeout(
@@ -63,7 +55,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     setBusy(true);
     try {
       await authenticate(mode, email.trim(), password);
-      router.replace(destination());
+      router.replace(destination(mode));
     } catch (e) {
       if (e instanceof ApiError && e.status === 401)
         setError("이메일 또는 비밀번호를 확인해 주세요.");
@@ -83,7 +75,11 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         <Brand />
       </header>
       <div className="auth-content">
-        {!register && <ArtworkSlot />}
+        {!register && (
+          <div className="login-mascot">
+            <BreathingMascot size={192} label="편안하게 숨 쉬는 햄스터" />
+          </div>
+        )}
         <div className="intro">
           <h1>{register ? "가볍게 시작해요" : "다시 만나 반가워요"}</h1>
           <p>
