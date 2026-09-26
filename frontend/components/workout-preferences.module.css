@@ -100,3 +100,8 @@
 .save p {
   text-align: center;
 }
+
+.choice:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.65;
+}

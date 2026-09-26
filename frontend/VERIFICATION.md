@@ -302,3 +302,17 @@ PR #7의 `9dd4b49` 위에서 승인된 리포트 미리보기를 실제 화면�
 - 최초 브라우저 확인은 이전 빌드로 실행 중이던 프론트 서버 때문에 새 경로에 접근하지 못했다. 최신 빌드로 프론트를 재시작한 뒤 위 검증을 완료했다. 백엔드 파일·테스트 계정의 저장 데이터는 변경하지 않았다.
 
 검증 로그: `/tmp/project-health-preferences-check.log`, `/tmp/project-health-preferences-ui/visual.log`, `/tmp/project-health-preferences-ui/account-e2e.log`. 화면 캡처: `/Users/rejo/.codex/visualizations/2026/09/21/01a0c2c0-45f7-79d2-95a6-66104ef5a47b/preferences-ui-20260925/`.
+
+
+## 운동 설정 PR #8 API 연결 (2026-09-26)
+
+현재 프론트엔드 `feat/frontend/fitness-onboarding`에서 기존 `/account/preferences`를 백엔드 PR #8 `87981e82b6a73023e412af7a663cd9457dcc01e7`의 실제 API에 연결했다. 기존 선택 UI와 인증·요청·이탈 확인을 재사용했으며 다른 화면과 백엔드 소스는 수정하지 않았다.
+
+- `npm run check`: ESLint·TypeScript·단위 테스트 **92개**·프로덕션 빌드 통과. `npm run format:check`와 `git diff --check` 통과.
+- 변경 관련 브라우저 시나리오 **19개** 통과: 운동 설정 계약 대역 7개, 실제 PR #8 설정 API 2개, 프로필 1개, 실제 측정·평가·간이측정 6개, 커리큘럼 보존 1개, 저장 완료 2개. 전체 E2E 스위트를 재실행한 것은 아니다.
+- 설정 조회·변경 필드만 저장·목적 미선택 보존·키보드 선택·조회 실패/잘못된 응답·400 필드 오류·429 대기·저장 응답 유실 후 같은 변경분 재시도·중복 제출 방지·미저장 이탈·세션 만료를 확인했다. 실제 DB에서 새로고침·재로그인 복원, 다른 사용자의 설정 격리, 미변경 필드의 동시 수정 보존과 `/auth/me` 불변을 확인했다. 검증 계정은 모두 삭제했다.
+- 실제 저장된 화면의 320/390/1280px 캡처와 390px 시각 검토, 계약 테스트의 320/390/430px 가로 넘침 검사를 완료했다. 초기 테스트에서 개발 모드의 이중 조회와 Next 경로 알림 영역을 구분하도록 대역/선택자를 고쳤고, 로그인 후 이동 기대값을 기존 메인 이동 정책에 맞춰 수정한 뒤 통과했다.
+- PR #8의 스키마 검증·클라이언트 생성·빌드·12개 마이그레이션 적용, API readiness와 사용자 설정 행 누락 0건을 확인했다. 백엔드 전체 단위/통합 스위트는 이번 프론트 연동에서 재실행하지 않았다.
+- **로컬 실행 환경 문제:** 기존 15436 DB의 임시 데이터 폴더에서 `PG_VERSION`·설정·PID 파일이 없어 재시작할 수 없었다. 기존 로그는 2026-09-26 00:01에 PID 파일 소실로 즉시 종료된 사실을 기록한다. 남은 원본 파일은 변경하지 않았다. 별도 15438 개발 DB를 임시 폴더 밖의 `~/.local/share/project-health/pr8-runtime/`에 구성하고 PR #8 서버를 3001에서 실행했다. 기존 계정·기록을 복원한 것이 아니므로 현재 새 DB에서는 가입이 필요하며 이전 데이터 복구에는 백업이 필요하다. 프론트는 기존 작업 폴더의 3000 서버를 유지했다.
+
+검증 로그: `/tmp/project-health-preferences-api-check.log`, `/tmp/project-health-preferences-api-live.log`, `/tmp/project-health-preferences-api-format.log`. 화면 캡처: `/Users/rejo/.codex/visualizations/2026/09/25/01a0d826-436e-7022-8208-29225ff3c836/preferences-api/`. 현재 PR #8 실행 체크아웃은 `/private/tmp/project-health-pr8-real-20260926/backend/`이다.
